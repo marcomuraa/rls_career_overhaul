@@ -342,13 +342,11 @@ when the stock level is used.
 
 Next hypotheses, in the order worth testing:
 
-1. **Time of day.** The failing frames show a *bright* grey sky with *black*
-   objects, which is what an absent or below-horizon sun looks like while the
-   sky shader keeps rendering. Italy career loaded at 09:10 in full sun; the
-   working freeroam runs are near midday. Career restores time of day from the
-   save, and the mod has its own time and sleep systems. Load a
-   west_coast_usa career and change the time (the phone's sleep menu, or the
-   environment editor) and see whether the world lights up.
+1. ~~**Time of day.**~~ **Tested and disproved.** A west_coast_usa career reads
+   **09:10** on the phone clock — the same as the Italy career that renders
+   correctly. The sun is not the difference. (Treat the clock as weak evidence:
+   both readings being identical is itself suspicious, so it may be a stub
+   rather than the real time of day.)
 2. **What career adds to west_coast_usa that Italy does not** — the mod's
    facilities, dealerships, garages and POIs are keyed to west_coast_usa and
    live outside `levels/` (in `gameplay/`), so removing `levels/` did not
