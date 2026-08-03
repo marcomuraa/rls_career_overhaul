@@ -172,26 +172,39 @@ Both hardcode the game path near the top; adjust for your install.
 
 ## Resuming this work
 
-**Current state: the world loads and the loading screen clears, but the UI never
-enters the world.** After the loading screen hides, the Career Profiles screen is
-still displayed, with the 3D scene not rendering behind it. Everything underneath
-is healthy - the level is built, traffic is running (8 vehicles) and the player
-vehicle has spawned.
+**Current state: a career loads, the loading screen clears and the menu closes -
+the game reaches the play state, but the world does not render.** The screen is
+flat grey with debug overlays on top. Everything underneath is healthy: the level
+is built, traffic is running (8 vehicles) and the player vehicle has spawned.
 
-**This is almost certainly the `career.*` route rename** described below. The
-mod's Lua navigates with `guihooks.trigger('ChangeState', {state = 'play'})` and
-its `routes.js` defines the old flat route names, while 0.39 drives navigation
-through the new router and namespaced routes. Nothing transitions the UI out of
-the profile route once loading completes.
+Two concrete leads, both visible on screen:
+
+**ImGui state is corrupted.** The mod's minimap leaves an unbalanced ImGui frame:
+
+```
+[imgui-error] In window 'SDF Minimap': Missing End()
+[imgui-error] In window 'Debug##Default': Missing PopStyleColor()   (x3)
+[imgui-error] In window 'Debug##Default': Missing PopStyleVar()
+```
+
+A missing `End()` corrupts the whole ImGui frame, so this is a strong candidate
+for the broken rendering rather than a cosmetic complaint. Look at
+`lua/ge/extensions/overrides/ui/apps/minimap/minimap.lua` — an early return
+between `Begin()` and `End()` is the usual cause, and 0.39 may have changed a
+call it guards on.
+
+**A UI app fails to resolve:** `Unknown app: messagesTasksApps`.
 
 **Next steps, in order:**
 
-1. Fix the route naming (see below) and confirm the UI transitions into the world
-   after load. Then check the player spawns, the garage computer opens, and the
-   mod's phone UI appears - expect the router-exit holes (issue 3) next, since
-   0.39 routes career screens through `ui/router/routeHandlers.lua`.
-2. Work down the LIVE list above.
-3. Two lower-priority items seen in passing:
+1. Fix the unbalanced ImGui frame in the minimap override, then re-check whether
+   the world renders.
+2. Resolve `Unknown app: messagesTasksApps`.
+3. Then check the garage computer and the mod's phone UI - expect the
+   router-exit holes (issue 3) next, since 0.39 routes career screens through
+   `ui/router/routeHandlers.lua`.
+4. Work down the LIVE list above.
+5. Two lower-priority items seen in passing:
    - `loadVehicleOffers: unknown vehicle filterId 'fleetVehFilter' /
      'policeFleetVehFilter' / 'exoticVehFilter'` from
      `overrides/career/modules/delivery/generator.lua` — the mod's vehicle
@@ -220,7 +233,19 @@ just a screen that never goes away.
 Both are now released once the vehicle group has spawned and the camera has been
 handed over, at which point level loading is complete by definition.
 
-### Route naming — the current blocker
+### Menu never closed after load — *fixed, verified*
+
+With the loading screen gone, the Career Profiles menu stayed on top of the
+loaded world. Two causes, both in the `career.lua` override:
+
+- `closeAllMenus()` still called `guihooks.trigger('ChangeState', {state =
+  'play'})`. 0.39 drives navigation through `ui_router` and that trigger no
+  longer moves the UI — the base game has the identical line commented out
+  directly above its `extensions.ui_router.navigate("play")` replacement.
+- The level-load branch of `activateCareer` never called `closeAllMenus()` at
+  all, where the base game calls it in the same callback.
+
+### Route naming — still outstanding
 
 0.39 namespaced every career route under `career.*` (`career.computer`,
 `career.profiles`, `career.computer.vehicleShopping`, …) and the base game's Lua
