@@ -6,6 +6,23 @@ local isPhoneOpen = false
 local updateTimer = 0
 local updateInterval = 2.5
 
+-- 0.39 navigates through ui_router, which resolves names against the *Lua*
+-- route tree in ui/router/routeManager.lua -- not the Vue router. Static Vue
+-- routes are invisible to it (router/index.js only syncs runtime ones), so the
+-- phone's screens have to be declared here or navigate() answers
+-- "Route not found" and silently does nothing.
+local ROUTE_SOURCE_ID = "rlsCareerOverhaul.phone"
+local phoneRoutes = {
+    {name = "phone-main"},
+    {name = "phone-taxi"},
+}
+
+local function registerPhoneRoutes()
+    local routeManager = extensions.ui_router_routeManager
+    if not routeManager or not routeManager.registerModRoutes then return end
+    routeManager.registerModRoutes(ROUTE_SOURCE_ID, phoneRoutes)
+end
+
 local function togglePhone(reason)
     --ui_phone_time.clearTime()
     if isPhoneOpen then
@@ -22,17 +39,24 @@ local function togglePhone(reason)
             return
         end
         isPhoneOpen = true
-        if gameplay_taxiJobs.isTaxiJobActive() then
-            guihooks.trigger('ChangeState', {state = 'phone-taxi'})
-        else
-            guihooks.trigger('ChangeState', {state = 'phone-main'})
-        end
+        -- guihooks.trigger('ChangeState', ...) no longer moves the UI on 0.39:
+        -- nothing in the Vue app listens for it and navigates. Same reason
+        -- career.closeAllMenus() was moved to ui_router.
+        local onAJob = gameplay_taxiJobs and gameplay_taxiJobs.isTaxiJobActive()
+        extensions.ui_router.navigate(onAJob and "phone-taxi" or "phone-main")
     end
 end
 
 local function onExtensionLoaded()
     isPhoneOpen = false
-    print("Phone extension loaded")
+    registerPhoneRoutes()
+end
+
+local function onExtensionUnloaded()
+    local routeManager = extensions.ui_router_routeManager
+    if routeManager and routeManager.unregisterModRoutes then
+        routeManager.unregisterModRoutes(ROUTE_SOURCE_ID)
+    end
 end
 
 local function onUpdate(dt)
@@ -58,6 +82,7 @@ end
 
 M.onUpdate = onUpdate
 M.onExtensionLoaded = onExtensionLoaded
+M.onExtensionUnloaded = onExtensionUnloaded
 M.togglePhone = togglePhone
 M.isPhoneOpen = function()
     return isPhoneOpen
