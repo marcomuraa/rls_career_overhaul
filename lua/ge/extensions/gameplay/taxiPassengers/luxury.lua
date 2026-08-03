@@ -128,7 +128,7 @@ local luxuryPassenger = {
 }
 
 local function onExtensionLoaded()
-    gameplay_taxi.registerPassengerType("LUXURY", luxuryPassenger)
+    gameplay_taxiJobs.registerPassengerType("LUXURY", luxuryPassenger)
 end
 
 M.onExtensionLoaded = onExtensionLoaded

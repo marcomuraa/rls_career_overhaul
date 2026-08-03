@@ -22,7 +22,7 @@ local function togglePhone(reason)
             return
         end
         isPhoneOpen = true
-        if gameplay_taxi.isTaxiJobActive() then
+        if gameplay_taxiJobs.isTaxiJobActive() then
             guihooks.trigger('ChangeState', {state = 'phone-taxi'})
         else
             guihooks.trigger('ChangeState', {state = 'phone-main'})

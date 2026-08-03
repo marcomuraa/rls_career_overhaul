@@ -1,7 +1,7 @@
 local M = {}
 
 local function onExtensionLoaded()
-    gameplay_taxi.registerPassengerType("EXECUTIVE", {
+    gameplay_taxiJobs.registerPassengerType("EXECUTIVE", {
         name = "Executive",
         description = "High-status clients expecting impeccable, quiet service",
         baseMultiplier = 0.9,

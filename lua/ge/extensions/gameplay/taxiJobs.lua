@@ -1,5 +1,5 @@
 local M = {}
-M.dependencies = {'gameplay_sites_sitesManager', 'freeroam_facilities', 'gameplay_walk', 'gameplay_parking'}
+M.dependencies = {'gameplay_sites_sitesManager', 'gameplay_walk', 'gameplay_parking'}
 
 -- ================================
 -- MODULE DEPENDENCIES
@@ -320,7 +320,7 @@ local function updateSensorData()
         if sensors then
             local gx, gy, gz = sensors.gx or 0, sensors.gy or 0, sensors.gz or 0
             local gx2, gy2, gz2 = sensors.gx2 or 0, sensors.gy2 or 0, sensors.gz2 or 0
-            obj:queueGameEngineLua('gameplay_taxi.receiveSensorData('..gx..','..gy..','..gz..','..gx2..','..gy2..','..gz2..')')
+            obj:queueGameEngineLua('gameplay_taxiJobs.receiveSensorData('..gx..','..gy..','..gz..','..gx2..','..gy2..','..gz2..')')
         end
     ]])
 end
@@ -445,7 +445,7 @@ local function retrievePartsTree()
         vehicle:queueLuaCommand(
             [[
                 local partsTree = v.config.partsTree
-                obj:queueGameEngineLua('gameplay_taxi.returnPartsTree(' .. serialize(partsTree) .. ')')
+                obj:queueGameEngineLua('gameplay_taxiJobs.returnPartsTree(' .. serialize(partsTree) .. ')')
             ]]
         )
     end

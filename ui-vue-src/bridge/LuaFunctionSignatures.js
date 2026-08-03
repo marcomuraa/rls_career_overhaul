@@ -640,6 +640,9 @@ export default {
     doubleClickOverride: (item) => [Object],
   },
 
+  // Base game's street-hailing taxi. Kept verbatim from the 0.39 base file:
+  // this file replaces the base one wholesale at build time, so dropping these
+  // would break the base game's own taxi UI.
   gameplay_taxi: {
     startTaxiWithCurrentRoute: () => {},
     confirmTaxiDestination: () => {},
@@ -650,8 +653,11 @@ export default {
     onChangeDestinationCalled: () => {},
     onStopTaxiCalled: () => {},
     setIdleCameraEnabled: (enabled) => Boolean,
+  },
 
-    // --- RLS Career Overhaul additions ---
+  // The overhaul's own taxi-driving job system. Unrelated to the above beyond
+  // the name it used to collide with.
+  gameplay_taxiJobs: {
     prepareTaxiJob: () => {},
     acceptJob: () => {},
     rejectJob: () => {},

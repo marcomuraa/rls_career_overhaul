@@ -5,7 +5,7 @@ local M = {}
 -- ================================
 
 local function onExtensionLoaded()
-    gameplay_taxi.registerPassengerType("PARTY", {
+    gameplay_taxiJobs.registerPassengerType("PARTY", {
         name = "Party Group",
         description = "Large groups heading to parties who value safety and comfort over speed",
         baseMultiplier = 0.55,
@@ -33,8 +33,8 @@ local function onExtensionLoaded()
             end
             
             -- Additional tip for very smooth ride (if sensor data available)
-            if gameplay_taxi.rideData and gameplay_taxi.rideData.currentSensorData then
-                local sensorData = gameplay_taxi.rideData.currentSensorData
+            if gameplay_taxiJobs.rideData and gameplay_taxiJobs.rideData.currentSensorData then
+                local sensorData = gameplay_taxiJobs.rideData.currentSensorData
                 local totalG = math.abs(sensorData.gx or 0) + math.abs(sensorData.gy or 0)
                 
                 if totalG < 0.28 then

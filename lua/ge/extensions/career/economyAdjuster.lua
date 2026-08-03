@@ -71,13 +71,13 @@ end
 local function discoverActivityTypes()
     local activityTypesFound = {}
 
-    if gameplay_taxi then
+    if gameplay_taxiJobs then
         activityTypesFound["taxi"] = true
         typeSources["taxi"] = typeSources["taxi"] or {}
         typeSources["taxi"]["taxi_module"] = true
         
-        if gameplay_taxi.getPassengerTypes then
-            local passengerTypes = gameplay_taxi.getPassengerTypes()
+        if gameplay_taxiJobs.getPassengerTypes then
+            local passengerTypes = gameplay_taxiJobs.getPassengerTypes()
             if passengerTypes and type(passengerTypes) == "table" then
                 for _, passengerType in ipairs(passengerTypes) do
                     if passengerType.key then

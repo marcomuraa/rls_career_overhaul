@@ -1,7 +1,7 @@
 local M = {}
 
 local function onExtensionLoaded()
-    gameplay_taxi.registerPassengerType("BUSINESS", {
+    gameplay_taxiJobs.registerPassengerType("BUSINESS", {
         name = "Business",
         description = "Time-conscious passengers with strict schedules",
         baseMultiplier = 0.75,

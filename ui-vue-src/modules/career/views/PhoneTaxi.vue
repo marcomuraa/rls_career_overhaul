@@ -243,19 +243,19 @@ const formatCurrency = (value) => {
 const setState = (newState) => {
     currentState.value = newState
     if (newState === 'start') {
-        lua.gameplay_taxi.prepareTaxiJob()
+        lua.gameplay_taxiJobs.prepareTaxiJob()
         totalReward.value = 0
     } else if (newState === 'reject') {
-        lua.gameplay_taxi.rejectJob()
+        lua.gameplay_taxiJobs.rejectJob()
         currentState.value = 'ready'
     } else if (newState === 'ready') {
-        lua.gameplay_taxi.setAvailable()
+        lua.gameplay_taxiJobs.setAvailable()
     } else if (newState === 'working') {
-        lua.gameplay_taxi.acceptJob()
+        lua.gameplay_taxiJobs.acceptJob()
         currentState.value = 'pickup'
 
     } else if (newState === 'stop') {
-        lua.gameplay_taxi.stopTaxiJob()
+        lua.gameplay_taxiJobs.stopTaxiJob()
         currentState.value = 'start'
     }
 }
@@ -337,7 +337,7 @@ onMounted(() => {
     terrainLayer.appendChild(store.svgLayers.terrain)
     roadsLayer.appendChild(store.svgLayers.roads)
     vehicleLayer.appendChild(store.svgLayers.vehicles)
-    lua.gameplay_taxi.requestTaxiState()
+    lua.gameplay_taxiJobs.requestTaxiState()
 })
 
 </script>
