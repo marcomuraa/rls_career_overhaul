@@ -1,6 +1,6 @@
 <!-- Tab [DEPRECATED] -->
 <template>
-  <slot :tab-heading="heading" :tab-selected="selected"></slot>
+  <slot v-bind="$attrs" :tab-heading="heading" :tab-selected="selected"></slot>
 </template>
 
 <script setup>

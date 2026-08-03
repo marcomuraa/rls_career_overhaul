@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "ui.photomode.overlay.builtin.beamngdrive",
+  "author": "BeamNG",
+  "layers": [
+    {
+      "image":"logo.svg",
+      "imageFit": "x",
+      "imagePosition": "left bottom",
+      "height": "100%",
+      "width": "30%",
+      "x": "10px",
+      "y": "-10px"
+    }
+  ]
+}

@@ -5,7 +5,7 @@
     ref="container"
     v-bind="binds"
     :class="['bng-dropdown', props.class]"
-    v-bng-disabled="disabled"
+    v-bng-disabled="effectiveDisabled"
     v-bng-on-ui-nav:ok.asMouse.focusRequired
     v-bng-popover:bottom-start.click="popoverName"
   >
@@ -29,7 +29,7 @@
       ref="content"
       class="bng-dropdown-content"
       :class="class"
-      v-bng-auto-scroll:top
+      v-bng-auto-scroll:top="{ trigger: autoScrollTrigger }"
       bng-nav-scroll
       v-bng-ui-nav-label:back,menu="'ui.common.close'"
       v-bng-ui-nav-label:focus_u,focus_d="'ui.mainmenu.navbar.navigate'"
@@ -46,41 +46,57 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, useAttrs } from "vue"
+import { ref, computed, watch, useAttrs, inject, provide, onMounted, onBeforeUnmount } from "vue"
 import { BngPopoverContent, BngIcon, icons } from "@/common/components/base"
 import { vBngAutoScroll, vBngDisabled, vBngOnUiNav, vBngUiNavLabel, vBngPopover, vBngUiNavScroll } from "@/common/directives"
 import { setFocus } from "@/services/uiNavFocus"
 import { usePopover } from "@/services/popover"
 import { uniqueId } from "@/services/uniqueId"
-import { useUINavBlocker } from "@/services/uiNavTracker"
-
-const navBlocker = useUINavBlocker()
 
 const props = defineProps({
   disabled: Boolean,
+  noNav: Boolean,
   class: [String, Array, Object],
   headless: Boolean,
   focusTarget: Object,
   popoverTarget: Object,
+  autoScrollTrigger: {
+    type: [String, Number, Boolean, Object],
+    default: undefined,
+  },
 })
 
 defineOptions({ inheritAttrs: false })
 
 const attrs = useAttrs()
+
+// When placed directly inside a BngRow, the row owns focus, disabled state and
+// navigation. Capture the parent row, then immediately provide a null boundary so
+// slotted controls (inputs, switches, ...) cannot replace this container's registration.
+const row = inject("BngRow", null)
+const inRow = !!row
+provide("BngRow", null)
+
+const effectiveDisabled = computed(() => props.disabled || (inRow && row.disabled.value))
+const rowElement = computed(() => (inRow ? row.getElement?.() : undefined))
+
+// Row owns the focusable nav item, so suppress the container's own focus target there.
+const suppressNav = computed(() => props.headless || props.noNav || inRow)
 const binds = computed(() => ({
   ...attrs,
-  tabindex: props.headless ? -1 : 0,
-  "bng-nav-item": props.headless ? undefined : "",
+  tabindex: suppressNav.value ? -1 : 0,
+  "bng-nav-item": suppressNav.value ? undefined : "",
+  class: {
+    "no-focus-frame": props.noNav || inRow,
+  },
 }))
 
 const opened = defineModel("opened")
 function open(val) {
   opened.value = val
   if (val) {
-    navBlocker.allowOnly(["focus_u", "focus_d", "focus_ud", "back", "menu", "ok"])
     emit("show")
   } else {
-    navBlocker.clear()
     emit("hide")
     if (focusTarget.value) setFocus(focusTarget.value, true, false)
   }
@@ -95,7 +111,7 @@ const popoverName = uniqueId(popoverBaseName)
 const container = ref(null)
 const content = ref(null)
 
-const focusTarget = computed(() => props.focusTarget || container.value)
+const focusTarget = computed(() => props.focusTarget || rowElement.value || container.value)
 const popoverTarget = computed(() => props.popoverTarget || container.value)
 
 const placement = ref("bottom-start")
@@ -120,7 +136,27 @@ watch(
   }
 )
 
+// Register a stable control API with the row so row-focused `ok` and row clicks
+// activate this dropdown. `isEventInside` stops the row from re-handling clicks that
+// the trigger's own popover directive already processed (avoids double toggling).
+const rowControlApi = {
+  activate: () => {
+    if (effectiveDisabled.value) return
+    opened.value = !opened.value
+  },
+  isEventInside: event => {
+    const element = container.value
+    return !!(element && event?.target instanceof Node && element.contains(event.target))
+  },
+}
+
+if (inRow) {
+  onMounted(() => row.register(rowControlApi))
+  onBeforeUnmount(() => row.unregister(rowControlApi))
+}
+
 defineExpose({
+  getElement: () => container.value,
   opened,
   open: () => opened.value = true,
   close: () => opened.value = false,

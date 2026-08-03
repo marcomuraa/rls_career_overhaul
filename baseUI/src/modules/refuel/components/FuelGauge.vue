@@ -126,7 +126,7 @@ const gaugeStyle = computed(() => ({
 .gauge-wrapper {
   display: inline-block;
   position: relative;
-  font-family: "Overpass";
+  font-family: "Overpass", var(--fnt-defs);
 }
 
 .icon {
@@ -188,6 +188,7 @@ path {
     width: auto;
     font-weight: 700;
     font-size: 120%;
+    visibility: hidden;
   }
 
   & span:nth-of-type(3) {

@@ -1,5 +1,16 @@
 <template>
-  <InfoCard :header="translatedHeader" headerType="ribbon" class="dynamic" :class="{'experimental':panel.experimental, 'full-height': panel.fullHeight}" :no-blur="noBlur">
+  <InfoCard
+    :header="translatedHeader"
+    headerType="ribbon"
+    class="dynamic"
+    :class="{
+      experimental: panel.flavour === 'experimental',
+      info: panel.flavour === 'info',
+      'full-height': panel.fullHeight,
+      'mission-text-panel--ai-lb': !!(panel.attempt && panel.attempt.aiCompetitorsLeaderboard),
+    }"
+    :no-blur="noBlur"
+  >
     <template #content>
       <div class="ratings" v-if="panel.attempt">
         <div class="prop-container" v-if="panel.attempt.list" >
@@ -53,11 +64,23 @@
       <template v-if="panel.attempt.grids">
         <Grid v-for="grid in panel.attempt.grids" :grid="grid" />
       </template>
-    </div>
-    <div class="text-container">
-      <DynamicComponent  :template="content" v-if="content && content !== ''"/>
-    </div>
-  </template>
+      <AiCompetitorsLeaderboardTable
+        v-if="panel.attempt.aiCompetitorsLeaderboard"
+        :rows="panel.attempt.aiCompetitorsLeaderboard.rows"
+        :player-row-index="panel.attempt.aiCompetitorsLeaderboard.playerRowIndex || 0"
+        :use-default-player-name="panel.attempt.aiCompetitorsLeaderboard.useDefaultPlayerName"
+        :player-name="panel.attempt.aiCompetitorsLeaderboard.playerName"
+        :multi-stage="!!panel.attempt.aiCompetitorsLeaderboard.multiStage"
+        :stage-count="panel.attempt.aiCompetitorsLeaderboard.stageCount || 1"
+        :stage-labels="panel.attempt.aiCompetitorsLeaderboard.stageLabels || []"
+      />
+      </div>
+      <div class="text-container">
+        <BngIcon :type="icons.info" v-if="panel.flavour === 'info'" class="icon"/>
+        <BngIcon :type="icons.danger" v-if="panel.flavour === 'warning'" class="icon"/>
+        <DynamicComponent  :template="content" v-if="content && content !== ''"/>
+      </div>
+    </template>
   </InfoCard>
 </template>
 
@@ -70,6 +93,7 @@ import { $translate } from "@/services"
 import { lua, useBridge } from "@/bridge"
 import InfoCard from "../components/InfoCard.vue"
 import Grid from "../components/Grid.vue"
+import AiCompetitorsLeaderboardTable from "./AiCompetitorsLeaderboardTable.vue"
 import { DynamicComponent } from "@/common/components/utility"
 import { BngPropVal, BngIcon, icons } from "@/common/components/base"
 import { $content } from "@/services"
@@ -160,7 +184,7 @@ const nonMainResults = computed(() => {
 
 const translatedHeader = computed(() => {
   if (!props.panel.header) return null
-  return $translate.instant(props.panel.header)
+  return $translate.contextTranslate(props.panel.header)
 })
 
 // Add this method to expose cleanup
@@ -180,6 +204,14 @@ defineExpose({
 </script>
 
 <style scoped lang="scss">
+/* Match MissionRatings: let the card grow with wide tables (AI competitors multi-stage). */
+.mission-text-panel--ai-lb {
+  --bng-info-card-width: min(96vw, 76rem);
+  width: auto;
+  min-width: 25rem;
+  max-width: min(96vw, 76rem);
+}
+
 .dynamic {
   :deep(.info-content) {
     padding: 0 1rem;
@@ -351,12 +383,38 @@ defineExpose({
 
 .experimental {
   :deep(.card-cnt) {
-    border: 2px solid rgba(220,0,0, 0.8);
-    background-color: rgba(22,0,0, 0.6);
+    border: 2px solid rgba(var(--bng-add-red-600-rgb), 0.8);
+    background-color: rgba(var(--bng-add-red-900-rgb), 0.6);
+    padding: 0.5rem 0;
+    margin:  0 0.5rem  0 0.75rem;
+    color: var(--bng-add-red-300);
+    .icon {
+      color: var(--bng-add-red-300);
+      margin-right: 0.5rem;
+    }
   }
   :deep(.card-heading) {
     &.heading-style-ribbon::before {
       background: rgba(220,0,0, 0.8);
+    }
+  }
+}
+
+.info {
+  :deep(.card-cnt) {
+    border: 2px solid rgba(var(--bng-cool-gray-600-rgb), 0.8);
+    background-color: rgba(var(--bng-cool-gray-900-rgb), 0.6);
+    padding: 0.5rem 0;
+    margin:  0 0.5rem  0 0.75rem;
+    color: var(--bng-cool-gray-100);
+    .icon {
+      color: var(--bng-cool-gray-100);
+      margin-right: 0.5rem;
+    }
+  }
+  :deep(.card-heading) {
+    &.heading-style-ribbon::before {
+      background: rgba(var(--bng-cool-gray-600-rgb), 0.8);
     }
   }
 }

@@ -1,154 +1,113 @@
-<!-- PoiFilters - Component for displaying filter icons in two rows -->
 <template>
-  <div class="poi-filters">
-    <template v-for="filterSection in filterData" :key="filterSection.key">
-      <div class="filter-row" v-bng-blur="true" v-if="filterSection && filterSection.groups">
-        <div
-          class="filter-icon"
-          @click="toggleFilterSectionVisibility(filterSection.key)"
-          :class="{ 'has-active-filters': hasActiveFilters(filterSection) }"
-        >
-          <BngTooltip :text="$tt(filterSection.title)">
-            <BngIcon :type="filterSection.icon" />
-          </BngTooltip>
-        </div>
-        <div class="filter-separator"></div>
-        <template v-for="group in filterSection.groups" :key="group.key">
-          <div
-            class="filter-group"
-            v-if="group && group.elementCount > 0"
-            @click="toggleGroupVisibility(group.key)"
-            :class="{ 'inactive': !group.visible }"
-          >
-            <BngTooltip :text="$tt(group.label) + ' ×' + group.elementCount ">
-              <BngIcon :type="group.icon || 'info'" :color="getGroupColor(filterSection, group)"/>
-            </BngTooltip>
-            <!--<span v-if="!group.icon">{{ $tt(group.label) }}</span>  -->
-          </div>
-        </template>
+  <div class="poi-filters" >
+    <BngBinding
+      class="filter-binding"
+      :class="{ 'disabled' : selectedPoi !== null }"
+      ui-event="action_3"
+      controller
+    />
+    <div
+      class="filter-icon"
+      :class="{ 'selected': poiListDisplayMode === POI_LIST_DISPLAY_MODE.HIDDEN }"
+      no-nav="true"
+      v-bng-sound-class="'bng_click_hover_generic'"
+      @click="setPoiListDisplayMode(POI_LIST_DISPLAY_MODE.HIDDEN)"
+    >
+      <BngTooltip :text="$t('bigMap.poiFilters.displayMode.hidden')">
+        <BngIcon type="eyeSolidClosed" />
+      </BngTooltip>
+    </div>
+    <div
+      class="filter-icon"
+      :class="{ 'selected': poiListDisplayMode === POI_LIST_DISPLAY_MODE.TREE }"
+      no-nav="true"
+      v-bng-sound-class="'bng_click_hover_generic'"
+      @click="setPoiListDisplayMode(POI_LIST_DISPLAY_MODE.TREE)"
+    >
+      <BngTooltip :text="$t('bigMap.poiFilters.displayMode.tree')">
+        <BngIcon type="listIndented" />
+      </BngTooltip>
+    </div>
+    <div
+      class="filter-icon"
+      :class="{ 'selected': poiListDisplayMode === POI_LIST_DISPLAY_MODE.SIMPLE }"
+      no-nav="true"
+      v-bng-sound-class="'bng_click_hover_generic'"
+      @click="setPoiListDisplayMode(POI_LIST_DISPLAY_MODE.SIMPLE)"
+    >
+      <BngTooltip :text="$t('bigMap.poiFilters.displayMode.simple')">
+        <BngIcon type="listSmall" />
+      </BngTooltip>
+    </div>
+    <div class="divider"></div>
+    <BngBinding
+      class="filter-binding"
+      :class="{ 'disabled' : selectedPoi !== null }"
+      ui-event="tab_l"
+      controller
+    />
+    <template v-for="(filterSection, index) in validFilterSections" :key="filterSection.key">
+      <div
+        v-if="filterSection && filterSection.groups"
+        class="filter-icon"
+        no-nav="true"
+        v-bng-sound-class="'bng_click_hover_generic'"
+        :class="{
+          'has-active-filters': hasActiveFilters(filterSection),
+          'selected': selectedFilterIndex === index,
+        }"
+        @click="poiListDisplayMode !== POI_LIST_DISPLAY_MODE.HIDDEN ? selectFilterSection(index) : null"
+      >
+        <BngTooltip :text="$tt(filterSection.title)">
+          <BngIcon :type="filterSection.icon" />
+        </BngTooltip>
       </div>
     </template>
+    <BngBinding
+      class="filter-binding"
+      :class="{ 'disabled' : selectedPoi !== null }"
+      ui-event="tab_r"
+      controller
+    />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { vBngBlur } from "@/common/directives"
-import { BngIcon, BngCardHeading } from '@/common/components/base'
-import BngTooltip from '@/common/components/base/bngTooltip.vue'
+import { inject } from "vue"
+import { vBngSoundClass } from "@/common/directives"
+import { BngIcon } from "@/common/components/base"
+import BngTooltip from "@/common/components/base/bngTooltip.vue"
+import BngBinding from "@/common/components/base/bngBinding.vue"
+import { BIGMAP_KEY } from "../composables/useBigMap"
+import { POI_LIST_DISPLAY_MODE } from "../constants"
 
-
-const props = defineProps({
-  store: {
-    type: Object,
-    required: true
-  }
-})
-
-const { filterData, debugLog } = props.store
-
-// Add debug logging for component lifecycle
-debugLog('PoiFilters', 'Component initialized', {
-  filterDataCount: filterData.value?.length || 0
-})
-
-// Computed function to get group visual state
-const getGroupVisualState = (filter, group) => {
-  if (!filter || !group || !filter.groups || !Array.isArray(filter.groups)) return 'inactive'
-
-  // Count visible and total groups in this filter
-  let visibleGroups = 0
-  let totalGroups = 0
-
-  for (const filterGroup of filter.groups) {
-    if (filterGroup && filterGroup.elementCount > 0) {
-      totalGroups++
-      if (filterGroup.visible) {
-        visibleGroups++
-      }
-    }
-  }
-
-  const isAllGroupsActive = visibleGroups === totalGroups
-  const isGroupActive = group.visible
-
-  if (isAllGroupsActive) {
-    return 'neutral' // All groups active - show neutral state
-  } else {
-    return isGroupActive ? 'active' : 'inactive'
-  }
-}
-
-// Computed function to get group color
-const getGroupColor = (filter, group) => {
-  const state = getGroupVisualState(filter, group)
-
-  switch (state) {
-    case 'neutral':
-      return 'var(--bng-off-white)'
-    case 'active':
-      return 'var(--bng-add-green-100)'
-    case 'inactive':
-    default:
-      return 'var(--bng-add-red-300)'
-  }
-}
-
-// Function to check if a filter has active filters
-const hasActiveFilters = (filter) => {
-  if (!filter || !filter.groups || !Array.isArray(filter.groups)) return false
-
-  let visibleGroups = 0
-  let totalGroups = 0
-
-  for (const group of filter.groups) {
-    if (group && group.elementCount > 0) {
-      totalGroups++
-      if (group.visible) {
-        visibleGroups++
-      }
-    }
-  }
-
-  // Return true if not all groups are visible (meaning some are filtered out)
-  return visibleGroups < totalGroups
-}
-
-const toggleGroupVisibility = (groupKey) => {
-  debugLog('PoiFilters', 'Toggling group visibility', groupKey)
-  props.store.toggleGroupVisibility(groupKey)
-}
-
-const toggleFilterSectionVisibility = (filterKey) => {
-  debugLog('PoiFilters', 'Toggling filter section visibility', filterKey)
-  props.store.toggleFilterSectionVisibility(filterKey)
-}
+const {
+  poiListDisplayMode,
+  selectedPoi,
+  validFilterSections,
+  selectedFilterIndex,
+  selectFilterSection,
+  hasActiveFilters,
+  setPoiListDisplayMode,
+} = inject(BIGMAP_KEY)
 </script>
 
 <style lang="scss" scoped>
 .poi-filters {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
   gap: 0.5rem;
-  padding: 0.5rem;
+
+  width: fit-content;
+  align-self: center;
 }
 
-.filter-heading {
-  color: white;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 0.5rem;
+.divider {
+  width: 1px;
+  height: 100%;
+  background: var(--bng-cool-gray-600);
 }
 
-.filter-row {
-  display: flex;
-  align-items: center;
-  padding: 0.25rem;
-  border-radius: 0.5rem;
-  gap: 0.25rem;
-  color: white;
-  background: rgba(0, 0, 0, 0.5);
-}
 
 .filter-icon {
   display: flex;
@@ -157,9 +116,10 @@ const toggleFilterSectionVisibility = (filterKey) => {
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 0.25rem;
+  border: 2px solid transparent;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bng-cool-gray-700);
   }
 
   &.has-active-filters {
@@ -170,20 +130,49 @@ const toggleFilterSectionVisibility = (filterKey) => {
     }
   }
 
+  &.selected {
+    background: var(--bng-cool-gray-600);
+    border-color: var(--bng-orange-500);
+
+    :deep(.bng-icon) {
+      color: var(--bng-orange-500);
+    }
+
+  }
+
+  &.disabled {
+    opacity: 0.33;
+    cursor: not-allowed;
+    pointer-events: none;
+
+    &.selected {
+      background: transparent;
+      border-color: transparent;
+
+      :deep(.bng-icon) {
+        color: var(--bng-off-white);
+      }
+    }
+  }
+
   :deep(.bng-icon) {
     font-size: 1.5rem;
-    color: white;
+    color: var(--bng-off-white);
 
     &:hover {
-      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+      filter: drop-shadow(0 0 8px var(--bng-off-white));
     }
   }
 }
 
-.filter-separator {
-  width: 1px;
-  height: 1.5rem;
-  background: rgba(255, 255, 255, 0.8);
+.filter-binding {
+  align-self: center;
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  padding: 0.15rem;
+  &.disabled {
+    opacity: 0.33;
+  }
 }
 
 .filter-group {
@@ -200,7 +189,7 @@ const toggleFilterSectionVisibility = (filterKey) => {
   border-radius: 0.25rem;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bng-cool-gray-700);
   }
 
   &.inactive {
@@ -212,7 +201,7 @@ const toggleFilterSectionVisibility = (filterKey) => {
     cursor: pointer;
 
     &:hover {
-      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+      filter: drop-shadow(0 0 8px var(--bng-off-white));
     }
   }
 }

@@ -81,7 +81,8 @@ const previews = computed(() => {
 .paint-preview {
   position: relative;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: stretch;
   width: 65%;

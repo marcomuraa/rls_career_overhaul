@@ -143,7 +143,7 @@ defineExpose({
   padding: 0 0.5rem 0.5rem;
   flex: 0 1 auto;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   // overflow-y: auto;
   position: relative;
   .scrollable-table {
@@ -280,7 +280,8 @@ defineExpose({
 
 .heading-wrapper {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: flex-start;
   flex: 0 0 auto;
   padding: 0.5rem 0.5rem 0.5rem 0;
@@ -294,7 +295,8 @@ defineExpose({
   .buttons-container {
     display: flex;
     flex: 0 0.5 auto;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: stretch;
   }
 }

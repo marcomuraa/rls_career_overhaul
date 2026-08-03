@@ -7,7 +7,7 @@
     <template v-else-if="header">
       <BngCardHeading :type="headerType">{{ header }}</BngCardHeading>
     </template>
-    <div v-bng-ui-nav-scroll.force class="info-content">
+    <div v-bng-ui-nav-scroll.force="navScroll" class="info-content">
       <slot name="content"></slot>
     </div>
     <template v-if="slots.button" :class="{ 'button-center': true }" #buttons>
@@ -34,6 +34,10 @@ const props = defineProps({
   noBlur: {
     type: Boolean,
     default: false,
+  },
+  navScroll: {
+    type: Boolean,
+    default: true,
   },
 })
 </script>

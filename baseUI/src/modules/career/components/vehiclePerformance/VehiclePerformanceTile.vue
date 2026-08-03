@@ -1,44 +1,35 @@
 <template>
   <BngCard class="card" v-bng-blur="true">
-    <div style="padding: 1em; overflow: auto;">
+    <div class="vehicle-content-wrapper" v-bng-ui-nav-scroll.force>
       <div>
         <VehicleTileRow
           class="vehicle-tile-row"
           :data="vehicleData"
-          :enableHover="false"
+          :noInteraction="true"
           :small="true"
         />
-
-        <!-- Performance class badge -->
-        <div class="performance-class-container">
-          <div v-if="selectedCertificationData && selectedCertificationData.vehicleClass" class="performance-class-wrapper">
-            <span class="class-badge">
-              Class {{ selectedCertificationData.vehicleClass.class.name }} | PI {{ selectedCertificationData.vehicleClass.performanceIndex.toFixed(0) }}
-            </span>
-          </div>
-        </div>
       </div>
 
       <div class="certification-container">
         <!-- Technical Specifications Section -->
         <div class="specs-section">
           <div class="section-header">
-            <h2>Technical Specifications</h2>
+            <h2>{{ $translate.instant("ui.career.vehiclePerformance.technicalSpecifications") }}</h2>
           </div>
 
           <div v-if="!selectedCertificationData.vehicleClass">
-            Vehicle has not been assessed yet.
+            {{ $translate.instant("ui.career.vehiclePerformance.notAssessedYet") }}
           </div>
           <div v-else class="specs-grid">
             <div class="spec-row">
               <div class="spec-label">{{ $t('ui.options.units.weight') }}</div>
               <div class="spec-value">
-                {{ $game.units.buildString('weight', selectedCertificationData.weight, 0) }}
+                {{ units.buildString('weight', selectedCertificationData.weight, 0) }}
               </div>
             </div>
             <div class="spec-row">
-              <div class="spec-label">Power/Weight</div>
-              <div class="spec-value">{{ selectedCertificationData.powerPerTon.toFixed(0) }}hp/1000kg</div>
+              <div class="spec-label">{{ $translate.instant("ui.career.performance.powerToWeightScore") }}</div>
+              <div class="spec-value">{{ $translate.instant("ui.career.vehiclePerformance.powerPerWeightValue", { value: selectedCertificationData.powerPerTon.toFixed(0) }) }}</div>
             </div>
             <div class="spec-row">
               <div class="spec-label">{{ $t('vehicle.info.Drivetrain') }}</div>
@@ -53,12 +44,12 @@
               <div class="spec-value">{{ selectedCertificationData.inductionType }}</div>
             </div>
             <div class="spec-row">
-              <div class="spec-label">Mileage</div>
+              <div class="spec-label">{{ $translate.instant("ui.career.vehiclePerformance.mileage") }}</div>
               <div class="spec-value">{{ units.buildString('length', selectedCertificationData.mileage, 0) }}</div>
             </div>
             <div class="spec-row">
-              <div class="spec-label">Lateral G-Force</div>
-              <div class="spec-value">{{ selectedCertificationData.lateralGForce.toFixed(2) }} G</div>
+              <div class="spec-label">{{ $translate.instant("ui.career.vehiclePerformance.lateralGForce") }}</div>
+              <div class="spec-value">{{ $translate.instant("ui.career.vehiclePerformance.gForceValue", { value: selectedCertificationData.lateralGForce.toFixed(2) }) }}</div>
             </div>
           </div>
         </div>
@@ -66,13 +57,13 @@
         <!-- Performance Metrics Section -->
         <div class="specs-section">
           <div class="section-header">
-            <h2>Metrics</h2>
+            <h2>{{ $translate.instant("ui.career.vehiclePerformance.metrics") }}</h2>
           </div>
           <div v-if="selectedCertificationData.vehicleClass" class="metrics-grid">
             <BngProgressBar
               v-if="selectedCertificationData.power"
-              headerLeft="Power Output"
-              :headerRight="$game.units.buildString('power', selectedCertificationData.power, 0)"
+              :headerLeft="$translate.instant('ui.career.vehiclePerformance.powerOutput')"
+              :headerRight="units.buildString('power', selectedCertificationData.power, 0)"
               :value="selectedCertificationData.power"
               :min="0"
               :max="1000"
@@ -82,8 +73,8 @@
             />
 
             <BngProgressBar
-              headerLeft="0-60 mph time (prepped surface)"
-              :headerRight="selectedCertificationData.time_0_60 ? selectedCertificationData.time_0_60.toFixed(2) + ' s' : 'N/A'"
+              :headerLeft="$translate.instant('ui.career.vehiclePerformance.time060PreppedSurface')"
+              :headerRight="selectedCertificationData.time_0_60 ? $translate.instant('ui.career.vehiclePerformance.timeSeconds', { time: selectedCertificationData.time_0_60.toFixed(2) }) : $translate.instant('ui.career.vehiclePerformance.notAvailable')"
               :value="selectedCertificationData.time_0_60 ? -selectedCertificationData.time_0_60 : -25"
               :min="-25"
               :max="-2"
@@ -94,8 +85,8 @@
 
             <BngProgressBar
               v-if="selectedCertificationData.time_1_4"
-              headerLeft="Quarter Mile"
-              :headerRight="selectedCertificationData.time_1_4.toFixed(2) + ' s @ ' + $game.units.buildString('speed', selectedCertificationData.velAt_1_4, 0)"
+              :headerLeft="$translate.instant('ui.career.vehiclePerformance.quarterMile')"
+              :headerRight="`${selectedCertificationData.time_1_4.toFixed(2)} s @ ${units.buildString('speed', selectedCertificationData.velAt_1_4, 0)}`"
               :value="selectedCertificationData.time_1_4 ? -selectedCertificationData.time_1_4 : -35"
               :min="-35"
               :max="-8.1"
@@ -106,8 +97,8 @@
 
             <BngProgressBar
               v-if="selectedCertificationData.performanceAggregateScores.brakingGForceScore"
-              headerLeft="Braking Force"
-              :headerRight="selectedCertificationData.brakingG ? selectedCertificationData.brakingG.toFixed(2) + ' G' : 'N/A'"
+              :headerLeft="$translate.instant('ui.career.vehiclePerformance.brakingForce')"
+              :headerRight="selectedCertificationData.brakingG ? $translate.instant('ui.career.vehiclePerformance.gForceValue', { value: selectedCertificationData.brakingG.toFixed(2) }) : $translate.instant('ui.career.vehiclePerformance.notAvailable')"
               :value="selectedCertificationData.brakingG || 0"
               :min="0.5"
               :max="1.9"
@@ -119,13 +110,12 @@
             <div v-if="selectedCertificationData && selectedCertificationData.vehicleClass" class="performance-index-container">
               <div class="progress-wrapper">
                 <BngProgressBar
-                  headerLeft="Performance Index"
-                  :headerRight="'Class: ' + selectedCertificationData.vehicleClass.class.name"
+                  :headerLeft="$translate.instant('ui.career.vehiclePerformance.title')"
                   :value="selectedCertificationData.vehicleClass.performanceIndex"
                   :min="0"
                   :max="110"
                   :showValueLabel="false"
-                  :valueColor="getColorForValue(selectedCertificationData.vehicleClass.performanceIndex / 110)"
+                  :valueColor="performanceIndexBarColor"
                   class="score-progress performance-index"
                 />
                 <div class="class-markers">
@@ -139,6 +129,12 @@
                   </div>
                 </div>
               </div>
+              <div class="performance-index-sticker-row">
+                <PerformanceIndexSticker
+                  :vehicle-class="selectedCertificationData.vehicleClass"
+                  size="lg"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -149,9 +145,9 @@
     <template #footer>
       <div class="history-dropdown-container">
         <div class="dropdown">
-          <div class="dropdown-label">Previous Assessments</div>
+          <div class="dropdown-label">{{ $translate.instant("ui.career.vehiclePerformance.previousAssessments") }}</div>
           <BngDropdown v-model="selectedHistoryIndex" :items="historyOptions" class="history-select">
-            {{ historyOptions[selectedHistoryIndex].text }}
+            {{ historyOptions[selectedHistoryIndex]?.label }}
           </BngDropdown>
         </div>
         <BngButton @click="startTest()" :disabled="vehicleData.needsRepair || !vehicleData.owned">
@@ -163,20 +159,25 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue"
-import { BngCondition, BngUnit, BngCard, BngCardHeading, BngIcon, BngButton, icons, BngProgressBar, BngSelect, BngDropdown } from "@/common/components/base"
-import { lua } from "@/bridge"
-import { vBngBlur } from "@/common/directives"
+import { computed, ref, watch } from "vue"
+import { BngCard, BngButton, BngProgressBar, BngDropdown } from "@/common/components/base"
+import { vBngBlur, vBngUiNavScroll } from "@/common/directives"
 import { useBridge } from "@/bridge"
 import VehicleTileRow from "../vehicleInventory/VehicleTileRow.vue"
-const { units } = useBridge()
+import PerformanceIndexSticker from "./PerformanceIndexSticker.vue"
+import { $translate } from "@/services/translation"
+const { units, lua } = useBridge()
 
 const props = defineProps({
   vehicleData: Object,
 })
 
 const title = computed(() => props.vehicleData.niceName || "No Name")
-const startTestTitle = computed(() => props.vehicleData.needsRepair ? "Assess Performance (Repair Required)" : "Assess Performance Now")
+const startTestTitle = computed(() =>
+  props.vehicleData.needsRepair
+    ? $translate.instant("ui.career.shared.assessPerformanceRepairRequired")
+    : $translate.instant("ui.career.vehiclePerformance.assessPerformanceNow")
+)
 
 const certificationKeyMap = {
   'weight': "ui.options.units.weight",
@@ -201,7 +202,7 @@ const getPerformanceTranslationKey = (key) => {
 }
 
 const startTest = function() {
-  lua.career_modules_vehiclePerformance.startDragTest(props.vehicleData.id)
+  lua.career_modules_vehiclePerformance.startDragTest()
 }
 
 const getColorForValue = (value, min = 0, max = 1) => {
@@ -238,16 +239,44 @@ const historyOptions = computed(() => {
   if (!allCertificationData.value.length) return []
 
   // Create options for dropdown
-  return allCertificationData.value.map((item, index) => ({
-    value: index,
-    label: index === 0
-      ? (item.noPerformanceData ? 'Current Test Results: No data' : 'Current Test Results - ' + new Date(item.timeStamp).toLocaleString())
-      : `Previous Test Results - ${new Date(item.timeStamp).toLocaleString()}`
-  }))
+  return allCertificationData.value.map((item, index) => {
+    const date = new Date(item.timeStamp).toLocaleString()
+    return {
+      value: index,
+      label: index === 0
+        ? (item.noPerformanceData
+          ? $translate.instant("ui.career.vehiclePerformance.currentTestResultsNoData")
+          : $translate.instant("ui.career.vehiclePerformance.currentTestResults", { date }))
+        : $translate.instant("ui.career.vehiclePerformance.previousTestResults", { date }),
+    }
+  })
 })
 
+const emptyCertificationData = Object.freeze({ noPerformanceData: true })
+
 const selectedCertificationData = computed(() => {
-  return allCertificationData.value[selectedHistoryIndex.value]
+  return allCertificationData.value[selectedHistoryIndex.value] || emptyCertificationData
+})
+
+// Reset the selection when the available history shrinks (e.g. routeData is
+// replaced on navigation) so the selected index never points past the list.
+watch(allCertificationData, data => {
+  if (selectedHistoryIndex.value >= data.length) {
+    selectedHistoryIndex.value = 0
+  }
+})
+
+// Class -> minPI mapping. Sampling the gradient at minPI / 110 gives the bar
+// the same class-correlated color used by the threshold markers.
+const classMinPiMap = { D: 0, C: 21, B: 41, A: 66, S: 86, X: 101 }
+
+const performanceIndexBarColor = computed(() => {
+  const vc = selectedCertificationData.value?.vehicleClass
+  const minPi = classMinPiMap[vc?.class?.name]
+  if (minPi === undefined) {
+    return getColorForValue(vc?.performanceIndex / 110)
+  }
+  return getColorForValue(minPi / 110)
 })
 
 watch(() => props.vehicleData, (newVal) => {
@@ -266,8 +295,16 @@ watch(() => props.vehicleData, (newVal) => {
   }
 }
 
+.vehicle-content-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1em;
+  overflow: auto;
+}
+
 .vehicle-tile-row {
   background:none;
+  width: 100%;
 }
 
 .certification-container {
@@ -330,6 +367,12 @@ watch(() => props.vehicleData, (newVal) => {
   margin-top: 0.75em;
   padding-top: 0.75em;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.performance-index-sticker-row {
+  display: flex;
+  justify-content: left;
+  margin-top: 1em;
 }
 
 .score-progress {
@@ -398,30 +441,6 @@ watch(() => props.vehicleData, (newVal) => {
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.9em;
     font-weight: 600;
-  }
-}
-
-.performance-class-container {
-  display: flex;
-  gap: 1em;
-  align-items: center;
-  margin-top: 1em;
-}
-
-.performance-class-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  min-height: 100%;
-
-  .class-badge {
-    display: inline-flex;
-    align-items: center;
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 8px 16px;
-    border-radius: 999px;
-    font-size: 1.1em;
-    color: #f0a500;
   }
 }
 

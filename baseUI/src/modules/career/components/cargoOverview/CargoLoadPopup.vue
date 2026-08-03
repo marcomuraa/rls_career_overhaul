@@ -457,7 +457,8 @@ $text-color: white;
   }
   .content {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
     align-content: baseline;
     justify-content: center;
@@ -473,7 +474,7 @@ $text-color: white;
 
     .amount {
       display: flex;
-      flex-flow: row;
+      flex-direction: row;
       flex: 1 1 auto;
       padding: 0em 1em;
       .label {
@@ -561,7 +562,8 @@ $text-color: white;
   }
   .target-grid {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     padding: 0 1em 0em 1em;
     flex: 1 1 auto;
     overflow-y:scroll;

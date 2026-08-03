@@ -8,11 +8,15 @@
       'no-thumbnail': !preview,
     }"
     v-bng-on-ui-nav:ok.focusRequired="handleActivate"
+    v-bng-sound-class="'bng_click_hover_generic'"
     @click="handleActivate"
     v-bng-tooltip:bottom="tooltip"
   >
     <div class="icon-wrapper">
       <BngIcon class="step-icon" :type="icon" />
+    </div>
+    <div v-if="$slots.overlay" class="overlay-slot">
+      <slot name="overlay"></slot>
     </div>
     <AspectRatio
       v-if="preview"
@@ -20,7 +24,6 @@
       :ratio="ratio"
       :external-image="preview"
     >
-      <slot name="overlay"></slot>
       <BngPaintTile
         v-if="showPaintTile && paints && paints.length > 0"
         :paint-id="paintId"
@@ -44,7 +47,7 @@
 
 <script setup>
 import { BngCardHeading, BngIcon, BngPaintTile } from "@/common/components/base"
-import { vBngOnUiNav, vBngTooltip } from "@/common/directives"
+import { vBngOnUiNav, vBngSoundClass, vBngTooltip } from "@/common/directives"
 import { AspectRatio } from "@/common/components/utility"
 
 const props = defineProps({
@@ -125,6 +128,14 @@ function handleActivate() {
     margin-right: -3em;
     padding-right: 5em;
     z-index: 2;
+  }
+
+  .overlay-slot {
+    position: absolute;
+    right: 0.9em;
+    bottom: 0.35em;
+    pointer-events: none;
+    z-index: 3;
   }
 
   & + .step-tab {

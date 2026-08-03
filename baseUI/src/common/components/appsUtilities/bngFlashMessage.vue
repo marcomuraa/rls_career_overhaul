@@ -8,8 +8,9 @@
 
 <script setup>
 import { useEvents } from '@/services/events'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useBridge } from '@/bridge'
+import { $translate } from '@/services'
 
 const props = defineProps({
   messageSource: {
@@ -23,56 +24,68 @@ const { api } = useBridge()
 const txt = ref('')
 const messageQueue = ref([])
 const stepTimeout = ref(null)
+const fadeInTimeout = ref(null)
+const fadeOutTimeout = ref(null)
 const animationClass = ref('')
 const fontSizeClass = ref('font-small')
 const paused = ref(false)
 
+function resolveMessageText(message) {
+  if (message === null || typeof message === 'undefined') return ''
+  if (typeof message === 'number') return String(message)
+  if (typeof message === 'string' || typeof message === 'object') {
+    return $translate.contextTranslate(message)
+  }
+
+  return String(message)
+}
+
 onMounted(() => {
   events.on(props.messageSource, (data) => {
+    const clearQueue = Array.isArray(data)
+      ? data.some(item => item[4])
+      : (typeof data === 'object' && data.clearQueue)
+
+    if (clearQueue) {
+      clearAllTimeouts()
+      messageQueue.value = []
+    }
 
     // Check if data is an array or an object
     if (Array.isArray(data)) {
       // If the data is an array, map it to an object
       data.forEach((item) => {
-        const messageObject = {
+        messageQueue.value.push({
           msg: item[0],                 // First element as the actual message
           ttl: item[1],                 // Second element as the time-to-live (in seconds)
           luaCall: item[2] && typeof item[2] === 'string' ? item[2] : undefined,  // Lua call if provided and is a string
           jsCallback: item[2] && typeof item[2] === 'function' ? item[2] : undefined, // JS callback if provided and is a function
           big: item[3] !== undefined ? item[3] : false // Fourth element as "big" flag, defaults to false if not provided
-        };
-        messageQueue.value.push(messageObject)
+        })
       });
-      // Call the animation function after adding messages
-      if (messageQueue.value.length > 0 && !stepTimeout.value) {
-        playMessagesAnimation();
-      }
     } else if (typeof data === 'object') {
       // If the data is an object, directly push it into the queue
-      const messageObject = {
+      messageQueue.value.push({
         msg: data.msg,                                 // The actual message
         ttl: data.ttl,                                 // Time-to-live (in seconds)
         luaCall: data.luaCall || undefined,            // Lua call if provided
         jsCallback: data.jsCallback || undefined,      // JS callback if provided
         big: data.big !== undefined ? data.big : false // "big" flag, defaults to false if not provided
-      }
-      messageQueue.value.push(messageObject)
-      // Start the animation if no current animation is in progress
-      if (!stepTimeout.value) {
-        playMessagesAnimation();
-      }
+      })
     } else {
       console.warn('Unexpected data format received for FlashMessage')
+    }
+
+    // Start the animation if no current animation is in progress
+    if (messageQueue.value.length > 0 && !stepTimeout.value) {
+      playMessagesAnimation()
     }
   })
 
   events.on('physicsStateChanged', (state) => {
     paused.value = !state;
     if (paused.value) {
-      if (stepTimeout.value) {
-        clearTimeout(stepTimeout.value); // Clear active timeout
-        stepTimeout.value = null; // Reset timeout reference
-      }
+      clearAllTimeouts()
     } else if (state) {
       playMessagesAnimation(); // Resume message animation if not paused
     }
@@ -80,10 +93,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (stepTimeout.value) {
-    clearTimeout(stepTimeout.value) // Clear timeout to avoid memory leaks
-    stepTimeout.value = null // Reset after clearing
-  }
+  clearAllTimeouts()
 })
 
 function playMessagesAnimation() {
@@ -95,14 +105,14 @@ function playMessagesAnimation() {
   // Start the animation for the first message
   animationClass.value = 'fade-in' // Apply fade-in class
 
-  setTimeout(() => {
+  fadeInTimeout.value = setTimeout(() => {
     animationClass.value = '' // Remove fade-in after it's done
   }, 200)
 
   const msg = messageQueue.value[0]
 
   // Set the text and font size class
-  txt.value = msg.msg // Set the message text
+  txt.value = resolveMessageText(msg.msg) // Set translated or plain message text
   fontSizeClass.value = msg.big ? 'font-large' : 'font-small' // Set large or default font size class based on 'big' property
 
   // Handle Lua call if provided
@@ -120,7 +130,7 @@ function playMessagesAnimation() {
 
 
   // Set fade-out animation
-  setTimeout(() => {
+  fadeOutTimeout.value = setTimeout(() => {
     animationClass.value = 'fade-out';
   }, (msg.ttl * 1000) - 200)
 
@@ -130,14 +140,17 @@ function playMessagesAnimation() {
   }, msg.ttl * 1000)
 }
 
+function clearAllTimeouts() {
+  if (stepTimeout.value) { clearTimeout(stepTimeout.value); stepTimeout.value = null }
+  if (fadeInTimeout.value) { clearTimeout(fadeInTimeout.value); fadeInTimeout.value = null }
+  if (fadeOutTimeout.value) { clearTimeout(fadeOutTimeout.value); fadeOutTimeout.value = null }
+}
+
 // Reset the message queue and clear the timeout
 function resetCountdown() {
-  if (stepTimeout.value) {
-    clearTimeout(stepTimeout.value)
-  }
+  clearAllTimeouts()
   messageQueue.value = []
   txt.value = ''
-  stepTimeout.value = null // Reset the timeout reference to null
 }
 
 </script>
@@ -185,7 +198,7 @@ function resetCountdown() {
       font-size: 2.25rem;
     }
     &.font-large {
-      font-size: 8rem;
+      font-size: 4.8rem;
     }
     &.fade-in {
       animation: message-fade-in 0.2s 1 backwards;
@@ -193,6 +206,7 @@ function resetCountdown() {
     &.fade-out {
       animation: message-fade-out 0.2s 1;
     }
+    filter: drop-shadow(0px 0px 0.25rem var(--bng-black-o4));
   }
 }
 </style>

@@ -104,7 +104,8 @@ const scrollBy = amount => elCont.value.scrollBy(amount)
 }
 
 .actions {
-  flex-flow: row wrap !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
   align-items: baseline;
   .btn {
     margin: 4px;
@@ -146,7 +147,7 @@ const scrollBy = amount => elCont.value.scrollBy(amount)
   background: var(--bng-cool-gray-800);
   padding: 1em;
   border-radius: 0.5em;
-  font-family: monospace;
+  font-family: var(--fnt-mono);
   font-size: 0.9em;
 
   p {

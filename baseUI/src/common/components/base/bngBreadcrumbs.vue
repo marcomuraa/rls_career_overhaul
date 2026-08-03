@@ -1,35 +1,42 @@
 <template>
   <div class="bng-path" :bng-no-child-nav="!navigable">
-    <BngButton v-if="showBackButton" class="back-button" :accent="ACCENTS.custom" @click="emit('back')" tabindex="1">
+    <Button v-if="showBackButton" class="back-button" sound-class="bng_back_hover_generic" data-breadcrumb-back @click="emit('back')" tabindex="1">
       <BngIcon :type="icons.arrowSmallLeft" class="back-icon" />
-      <BngBinding v-if="showBackBinding" ui-event="back" controller track-ignore />
+      <BngBinding v-show="showBackBinding" ui-event="back" controller track-ignore />
       {{ $tt("ui.common.back") }}
-    </BngButton>
+    </Button>
     <template v-for="(item, index) in pathView" :key="index">
       <template v-if="!item.dropdown">
-        <BngButton
+        <Button
           class="bng-path-item"
           :class="{
             'bng-path-simple': simple,
             'bng-path-disabled': disableLastItem && item.last,
             'bng-path-first': item.first,
             'bng-path-last': item.last,
+            'bng-path-last-hidden': item.hideUnderline,
           }"
           :accent="ACCENTS.text"
           v-bng-blur="blur"
+          data-breadcrumb-item
           @click="onClick(item, index)"
-        >{{ item.label }}</BngButton>
-        <div v-if="simple && !item.last" class="bng-path-item bng-path-icon">
+        >{{ $tt(item.label) }}</Button>
+        <div
+          v-if="simple && (!item.last || item.trailingDivider)"
+          class="bng-path-item bng-path-icon"
+          :class="{ 'divider-last': hideLastItem && item.dividerLast }"
+        >
           <BngIcon :type="item.dividerType || icons.slashRight" v-bng-blur="blur" />
         </div>
       </template>
       <template v-else>
-        <BngButton
+        <Button
           class="bng-path-item bng-path-has-dropdown"
           :accent="ACCENTS.text"
           :icon="icons.arrowSmallRight"
           v-bng-blur="blur"
           v-bng-popover:bottom-start.click="item.dropdown"
+          data-breadcrumb-item
         />
         <BngPopoverMenu :name="item.dropdown" focus>
           <template #default="{ hide }">
@@ -40,7 +47,7 @@
               :accent="ACCENTS.menu"
               v-bng-on-ui-nav:ok.focusRequired.asMouse
               @click="onMenuClick(subitem, hide)"
-            >{{ subitem.label }}</BngButton>
+            >{{ $tt(subitem.label) }}</BngButton>
           </template>
         </BngPopoverMenu>
       </template>
@@ -51,6 +58,7 @@
 <script setup>
 import { computed } from "vue"
 import { BngButton, BngIcon, BngPopoverMenu, ACCENTS, icons, BngBinding } from "@/common/components/base"
+import { Button } from "@/common/components/utility"
 import { vBngBlur, vBngPopover, vBngOnUiNav } from "@/common/directives"
 import { uniqueId } from "@/services/uniqueId"
 
@@ -69,6 +77,7 @@ const props = defineProps({
   simple: Boolean, // disables arrows
   blur: Boolean,
   disableLastItem: Boolean, // makes the last item not clickable
+  hideLastItem: Boolean, // hides the last item
   showBackButton: Boolean,
   showBackBinding: {
     type: Boolean,
@@ -89,6 +98,9 @@ const pathView = computed(() => {
     items: itm.items,
     data: itm,
     dividerType: itm.dividerType,
+    trailingDivider: false,
+    hideUnderline: false,
+    dividerLast: false,
   })
 
   const items = props.items.map(mapItem)
@@ -119,9 +131,28 @@ const pathView = computed(() => {
     })
   }
 
+  // optionally hide the current navigation level (last breadcrumb item)
+  if (props.hideLastItem && res.length > 0) {
+    res.pop()
+    const lastVisibleItem = props.simple ? res.at(-1) : [...res].reverse().find(itm => !itm.dropdown)
+    if (lastVisibleItem) {
+      lastVisibleItem.hideUnderline = true
+      if (props.simple) {
+        lastVisibleItem.trailingDivider = true
+      }
+    }
+  }
+
   if (res.length > 0) {
     res[0].first = true
     res.at(-1).last = true
+  }
+
+  if (props.simple) {
+    const lastDividerItem = [...res].reverse().find(itm => !itm.dropdown && (!itm.last || itm.trailingDivider))
+    if (lastDividerItem) {
+      lastDividerItem.dividerLast = true
+    }
   }
 
   return res
@@ -145,36 +176,49 @@ function onMenuClick(item, popClose) {
 @use "@/styles/modules/density" as *;
 
 $corners: var(--bng-corners-1);
+$corners2: var(--bng-corners-2);
 $background-color: var(--background-color, var(--bng-off-black));
 
 .bng-path {
   display: inline-flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: flex-start;
   align-items: stretch;
   overflow: hidden;
   background-color: $background-color;
-  border-radius: var(--bng-corners-2);
+  border-radius: $corners2;
+  --bng-breadcrumbs-enabled-opacity: 0.4;
 
   .back-button {
     // Custom accent background color variables
-    --bng-button-custom-enabled: rgba(var(--bng-off-black-rgb), 0.01);
-    --bng-button-custom-hover: var(--bng-orange-600);
-    --bng-button-custom-active: var(--bng-orange-800);
-    --bng-button-custom-disabled: rgba(var(--bng-off-black-rgb), 0.01);
+    --bng-bg-enabled: var(--bng-off-black);
+    --bng-bg-hover: var(--bng-orange-600);
+    --bng-bg-active: var(--bng-orange-800);
+    --bng-bg-disabled: var(--bng-off-black);
 
-    --bng-button-custom-border-enabled: var(--bng-cool-gray-600);
-    --bng-button-custom-border-hover: var(--bng-orange-400);
-    --bng-button-custom-border-active: var(--bng-orange-600);
-    --bng-button-custom-border-disabled: rgba(var(--bng-cool-gray-800-rgb), 0.8);
+    --bng-bg-border-enabled: var(--bng-cool-gray-600);
+    --bng-bg-border-hover: var(--bng-orange-400);
+    --bng-bg-border-active: var(--bng-orange-600);
+    --bng-bg-border-disabled: rgba(var(--bng-cool-gray-800-rgb), 0.8);
 
-    --bng-button-custom-border-radius: var(--bng-corners-2);
+    --bng-bg-enabled-opacity: 0.8;
+    --bng-bg-hover-opacity: 1;
+    --bng-bg-active-opacity: 1;
+    --bng-bg-disabled-opacity: 0.25;
+
+    --bng-bg-border-radius: #{$corners2};
 
     --bng-button-padding: 0.25em 0.75em 0.25em 0.75em;
 
     --bng-button-min-width: 2em;
 
     --bng-content-align: center;
+
+    --bng-button-margin: 0;
+    --bng-button-margin: 0;
+
+    margin-right: 0.25em !important;
 
     >.back-icon {
       width: 0.5em;
@@ -189,25 +233,34 @@ $background-color: var(--background-color, var(--bng-off-black));
     border-radius: 0 !important;
     @include modify-focus($border-rad-1, 0.0rem);
 
-    // TODO: convert to custom button accent
+    // --bng-bg-enabled: var(--bng-off-black);
+    // --bng-bg-enabled-opacity: 0.4;
+    --bng-bg-enabled: #{$background-color};
+    --bng-bg-enabled-opacity: var(--bng-breadcrumbs-enabled-opacity, 1);
+    --bng-bg-hover: var(--bng-orange-600);
+    --bng-bg-hover-opacity: 0.6;
+    --bng-bg-active: var(--bng-off-black);
+    --bng-bg-active-opacity: 1;
+    --bng-bg-disabled: var(--bng-off-black);
+    --bng-bg-disabled-opacity: 0.4;
 
-    :deep(.background) {
-      border-radius: 0;
-    }
+    --bng-button-custom-margin: 0;
+    --bng-button-margin: 0;
+    --bng-content-align: center;
+
+    // TODO: convert to base button
+
+    --bng-bg-border-radius: 0;
 
     &.bng-path-first {
-      :deep(.background) {
-        border-radius: $corners 0 0 $corners;
-      }
+      --bng-bg-border-radius: $corners 0 0 $corners;
     }
 
     &.bng-path-last {
-      :deep(.background) {
-        border-radius: 0 $corners $corners 0;
-      }
+      --bng-bg-border-radius: 0 $corners $corners 0;
     }
 
-    &.bng-path-last {
+    &.bng-path-last:not(.bng-path-last-hidden) {
       :deep(.label) {
         text-decoration-line: underline;
         text-decoration-style: solid;
@@ -224,10 +277,6 @@ $background-color: var(--background-color, var(--bng-off-black));
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
-      }
-      :deep(.background) {
-        background-color: $background-color;
-        opacity: var(--bng-breadcrumbs-enabled-opacity, 1);
       }
       &.bng-path-simple:not(.bng-path-first) {
         padding-left: 0.5em;
@@ -249,8 +298,11 @@ $background-color: var(--background-color, var(--bng-off-black));
       align-items: center;
       justify-content: center;
       width: 0.75em;
-      margin: 0.25rem 0;
+      // margin: 0.25rem 0;
       --bng-icon-size: 1em;
+      > span {
+        z-index: 1;
+      }
       &::before {
         content: "";
         position: absolute;
@@ -260,6 +312,11 @@ $background-color: var(--background-color, var(--bng-off-black));
         right: 0;
         background-color: $background-color;
         opacity: var(--bng-breadcrumbs-enabled-opacity, 1);
+        z-index: 0;
+      }
+      &.divider-last {
+        width: 1.25em;
+        padding-right: 0.75em;
       }
     }
 

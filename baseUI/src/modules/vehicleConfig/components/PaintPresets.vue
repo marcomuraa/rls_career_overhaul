@@ -18,6 +18,15 @@
           :custom-menu="[{label: 'ui.common.delete', action: () => removePreset(preset.name)}]"
           @click="emit('apply', preset)"
         />
+        <div v-if="group.presets && group.presets.length > 0" class="paint-presets-item paint-presets-random-item">
+          <BngPaintTile
+            :size="24"
+            paint-name="Randomize"
+            tooltip-position="top"
+            @click="applyRandomPreset(group)"
+          />
+          <BngIcon type="dice24" class="paint-presets-random-icon" />
+        </div>
         <BngButton
           v-if="!group.presets || Object.keys(group.presets).length === 0"
           class="presets-empty"
@@ -46,7 +55,7 @@
 <script setup>
 import { ref, toRaw, computed, onMounted, nextTick } from "vue"
 import { vBngOnUiNav, vBngTooltip } from "@/common/directives"
-import { BngPaintTile, BngButton, ACCENTS, icons } from "@/common/components/base"
+import { BngPaintTile, BngButton, BngIcon, ACCENTS, icons } from "@/common/components/base"
 import { useSettings } from "@/services/settings"
 import { setFocus } from "@/services/uiNavFocus"
 import Paint from "@/utils/paint"
@@ -154,72 +163,71 @@ const presetGroups = computed(() => {
   return res
 })
 
-function average(arr) {
-  return arr.reduce((a, b) => a + b) / arr.length
-}
-
-function valComparable(col, thres = 0.05) {
-  let bool = true
-  const av = average(col)
-  for (let i = 0; i < col.length; i++) {
-    bool = bool && av - thres <= col[i] && av + thres >= col[i]
-  }
-  bool = bool && (av > 0.8 || av < 0.2)
-  return bool
-}
-
-function colorHigherHelper(itm) {
-  const av = average(itm.orig.baseColor.slice(0, 3))
-  const al = itm.orig.baseColor[3] / 2
-  const res = Math.abs(av - 1) * al
-  return res === 0 ? (av + al) / 2 : res + 1
-}
-
-function colorHigher(a, b) {
-  const aColor = valComparable(a.orig.baseColor.slice(0, 3))
-  const bColor = valComparable(b.orig.baseColor.slice(0, 3))
-  if (aColor && bColor) {
-    return colorHigherHelper(b) - colorHigherHelper(a)
-  } else if (aColor && !bColor) {
-    return 1
-  } else if (!aColor && bColor) {
-    return -1
-  } else {
-    for (let i = 0; i < 3; i++) {
-      if (a.val[i] !== b.val[i]) return a.val[i] - b.val[i]
-    }
-    return 0
-  }
-}
-
-// Thanks to: http://www.alanzucconi.com/2015/09/30/colour-sorting/
-function colorValue(arr) {
-  let repitions = 8
-  let rgb = []
-  for (let i = 0; i < 3; i++) {
-    rgb[i] = (1 - arr[3] / 2) * arr[i] + (arr[3] / 2) * arr[i]
-  }
-  let lum = Math.sqrt(0.241 * rgb[0] + 0.691 * rgb[1] + 0.068 * rgb[2])
-  let hsl = Paint.rgbToHsl(rgb)
-  let out = [hsl[0], lum, hsl[1]].map(elem => elem * repitions)
-  if (out[0] % 2 === 1) {
-    out[1] = repitions - out[1]
-    out[2] = repitions - out[2]
-  }
-  out.push(arr[3])
-  return out
-}
-
 function sortColors(list) {
+  const GRAYISH_SATURATION_MAX = 0.3
+
+  const hueBucket = hue => {
+    const deg = hue * 360
+    if (deg < 20 || deg >= 345) return 0 // red
+    if (deg < 45) return 1 // orange
+    if (deg < 75) return 2 // yellow
+    if (deg < 170) return 3 // green
+    if (deg < 255) return 4 // blue (incl. cyan)
+    return 5 // purple (incl. magenta)
+  }
+
+  const toSortable = elem => {
+    const [hue, saturation, value] = rgbToHsv(elem.baseColor.slice(0, 3))
+    const isGrayish = saturation <= GRAYISH_SATURATION_MAX
+    return {
+      orig: elem,
+      hue,
+      saturation,
+      value,
+      isGrayish,
+      bucket: hueBucket(hue),
+    }
+  }
+
   return list
-    .map(elem => {
-      return {
-        val: colorValue(elem.baseColor),
-        orig: elem,
+    .map(toSortable)
+    .sort((a, b) => {
+      if (a.isGrayish !== b.isGrayish) return a.isGrayish ? 1 : -1
+
+      if (!a.isGrayish) {
+        if (a.bucket !== b.bucket) return a.bucket - b.bucket
+        if (a.value !== b.value) return a.value - b.value
+        if (a.saturation !== b.saturation) return b.saturation - a.saturation
+        return a.hue - b.hue
       }
+
+      if (a.value !== b.value) return a.value - b.value
+      return a.saturation - b.saturation
     })
-    .sort(colorHigher)
     .map(elem => elem.orig)
+}
+
+function rgbToHsv(rgb) {
+  const [r, g, b] = rgb
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const delta = max - min
+
+  let hue = 0
+  if (delta !== 0) {
+    if (max === r) hue = ((g - b) / delta + (g < b ? 6 : 0)) / 6
+    else if (max === g) hue = ((b - r) / delta + 2) / 6
+    else hue = ((r - g) / delta + 4) / 6
+  }
+
+  const saturation = max === 0 ? 0 : delta / max
+  const value = max
+  return [hue, saturation, value]
+}
+
+function presetTooltip(preset) {
+  const [h, s, v] = rgbToHsv(preset.baseColor.slice(0, 3))
+  return `${preset.name} (H:${h.toFixed(2)} S:${s.toFixed(2)} V:${v.toFixed(2)})`
 }
 
 function addPreset() {
@@ -242,6 +250,12 @@ function addPreset() {
       setFocus(newPreset)
     }
   })
+}
+
+function applyRandomPreset(group) {
+  if (!group?.presets?.length) return
+  const randomIndex = Math.floor(Math.random() * group.presets.length)
+  emit("apply", group.presets[randomIndex])
 }
 
 function removePreset(name) {
@@ -320,7 +334,8 @@ onMounted(async () => {
 
     .presets-items {
       display: flex;
-      flex-flow: row wrap;
+      flex-direction: row;
+      flex-wrap: wrap;
       gap: 0.25em;
 
       .presets-empty {
@@ -340,6 +355,27 @@ onMounted(async () => {
       position: relative;
       display: inline-block;
       cursor: pointer;
+    }
+
+    .paint-presets-random-item {
+      position: relative;
+      :deep(.bng-paint-tile) {
+        width: 100%;
+        height: 100%;
+        outline: 2px solid rgba(255, 255, 255, 0.5);
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 0.25em;
+
+      }
+    }
+
+    .paint-presets-random-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-52%, -45%);
+      pointer-events: none;
+      --bng-icon-size: 1.6em;
     }
 
     .paint-presets-item,

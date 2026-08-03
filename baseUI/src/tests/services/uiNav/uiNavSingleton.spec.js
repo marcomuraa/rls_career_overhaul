@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { UINavService, getUINavServiceInstance, setUINavServiceInstance } from "@/services/uiNav"
-import Emitter from "tiny-emitter"
+import Emitter from "eventemitter3"
 
 describe("UINavSingleton Pattern Test", () => {
   let originalInstance = null

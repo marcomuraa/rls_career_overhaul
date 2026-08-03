@@ -45,7 +45,8 @@ onMounted(start)
 
 .flex-row {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 
 .card {

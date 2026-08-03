@@ -1,23 +1,25 @@
-import { ref, computed } from "vue"
-import { defineStore } from "pinia"
+import { ref, computed, proxyRefs } from "vue"
 import { useBridge } from "@/bridge"
 import { startLoading } from "@/services"
 import { waitForLoadingScreenFadeIn } from "@/services/screenCover"
 import Storage from "@/services/storage"
 
-export const useDiscoverStore = defineStore("discover", () => {
-  const { lua, events } = useBridge()
+let discoverComposable = null
+
+function createDiscoverComposable() {
+  const bridge = useBridge()
+  const { lua, events } = bridge
 
   const discoverPages = ref([])
   const loaded = ref(false)
   const enabled = ref(false)
+  const viewMode = ref("overview")
   const descShow = ref(false)
   const descText = ref(null)
   const descriptions = ref({
     hover: null,
     focus: null,
   })
-  const pageDescription = ref(null)
   const currentPage = ref(0)
   let descTimer = null
 
@@ -25,6 +27,16 @@ export const useDiscoverStore = defineStore("discover", () => {
     lastSelected: 0, // index by allCards
     lastStarted: undefined, // discoverId of last started activity
   }).values
+
+  // Lua tables may arrive as objects with numeric keys instead of JS arrays.
+  function luaArrayToJs(value) {
+    if (Array.isArray(value)) return value
+    if (!value || typeof value !== "object") return []
+    return Object.keys(value)
+      .filter(key => /^\d+$/.test(key))
+      .sort((a, b) => Number(a) - Number(b))
+      .map(key => value[key])
+  }
 
   function setDescription(type, card = undefined) {
     if (descTimer) clearTimeout(descTimer)
@@ -45,15 +57,92 @@ export const useDiscoverStore = defineStore("discover", () => {
     }
   }
 
+  function clearDescription() {
+    descriptions.value = {
+      hover: null,
+      focus: null,
+    }
+    descShow.value = false
+    descText.value = null
+  }
+
+  function getPageByIndex(pageIndex) {
+    if (!discoverPages.value || !Array.isArray(discoverPages.value)) {
+      return undefined
+    }
+    if (pageIndex < 0 || pageIndex >= discoverPages.value.length) {
+      return undefined
+    }
+    return discoverPages.value[pageIndex]
+  }
+
+  function getSectionsFromPage(page) {
+    const baseSections = []
+    let stamp = Date.now()
+
+    const pageSections = luaArrayToJs(page?.sections)
+    if (!page || pageSections.length === 0) {
+      return baseSections
+    }
+
+    for (const section of pageSections) {
+      const sectionCards = luaArrayToJs(section?.cards)
+      if (sectionCards.length > 0) {
+        const sectionKind = section.sectionKind || (section.type === "freeroam" ? "major" : "minor")
+        const isMajor = sectionKind === "major"
+        const sectionConfig = {
+          cards: [],
+          placeholders: isMajor ? 3 : 6,
+          size: isMajor ? "big" : "medium",
+          style: isMajor ? {} : { "--button-height": "4.5em" },
+          key: stamp++,
+          sectionKind,
+        }
+
+        for (const card of sectionCards) {
+          const cardWithHandlers = {
+            ...card,
+            onClick: () => startDiscover(card.discoverId),
+            onFocus: () => setDescription("focus", card),
+            onHover: () => setDescription("hover", card),
+            onBlur: () => setDescription("focus"),
+          }
+          sectionConfig.cards.push(cardWithHandlers)
+        }
+
+        baseSections.push(sectionConfig)
+      }
+    }
+
+    return baseSections
+  }
+
   async function loadDiscoverPages() {
     loaded.value = false
     enabled.value = false
+    viewMode.value = "overview"
     discoverPages.value = []
+    currentPage.value = 0
+    clearDescription()
     await lua.extensions.load("gameplay_discover")
-    discoverPages.value = await lua.gameplay_discover.getDiscoverPages()
+
+    const rawPages = await lua.gameplay_discover.getDiscoverPages()
+    discoverPages.value = luaArrayToJs(rawPages).map(page => ({
+      ...page,
+      title: page?.title || page?.description?.title,
+      description: page?.description?.description || page?.description,
+      image: page?.description?.image || page?.image,
+      tagList: luaArrayToJs(page?.tagList),
+      sections: luaArrayToJs(page?.sections).map(section => ({
+        ...section,
+        cards: luaArrayToJs(section?.cards).map(card => ({
+          ...card,
+          title: card?.title || card?.name,
+        })),
+      })),
+    }))
     loaded.value = true
     enabled.value = true
-    console.log("discoverPages", discoverPages.value, "lastStartedDiscoverId", storage.lastStarted)
   }
 
   async function startDiscover(discoverId) {
@@ -75,49 +164,38 @@ export const useDiscoverStore = defineStore("discover", () => {
     })
   }
 
+  function goToPage(pageIndex) {
+    const page = getPageByIndex(pageIndex)
+    if (!page) return
+    currentPage.value = pageIndex
+  }
+
+  function openPage(pageIndex) {
+    goToPage(pageIndex)
+    clearDescription()
+    viewMode.value = "detail"
+  }
+
+  function backToOverview() {
+    clearDescription()
+    viewMode.value = "overview"
+  }
+
   const sections = computed(() => {
-    const baseSections = []
-    let stamp = Date.now()
-
-    if (discoverPages.value && Array.isArray(discoverPages.value) && discoverPages.value.length > 0) {
-      const page = discoverPages.value[currentPage.value]
-      if (page && page.sections) {
-        for (const section of page.sections) {
-          if (section.cards && section.cards.length > 0) {
-            // Determine section styling based on type
-            const isFreeroam = section.type === "freeroam"
-            const sectionConfig = {
-              title: section.title || (isFreeroam ? "Freeroam Experiences" : "Showcase Challenges"),
-              cards: [],
-              placeholders: isFreeroam ? 5 : 10,
-              size: isFreeroam ? "big" : "medium",
-              style: isFreeroam ? {} : { "--button-height": "4.5em" },
-              key: stamp++,
-              type: section.type
-            }
-
-            for (const card of section.cards) {
-              const cardWithHandlers = {
-                ...card,
-                onClick: () => startDiscover(card.discoverId),
-                onFocus: () => setDescription("focus", card),
-                onHover: () => setDescription("hover", card),
-                onBlur: () => setDescription("focus"),
-                onMouseLeave: () => setDescription("hover"),
-              }
-              sectionConfig.cards.push(cardWithHandlers)
-            }
-
-            baseSections.push(sectionConfig)
-          }
-        }
-      }
-    }
-
-    return baseSections
+    return getSectionsFromPage(getPageByIndex(currentPage.value))
   })
 
-  const allCards = computed(() => sections.value.flatMap(s => s.cards))
+  const allCards = computed(() => {
+    const pages = luaArrayToJs(discoverPages.value)
+    const cards = []
+    for (const page of pages) {
+      const pageSections = luaArrayToJs(page?.sections)
+      for (const section of pageSections) {
+        cards.push(...luaArrayToJs(section?.cards))
+      }
+    }
+    return cards
+  })
 
   const description = computed(() => ({
     show: descShow.value,
@@ -137,41 +215,30 @@ export const useDiscoverStore = defineStore("discover", () => {
   })
 
   const totalPages = computed(() => discoverPages.value?.length || 0)
-  const hasNextPage = computed(() => currentPage.value < totalPages.value - 1)
-  const hasPrevPage = computed(() => currentPage.value > 0)
 
-  // Get page information for navigation
   const pages = computed(() => {
     if (!discoverPages.value || !Array.isArray(discoverPages.value)) {
       return []
     }
     return discoverPages.value.map((page, index) => ({
       index,
-      name: page.title || `Page ${index + 1}`,
-      isActive: index === currentPage.value
+      title: page.title || `Page ${index + 1}`,
+      isActive: index === currentPage.value,
+      pageKind: page.pageKind || "minor",
+      isHero: !!page.isHero,
+      startDiscoverId: page.startDiscoverId,
+      image: page.image,
+      tagList: page.tagList || [],
+      description: page.description,
+      isOfficial: page.isOfficial,
+      isMod: page.isMod,
+      modTitle: page.modTitle,
     }))
   })
 
-  function nextPage() {
-    if (hasNextPage.value) {
-      currentPage.value++
-    }
-  }
+  const majorPages = computed(() => pages.value.filter(page => page.pageKind === "major"))
+  const minorPages = computed(() => pages.value.filter(page => page.pageKind !== "major"))
 
-  function prevPage() {
-    if (hasPrevPage.value) {
-      currentPage.value--
-    }
-  }
-
-  function goToPage(pageIndex) {
-    if (pageIndex >= 0 && pageIndex < totalPages.value) {
-      currentPage.value = pageIndex
-      pageDescription.value = discoverPages.value[pageIndex].description
-    }
-  }
-
-  // Get current page title
   const currentPageTitle = computed(() => {
     if (!discoverPages.value || !Array.isArray(discoverPages.value) || currentPage.value >= discoverPages.value.length) {
       return "ui.experiences.general.quickStart"
@@ -180,54 +247,21 @@ export const useDiscoverStore = defineStore("discover", () => {
     return page.title || "ui.experiences.general.quickStart"
   })
 
-  // Get sections for a specific page
+  const currentPageDescription = computed(() => {
+    if (!discoverPages.value || !Array.isArray(discoverPages.value) || currentPage.value >= discoverPages.value.length) {
+      return null
+    }
+    return discoverPages.value[currentPage.value]?.description || null
+  })
+
   function getSectionsForPage(pageIndex) {
-    if (!discoverPages.value || !Array.isArray(discoverPages.value) || pageIndex < 0 || pageIndex >= discoverPages.value.length) {
-      return []
-    }
-
-    const page = discoverPages.value[pageIndex]
-    const baseSections = []
-    let stamp = Date.now()
-
-    if (page && page.sections) {
-      for (const section of page.sections) {
-        if (section.cards && section.cards.length > 0) {
-          // Determine section styling based on type
-          const isFreeroam = section.type === "freeroam"
-          const sectionConfig = {
-            title: section.title || (isFreeroam ? "Freeroam Experiences" : "Showcase Challenges"),
-            cards: [],
-            placeholders: isFreeroam ? 5 : 10,
-            size: isFreeroam ? "big" : "medium",
-            style: isFreeroam ? {} : { "--button-height": "4.5em" },
-            key: stamp++,
-            type: section.type
-          }
-
-          for (const card of section.cards) {
-            const cardWithHandlers = {
-              ...card,
-              onClick: () => startDiscover(card.discoverId),
-              onFocus: () => setDescription("focus", card),
-              onHover: () => setDescription("hover", card),
-              onBlur: () => setDescription("focus"),
-              onMouseLeave: () => setDescription("hover"),
-            }
-            sectionConfig.cards.push(cardWithHandlers)
-          }
-
-          baseSections.push(sectionConfig)
-        }
-      }
-    }
-
-    return baseSections
+    return getSectionsFromPage(getPageByIndex(pageIndex))
   }
 
-  return {
+  return proxyRefs({
     loaded,
     enabled,
+    viewMode,
     sections,
     allCards,
     description,
@@ -235,16 +269,24 @@ export const useDiscoverStore = defineStore("discover", () => {
     lastStartedDiscoverId,
     currentPage,
     totalPages,
-    hasNextPage,
-    hasPrevPage,
     pages,
-    pageDescription,
+    majorPages,
+    minorPages,
     currentPageTitle,
+    currentPageDescription,
     discoverPages,
-    nextPage,
-    prevPage,
     goToPage,
+    openPage,
+    backToOverview,
     getSectionsForPage,
     loadDiscoverPages,
+    startDiscover,
+  })
+}
+
+export function useDiscover() {
+  if (!discoverComposable) {
+    discoverComposable = createDiscoverComposable()
   }
-})
+  return discoverComposable
+}

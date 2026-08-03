@@ -6,7 +6,8 @@
     :hide-arrow="hideArrow"
     :disabled="disabled"
     @placement-changed="relay.placementChanged"
-    @hide="hide"
+    @show="relay.show"
+    @hide="relay.hide"
   >
     <div ref="popoverMenu" class="bng-popover-menu">
       <slot :hide="hide"></slot>
@@ -75,7 +76,7 @@ watchEffect(() => {
 .bng-popover-menu {
   width: max-content;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   gap: 0.25em;
 }
 </style>

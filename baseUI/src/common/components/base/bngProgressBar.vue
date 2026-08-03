@@ -15,10 +15,7 @@
           'progress-fill-gradient': gradient,
           'animate-progress': animateDifference && value > oldValue,
         }"
-        :style="{
-          backgroundColor: valueColor,
-          zIndex: value < oldValue ? 2 : 1,
-        }">
+        :style="progressFillStyle">
       </span>
       <span
         v-if="oldValue"
@@ -27,10 +24,7 @@
           'progress-fill-gradient': gradient,
           'animate-progress': animateDifference && value < oldValue,
         }"
-        :style="{
-          backgroundColor: oldValueColor,
-          zIndex: value < oldValue ? 1 : 2,
-        }">
+        :style="oldProgressFillStyle">
       </span>
     </div>
   </div>
@@ -101,6 +95,28 @@ const valueHTML = computed(() => {
 
 const progressFillUnits = computed(() => 1 - (currentValue.value - props.min) / (props.max - props.min))
 const oldProgressFillUnits = computed(() => 1 - (props.oldValue - props.min) / (props.max - props.min))
+const progressFillRight = computed(() => `${progressFillUnits.value * 100}%`)
+const oldProgressFillRight = computed(() => `${oldProgressFillUnits.value * 100}%`)
+const progressFillStyle = computed(() => ({
+  position: "absolute",
+  display: "block",
+  top: 0,
+  right: progressFillRight.value,
+  bottom: 0,
+  ...(props.gradient ? { width: "100%" } : { left: 0 }),
+  backgroundColor: props.valueColor,
+  zIndex: props.value < props.oldValue ? 2 : 1,
+}))
+const oldProgressFillStyle = computed(() => ({
+  position: "absolute",
+  display: "block",
+  top: 0,
+  left: 0,
+  right: oldProgressFillRight.value,
+  bottom: 0,
+  backgroundColor: props.oldValueColor,
+  zIndex: props.value < props.oldValue ? 1 : 2,
+}))
 
 watch(() => props.value, updateCurrentValue)
 
@@ -193,7 +209,7 @@ $progress-fill-gradient-color: #ffaa00;
   position: absolute;
   display: inline-block;
   top: 0;
-  right: calc(v-bind(progressFillUnits) * 100%);
+  right: v-bind(progressFillRight);
   bottom: 0;
   &:not(.progress-fill-gradient) {
     left: 0;
@@ -205,7 +221,7 @@ $progress-fill-gradient-color: #ffaa00;
   display: inline-block;
   top: 0;
   left: 0;
-  right: calc(v-bind(oldProgressFillUnits) * 100%);
+  right: v-bind(oldProgressFillRight);
   bottom: 0;
 }
 

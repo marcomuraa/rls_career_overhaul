@@ -1,8 +1,8 @@
 <template>
-  <BngCard v-bng-on-ui-nav:back,menu="close" bng-ui-scope="partSelling" class="sellingCard">
+  <BngCard v-bng-scoped-nav="popupScopeBinding" v-bng-on-ui-nav:back,menu="close" class="selling-card">
     <BngCardHeading>Sell Parts</BngCardHeading>
-    <div style="padding: 1em;">
-      <div class="selectButtons">
+    <div class="selling-card-content">
+      <div class="select-buttons">
         Select:
         <div class="part-info-row">
           <BngButton :accent="ACCENTS.secondary" @click="selectAll(true)">
@@ -13,17 +13,29 @@
           </BngButton>
         </div>
       </div>
-      <div class="partList">
-        <div v-for="(part, index) in parts" class="part-item" :class="partsChecked[index] ? 'partSelected' : ''" bng-nav-item @click="partsChecked[index] = !partsChecked[index]">
-          <BngIcon class="selectionCheckbox" :type="partsChecked[index] ? icons.checkboxOn : icons.checkboxOff" />
-          <div class="part-info-col">
-            <div>
-              <span class="part-name">{{ part.name }}</span>
-            </div>
-            <div class="part-info-row">
-              <span class="right">{{ part.mileage }}</span>
-              <span class="right"><BngPropVal :iconType="icons.beamCurrency" :valueLabel="part.valueFormatted" /></span>
-              <span class="center">{{ part.model }}</span>
+      <div
+        v-bng-scoped-nav="{ preferAutoFocus: true }"
+        class="partList"
+        tabindex="0">
+        <div v-bng-ui-nav-scroll.force class="partList-scroll">
+          <div
+            v-for="(part, index) in parts"
+            :key="part.data.id"
+            class="part-item"
+            :class="partsChecked[index] ? 'part-selected' : ''"
+            bng-nav-item
+            tabindex="0"
+            @click="partsChecked[index] = !partsChecked[index]">
+            <BngIcon class="selectionCheckbox" :type="partsChecked[index] ? icons.checkboxOn : icons.checkboxOff" />
+            <div class="part-info-col">
+              <div>
+                <span class="part-name">{{ part.name }}</span>
+              </div>
+              <div class="part-info-row">
+                <span class="right">{{ part.mileage }}</span>
+                <span class="right"><BngPropVal :iconType="icons.beamCurrency" :valueLabel="part.valueFormatted" /></span>
+                <span class="center">{{ part.model }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -33,6 +45,7 @@
         <BngButton
           :disabled="saleData.numberOfSelected <= 0"
           show-hold
+          v-bng-on-ui-nav:ok.asMouse.focusRequired
           v-bng-click="{
             holdCallback: sellSelectedParts,
             holdDelay: 1000,
@@ -47,20 +60,15 @@
         </BngButton>
       </div>
     </div>
-
   </BngCard>
 </template>
 
 <script setup>
-import { useBridge, lua } from "@/bridge"
-import { ref, reactive, computed, watch, nextTick, onMounted } from "vue"
-import { vBngClick, vBngTooltip } from "@/common/directives"
-import { BngCard, BngUnit, BngPropVal, BngButton, BngIcon, ACCENTS, icons, BngInput , BngPillCheckbox,BngSwitch,BngCardHeading} from "@/common/components/base"
-import { useUINavScope } from "@/services/uiNav"
-import { vBngOnUiNav } from "@/common/directives"
-useUINavScope("partSelling")
-
-const { units } = useBridge()
+import { lua } from "@/bridge"
+import { ref, computed, onMounted, useAttrs } from "vue"
+import { vBngClick } from "@/common/directives"
+import { BngCard, BngUnit, BngPropVal, BngButton, BngIcon, ACCENTS, icons, BngCardHeading} from "@/common/components/base"
+import { vBngOnUiNav, vBngScopedNav, vBngUiNavScroll } from "@/common/directives"
 
 const partsChecked = ref([])
 const emit = defineEmits(["return"])
@@ -70,7 +78,19 @@ const props = defineProps({
     type: Array,
     default: [],
   },
+  popupActive: Boolean,
 })
+
+const attrs = useAttrs()
+const scopeName = `_partSellingPopup__${attrs.__id}`
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const calculateSaleData = () => {
   let total = 0
@@ -111,26 +131,28 @@ const sellSelectedParts = () => {
   close()
 }
 
-const close = () => {
-  emit("return", true)
-}
+const close = () => emit("return", true)
 
 onMounted(buildRefList)
-
 </script>
 
 <style scoped lang="scss">
 @use "@/styles/modules/mixins" as *;
 
-* {
-  position: relative;
+.selling-card {
+  background-color: #252525;
+  color: white;
 }
 
-.partSelected {
+.selling-card-content {
+  padding: 1em;
+}
+
+.part-selected {
   background: rgba(255, 102, 0, 0.462);
 }
 
-.selectButtons {
+.select-buttons {
   display: flex;
   align-items: center;
 }
@@ -147,18 +169,22 @@ onMounted(buildRefList)
 }
 
 .partList {
+  position: relative;
   height: 70vh;
   width: 40vw;
+  @include modify-focus(5, 0);
+}
+
+.partList-scroll {
+  height: 100%;
   overflow: auto;
 }
 
-.searchField {
-  background-color: rgba(0, 0, 0, 0.575);
-}
-
 .part-item {
+  position: relative;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: center;
   overflow: hidden;
@@ -175,10 +201,6 @@ onMounted(buildRefList)
   }
 }
 
-.sellingCard {
-  background-color: #252525;
-  color: white;
-}
 
 .part-info-col {
   text-align: left;
@@ -188,7 +210,8 @@ onMounted(buildRefList)
 }
 .part-info-row {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: baseline;
   > * {

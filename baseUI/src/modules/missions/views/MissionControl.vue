@@ -1,12 +1,16 @@
 <template>
   <LayoutSingle
+    v-bng-scoped-nav="{
+      scopeId: 'mission-control',
+      preferAutoFocus: true,
+      canDeactivate: onScopedBack,
+    }"
     class="mission-control-layout"
     :class="{ 'main-sequence': props.mode === 'endScreen' || props.mode === 'test' }"
-    bng-ui-scope="mission-control"
-
-    v-bng-on-ui-nav:menu,back="exit"
+    v-bng-on-ui-nav:menu="exit"
     v-bng-on-ui-nav:tab_l="focusPreviousPage"
     v-bng-on-ui-nav:tab_r="focusNextPage">
+
     <div class="top" v-if="header" ref="headerRef">
       <InfoCard class="full-width">
         <template #header>
@@ -64,7 +68,7 @@
         </template>
       </InfoCard>
     </div>
-    <div v-if="layout" class="columns" ref="wideColumnRef" v-bng-blur="true">
+    <div v-if="layout" class="columns" ref="wideColumnRef" v-bng-blur="true" v-bng-ui-nav-scroll.force bng-nav-scroll>
       <SlotSwitcher
         v-for="panel in currentPanels"
         :key="panel.type"
@@ -72,6 +76,15 @@
         >
         <template #textPanel>
           <MissionTextPanel
+          :ref="(el) => panelRefs[panel.type] = el"
+          :panel="panel"
+          :no-blur="true"
+          :key="panel.key"
+          :style="{ 'animation-delay': panel.slideAnimDelay || '0s' }"
+          />
+        </template>
+        <template #vehicleSelector>
+          <MissionVehicleSelector
           :ref="(el) => panelRefs[panel.type] = el"
           :panel="panel"
           :no-blur="true"
@@ -146,6 +159,26 @@
             :key="panel.key"
           />
         </template>
+        <template #coDriverSelector>
+          <MissionRallySettings
+            :panel="panel"
+            :style="{ 'animation-delay': panel.slideAnimDelay || '0s' }"
+            :no-blur="true"
+            :key="panel.key"
+            @setting-change="onRallySettingChange"
+          />
+        </template>
+        <template #rallyStageInfo>
+          <MissionRallyInfo
+            :panel="panel"
+            :repair-enabled="rallyRepairEnabled"
+            :false-starts-enabled="rallyFalseStartsEnabled"
+            :early-penalties-enabled="rallyEarlyPenaltiesEnabled"
+            :style="{ 'animation-delay': panel.slideAnimDelay || '0s' }"
+            :no-blur="true"
+            :key="panel.key"
+          />
+        </template>
         <template #dragTimeSlip>
           <MissionTimeSlipPanel
             :panel="panel"
@@ -192,6 +225,7 @@
             <template v-if="showContinueButton">
               <BngButton
                 class="large"
+                bng-scoped-nav-autofocus
                 @click="showContinueButton === 'skip' ? skipAnimations() : continueToNextPage()"
                 accent="main"
                 :disabled="isInputBlocked"
@@ -199,10 +233,12 @@
                 <div>{{ $t(showContinueButton === 'skip' ? 'ui.common.skip' : 'ui.common.next') }}</div>
               </BngButton>
             </template>
-            <template v-else v-for="button in buttons">
+            <template v-else>
               <BngButton
+                v-for="button in buttons"
+                :key="button.funId || button.label"
                 class="large"
-                v-bng-focus-if="button.focus"
+                :bng-scoped-nav-autofocus="button.focus"
                 @click="buttonClicked(button)"
                 :accent="button.main ? 'main' :'secondary'"
                 :disabled="isInputBlocked"
@@ -230,7 +266,6 @@
 import { computed, onBeforeMount, onUnmounted, onMounted, onBeforeUnmount, reactive, watch, ref, nextTick } from "vue"
 import { storeToRefs } from "pinia"
 import { $translate } from "@/services"
-import { useUINavScope } from "@/services/uiNav"
 import {
   BngButton,
   ACCENTS,
@@ -241,11 +276,12 @@ import {
   BngIcon,
 } from "@/common/components/base"
 import { LayoutSingle } from "@/common/layouts"
-import { vBngBlur, vBngOnUiNav, vBngFocusIf } from "@/common/directives"
+import { vBngBlur, vBngOnUiNav, vBngScopedNav, vBngUiNavScroll } from "@/common/directives"
 import InfoCard from "../components/InfoCard.vue"
 import MissionRewards from "../components/MissionRewards.vue"
 import MissionTextPanel from "../components/MissionTextPanel.vue"
 import MissionDialPanel from "../components/MissionDialPanel.vue"
+import MissionRallySettings from "../components/MissionRallySettings.vue"
 import MissionReplayPanel from "../components/MissionReplayPanel.vue"
 import MissionCrashTestStepDetails from "../components/MissionCrashTestStepDetails.vue"
 import MissionTimeSlipPanel from "../components/MissionTimeSlipPanel.vue"
@@ -262,17 +298,25 @@ import { useMissionDetailsStore } from "@/modules/missions/stores/missionDetails
 import { lua, useBridge } from "@/bridge"
 import logger from "@/services/logger"
 import MissionUnlocks from '../components/MissionUnlocks.vue'
+import MissionVehicleSelector from '../components/MissionVehicleSelector.vue'
+import MissionRallyInfo from '../components/MissionRallyInfo.vue'
 
 const { events } = useBridge()
-const uiNavScope = useUINavScope("mission-control")
-const exit = () => {
+const onScopedBack = () => {
+  logger.debug("onScopedBack")
+  void lua.extensions.ui_router.back()
+  return false
+}
+
+const exit = (event) => {
    //window.bngVue.gotoGameState("play")
   logger.debug("exit")
   // if(props.mode !== 'endScreenTest')
   //   router.push({ name: "mission-details" })
   // else
   //   window.bngVue.gotoGameState("play")
-  window.bngVue.gotoGameState("mission-details")
+  void lua.extensions.ui_router.back()
+  return true
 }
 
 const store = useMissionDetailsStore()
@@ -281,6 +325,19 @@ const supportsReplay = ref(false)
 const simpleStartScreen = ref(false)
 const buttons = ref([])
 const header = ref()
+const rallyRepairEnabled = ref(true)
+const rallyFalseStartsEnabled = ref(true)
+const rallyEarlyPenaltiesEnabled = ref(false)
+
+function onRallySettingChange({ key, value }) {
+  if (key === "rallyRepairVehicleOnRecovery") {
+    rallyRepairEnabled.value = value === true
+  } else if (key === "rallyEnableFalseStarts") {
+    rallyFalseStartsEnabled.value = value === true
+  } else if (key === "rallyEnableEarlyTimeControlPenalties") {
+    rallyEarlyPenaltiesEnabled.value = value === true
+  }
+}
 
 const props = defineProps({
   mode: {
@@ -548,38 +605,73 @@ function resetAndCalculateAnimationTimes() {
 const pagesInfo = ref({})
 const dataReady = ref(false)
 
-onBeforeMount(() => {
-  // Reset visited pages when mounting
+function resetScreenState() {
+  if (animEndTimeout.value) {
+    clearTimeout(animEndTimeout.value)
+    animEndTimeout.value = null
+  }
+  cancelAllSoundDelays()
+  animationsEndTime.value = null
   visitedPages.value = new Set([])
+  currentPage.value = 'main'
+  dataReady.value = false
+  rallyRepairEnabled.value = true
+  rallyFalseStartsEnabled.value = true
+  rallyEarlyPenaltiesEnabled.value = false
+}
+
+function requestScreenData() {
+  resetScreenState()
   logger.debug(props.mode)
-  events.on("onRequestMissionScreenDataReady", (data) => {
-    //logger.debug("onRequestMissionScreenDataReady")
-    //logger.debug(data)
-    header.value = data.header
-    // Store pages info separately
-    if (data.pages) {
-      pagesInfo.value = data.pages
-    }
-
-    // Set data ready flag
-    dataReady.value = true
-
-    // Calculate animation times before updating layout
-    if (['endScreen', 'test'].includes(props.mode)) {
-      layout.value = data.layout
-      currentPage.value = null
-      showPage('main')
-    } else {
-      layout.value = data.layout
-    }
-    supportsReplay.value = data.supportsReplay
-    simpleStartScreen.value = data.simpleStartScreen
-
-    buttons.value = data.buttons
-  })
   lua.extensions.hook("onRequestMissionScreenData", props.mode)
-  if(props.mode !== 'startScreen')
-    lua.extensions.gameplay_missions_missionScreen.activateSoundBlur(true)
+  lua.extensions.gameplay_missions_missionScreen.activateSoundBlur(props.mode !== 'startScreen')
+}
+
+const onMissionScreenDataReady = (data) => {
+  resetScreenState()
+  header.value = data.header
+  const settingsPanel = (data.layout || []).find(panel => panel.type === "coDriverSelector")
+  const repairSetting = (settingsPanel?.settings || []).find(
+    setting => setting.key === "rallyRepairVehicleOnRecovery"
+  )
+  const falseStartsSetting = (settingsPanel?.settings || []).find(
+    setting => setting.key === "rallyEnableFalseStarts"
+  )
+  const earlyPenaltiesSetting = (settingsPanel?.settings || []).find(
+    setting => setting.key === "rallyEnableEarlyTimeControlPenalties"
+  )
+  if (repairSetting) rallyRepairEnabled.value = repairSetting.value === true
+  if (falseStartsSetting) rallyFalseStartsEnabled.value = falseStartsSetting.value === true
+  if (earlyPenaltiesSetting) rallyEarlyPenaltiesEnabled.value = earlyPenaltiesSetting.value === true
+
+  if (data.pages) {
+    pagesInfo.value = data.pages
+  }
+
+  // Set data ready flag
+  dataReady.value = true
+
+  // Calculate animation times before updating layout
+  if (['endScreen', 'test'].includes(props.mode)) {
+    layout.value = data.layout
+    currentPage.value = null
+    showPage('main')
+  } else {
+    layout.value = data.layout
+  }
+  supportsReplay.value = data.supportsReplay
+  simpleStartScreen.value = data.simpleStartScreen
+
+  buttons.value = data.buttons
+}
+
+onBeforeMount(() => {
+  events.on("onRequestMissionScreenDataReady", onMissionScreenDataReady)
+  requestScreenData()
+})
+
+watch(() => props.mode, () => {
+  requestScreenData()
 })
 
 onMounted(() => {
@@ -982,9 +1074,9 @@ const rightIconClass = computed(() => ({
 }
 
 .mission-control-layout {
-  --safezone-top: unset;
-  --safezone-bottom: unset;
-  --content-flow: column nowrap;
+  --content-flow: column;
+
+  margin-bottom: 2rem;
 
   .full-width {
     align-self: start;
@@ -1264,10 +1356,8 @@ const rightIconClass = computed(() => ({
   width: 100%;
   padding-top: 0;
 
-  :deep(.bng-switch) {
-    :deep(.bng-switch-label) {
-      flex: 1 1 auto;
-    }
+  :deep(.bng-switch-label) {
+    flex: 1 1 auto;
   }
 
   .replay-warning {

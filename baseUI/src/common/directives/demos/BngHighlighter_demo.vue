@@ -9,7 +9,7 @@
   <b>Case sensitive: </b>
   <span v-bng-highlighter.case="highlight">{{ text }}</span>
   <h3>RegExp</h3>
-  In this example we're using <span style="font-family: monospace;">/(thing|else)/i</span> as a highlight.
+  In this example we're using <span style="font-family: var(--fnt-mono);">/(thing|else)/i</span> as a highlight.
   <br/>
   <b>Result: </b>
   <span v-bng-highlighter="/(thing|else)/gi">{{ text }}</span>

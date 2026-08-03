@@ -2,6 +2,7 @@
   <BngSelect
     v-if="type !== 'dropdown'"
     ref="elSelect"
+    v-bind="selectAttrs"
     class="bng-smart-select"
     v-model="value"
     :options="binds.options"
@@ -16,6 +17,7 @@
   <BngDropdown
     v-if="binds.items"
     ref="elDropdown"
+    v-bind="dropdownAttrs"
     :class="`bng-smart-${type}`"
     v-model="value"
     :items="binds.items"
@@ -30,8 +32,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue"
+import { ref, computed, useAttrs, inject, onMounted, onBeforeUnmount, provide } from "vue"
 import { BngSelect, BngDropdown } from "@/common/components/base"
+
+defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
   items: {
@@ -57,8 +61,19 @@ const value = defineModel()
 
 const emit = defineEmits(["change"])
 
+const row = inject("BngRow", null)
+const inRow = !!row
+const effectiveDisabled = computed(() => props.disabled || (inRow && row.disabled.value))
+const rowElement = computed(() => inRow ? row.getElement?.() : undefined)
+
+// Prevent nested child controls from registering into the same row.
+provide("BngRow", null)
+
 const elDropdown = ref()
 const elSelect = ref()
+const attrs = useAttrs()
+const selectAttrs = computed(() => type.value !== "dropdown" ? attrs : undefined)
+const dropdownAttrs = computed(() => type.value === "dropdown" ? attrs : undefined)
 
 const types = {
   none: BngSelect,
@@ -76,7 +91,7 @@ const type = computed(() =>
 
 const binds = computed(() => {
   let res = {
-    disabled: props.disabled,
+    disabled: effectiveDisabled.value,
   }
   switch (type.value) {
     default:
@@ -95,19 +110,28 @@ const binds = computed(() => {
       res.highlight = props.highlight
       if (!res.disabled) res.disabled = res.options.length === 0
       res.popoverTarget = elSelect.value?.getElement?.()
-      res.focusTarget = elSelect.value?.getContentElement?.() || res.popoverTarget
+      res.focusTarget = rowElement.value || elSelect.value?.getContentElement?.() || res.popoverTarget
       break
     case "dropdown":
       res.items = items.value
       res.highlight = props.highlight
       res.showSearch = true
+      res.focusTarget = rowElement.value
       break
   }
   return res
 })
 
 function openDropdown() {
-  //elDropdown.value?.open()
+  if (type.value === "dropdown") elDropdown.value?.open?.()
+}
+
+function stepPrev() {
+  elSelect.value?.goPrev?.()
+}
+
+function stepNext() {
+  elSelect.value?.goNext?.()
 }
 
 function onSelectChanged(newValue) {
@@ -120,6 +144,48 @@ function onDropdownChanged(newValue) {
   // TODO: Fix this by refactoring dropdown to use defineModel
   if (value.value === newValue) return
   emit('change', newValue)
+}
+
+defineExpose({
+  stepPrev,
+  stepNext,
+  openDropdown,
+  hasDropdown: () => type.value === "dropdown",
+})
+
+const rowUiNavFocus = computed(() => (type.value === "dropdown" || effectiveDisabled.value) ? undefined : {
+  callback: dir => {
+    if (effectiveDisabled.value) return
+    if (dir < 0) stepPrev()
+    else stepNext()
+  },
+})
+
+const rowControlApi = inRow
+  ? {
+      activate: () => {
+        if (effectiveDisabled.value) return
+        elSelect.value?.activate?.() || elDropdown.value?.open?.()
+      },
+      get uiNavFocus() {
+        return rowUiNavFocus.value
+      },
+      isEventInside: event => {
+        const target = event?.target
+        if (!(target instanceof Node)) return false
+        const selectElement = elSelect.value?.getElement?.()
+        const dropdownElement = elDropdown.value?.getElement?.()
+        return !!(
+          (selectElement && selectElement.contains(target)) ||
+          (dropdownElement && dropdownElement.contains(target))
+        )
+      },
+    }
+  : null
+
+if (inRow) {
+  onMounted(() => row.register(rowControlApi))
+  onBeforeUnmount(() => row.unregister(rowControlApi))
 }
 </script>
 

@@ -116,8 +116,8 @@ export const useTuningStore = defineStore("tuning", () => {
         ...
       ]
     */
-    buckets.value = []
-    tuningVariables.value = {}
+    const newBuckets = []
+    const newTuningVariables = {}
 
     for (const varData of Object.values(data)) {
       // skip cargo box weight or otherwise hidden sliders
@@ -127,7 +127,7 @@ export const useTuningStore = defineStore("tuning", () => {
       if (!varData.subCategory) varData.subCategory = "Other"
 
       // create the buckets and put the variable data in
-      const cat = (buckets.value.find(cat => cat.name === varData.category) || buckets.value[buckets.value.push({ name: varData.category, items: [] }) - 1])
+      const cat = (newBuckets.find(cat => cat.name === varData.category) || newBuckets[newBuckets.push({ name: varData.category, items: [] }) - 1])
         .items
       const list = (cat.find(sub => sub.name === varData.subCategory) || cat[cat.push({ name: varData.subCategory, items: [] }) - 1]).items
 
@@ -135,7 +135,7 @@ export const useTuningStore = defineStore("tuning", () => {
       // if data manipulation is needed and only copy needed properties by template
       list.push(varData)
 
-      tuningVariables.value[varData.name] = {
+      newTuningVariables[varData.name] = {
         valDis: Number(valToValDis(varData)),
         minDis: varData.minDis,
         maxDis: varData.maxDis,
@@ -147,13 +147,18 @@ export const useTuningStore = defineStore("tuning", () => {
 
     // sort everything
     const sorter = (a, b) => a.name.localeCompare(b.name)
-    buckets.value.sort(sorter)
-    for (const cat of buckets.value) {
+    newBuckets.sort(sorter)
+    for (const cat of newBuckets) {
       cat.items.sort(sorter)
       for (const sub of cat.items) {
         sub.items.sort(sorter)
       }
     }
+
+    // Assign tuningVariables before buckets: reassigning buckets triggers Vue to
+    // unmount old sliders, whose cleanup may read from tuningVariables.
+    tuningVariables.value = newTuningVariables
+    buckets.value = newBuckets
   }
 
   // https://stackoverflow.com/q/17369098

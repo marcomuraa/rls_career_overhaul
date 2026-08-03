@@ -39,7 +39,7 @@ const onFinish = async () => {
   backToMenu()
 }
 
-const backToMenu = () => window.bngVue.gotoAngularState("menu.mainmenu")
+const backToMenu = () => window.bngVue.gotoAngularState("menu")
 
 onMounted(async () => {
   await settings.waitForData()

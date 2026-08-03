@@ -1,44 +1,46 @@
-<!-- bngButton - a button control -->
 <template>
-  <button
-    ref="btnDOMElRef"
-    :accent="accent"
+  <Button
+    ref="elButton"
+    v-bind="rowAwareAttrs"
+    class="bng-button"
     :class="{
-      'show-hold': showHold,
-      'hold-vertical': holdVertical,
-      'bng-button': true,
-      empty: !slots.default && !label,
+      'empty': !hasSomething,
       'l-icon': iconLeft || icon,
       'r-icon': iconRight,
       'external-icon': externalIcon,
-      'fallback-hold-offset': props.accent === 'custom' && needsFallbackHoldOffset,
+      'show-hold': showHold,
+      'hold-vertical': holdVertical,
+      'fallback-hold-offset': isBase && needsFallbackHoldOffset,
+      'no-focus-frame': inRow,
     }"
-    :disabled="disabled"
-    v-bng-sound-class="!disabled && !noSound && 'bng_click_hover_generic'"
+    :accent="accent"
+    :label="labelContent"
+    :disabled="effectiveDisabled"
+    :no-sound="noSound"
+    :sound-class="soundClass"
   >
-    <svg v-if="showHold" class="hold-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 12" preserveAspectRatio="xMidYMid">
-      <path d="M1,1 L8,2 L16,1 L8,11 z" />
-    </svg>
-    <BngOldIcon v-if="useOldIcons && (iconLeft || icon)" :type="iconLeft || icon" />
-    <BngIcon class="icon" v-else-if="!useOldIcons && (iconLeft || icon || externalIcon)" :type="iconLeft || icon" :externalImage="externalIcon" />
-    <template v-if="isPlainTextSlot">
-      <span class="label">
-        <slot />
-      </span>
+    <template v-if="isBase && slots.prebackground" #prebackground><slot name="prebackground"></slot></template>
+    <template v-if="isBase && slots.background" #background><slot name="background"></slot></template>
+
+    <template #prefix>
+      <svg v-if="showHold" class="hold-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 12" preserveAspectRatio="xMidYMid">
+        <path d="M1,1 L8,2 L16,1 L8,11 z" />
+      </svg>
+      <BngIcon class="icon" v-if="iconLeft || icon || externalIcon" :type="iconLeft || icon" :external-image="externalIcon" />
     </template>
-    <template v-else-if="!isPlainTextSlot">
-      <slot />
+
+    <slot v-if="!labelContent"></slot>
+
+    <template #suffix>
+      <BngIcon class="icon" v-if="iconRight" :type="iconRight" />
     </template>
-    <span v-if="label && !isPlainTextSlot" class="label">{{ label }}</span>
-    <span v-if="uiNavEvent">{{ uiNavEvent }}</span>
-    <BngOldIcon span v-if="useOldIcons && iconRight" :type="iconRight" />
-    <BngIcon class="icon" v-else-if="!useOldIcons && iconRight" :type="iconRight" />
-    <div class="background"></div>
-  </button>
+
+  </Button>
 </template>
 
 <script>
 export const ACCENTS = {
+  base: "base", // just a base Button, but with BngButton goodies
   main: "main",
   secondary: "secondary",
   outlined: "outlined",
@@ -46,44 +48,21 @@ export const ACCENTS = {
   attention: "attention",
   attentionghost: "attentionghost",
   attentionoutlined: "attentionoutlined",
+  destructive: "destructive",
   ghost: "ghost",
   menu: "menu",
-  custom: "custom",
+  custom_old: "custom_old",
 }
 </script>
 
 <script setup>
-import { useSlots, watch, watchEffect, ref, useAttrs, computed } from "vue"
-import { BngOldIcon, BngIcon } from "@/common/components/base"
-import { watchUINavEventChange } from "@/services/uiNav"
-import { vBngSoundClass } from "@/common/directives"
+import { ref, computed, useSlots, inject, onMounted, onBeforeUnmount } from "vue"
+import { BngIcon } from "@/common/components/base"
+import { Button } from "@/common/components/utility"
+
+const elButton = ref()
 
 const slots = useSlots()
-
-const uiNavEvent = ref()
-const btnDOMElRef = ref()
-
-const attrs = useAttrs()
-const useOldIcons = computed(() => "oldIcons" in attrs)
-
-const unwatch = watchUINavEventChange(btnDOMElRef, ({ eventName, action }) => {})
-
-defineExpose({
-  getElement() {
-    return btnDOMElRef.value
-  },
-})
-
-const isPlainTextSlot = ref(false)
-// This function will check if the slot is a single text node
-function checkIfPlainText() {
-  const slotContent = slots.default ? slots.default() : []
-  const isText = slotContent.length === 1 && typeof slotContent[0].type === "symbol" && String(slotContent[0].type).indexOf("v-txt") > -1
-  isPlainTextSlot.value = isText && slotContent[0].children.trim().length > 0
-}
-
-watch(() => slots.default, checkIfPlainText)
-checkIfPlainText()
 
 const props = defineProps({
   accent: {
@@ -91,28 +70,73 @@ const props = defineProps({
     default: "main",
     validator: v => Object.values(ACCENTS).includes(v) || v === "",
   },
+
   iconLeft: [Object, String],
   iconRight: [Object, String],
-  label: String,
-  icon: [Object, String], // string is used if oldIcons attribute is specified
+  icon: [Object, String],
   externalIcon: String,
+
   showHold: Boolean,
   holdVertical: Boolean,
+
+  label: String,
   disabled: Boolean,
   noSound: Boolean,
+  soundClass: String,
 })
 
-const needsFallbackHoldOffset = ref(true)
+const row = inject("BngRow", null)
+const inRow = !!row
+const effectiveDisabled = computed(() => props.disabled || (inRow && row.disabled.value))
+const rowAwareAttrs = computed(() => inRow ? { "bng-no-nav": "true", tabindex: -1 } : {})
 
-watchEffect(() => {
-  if (btnDOMElRef.value && props.accent === 'custom') {
-    const style = window.getComputedStyle(btnDOMElRef.value)
-    const value = style.getPropertyValue('--bng-button-custom-hold-offset').trim()
-    if (value) {
-      needsFallbackHoldOffset.value = false
-    }
+defineExpose({
+  getElement() {
+    return elButton.value?.getElement?.()
+  },
+})
+
+const isBase = computed(() => props.accent === ACCENTS.base || props.accent === ACCENTS.custom_old)
+
+const slotContent = computed(() => slots.default?.() ?? [])
+
+// if slot has a single text node
+const isPlainTextSlot = computed(() =>
+  slotContent.value.length === 1 &&
+  typeof slotContent.value[0].type === "symbol" &&
+  String(slotContent.value[0].type).indexOf("v-txt") > -1
+)
+
+const slotTextContent = computed(() => isPlainTextSlot.value && slotContent.value[0].children.trim())
+const hasTextContent = computed(() => slotTextContent.value?.length > 0)
+const hasSomething = computed(() => hasTextContent.value || props.label || slotContent.value.length > 1)
+const labelContent = computed(() => hasTextContent.value ? slotTextContent.value : props.label)
+
+const needsFallbackHoldOffset = computed(() => {
+  if (props.showHold && isBase.value && elButton.value?.getElement) {
+    return !!window.getComputedStyle(elButton.value.getElement())
+      .getPropertyValue("--bng-button-custom-hold-offset").trim()
   }
+  return true
 })
+
+const rowControlApi = inRow
+  ? {
+      activate: () => {
+        if (effectiveDisabled.value) return
+        elButton.value?.getElement?.()?.click?.()
+      },
+      isEventInside: event => {
+        const element = elButton.value?.getElement?.()
+        return !!(element && event?.target instanceof Node && element.contains(event.target))
+      },
+    }
+  : null
+
+if (inRow) {
+  onMounted(() => row.register(rowControlApi))
+  onBeforeUnmount(() => row.unregister(rowControlApi))
+}
 </script>
 
 <style lang="scss" scoped>
@@ -120,94 +144,302 @@ watchEffect(() => {
 @use "@/styles/modules/mixins" as *;
 @use "@/styles/modules/density" as *;
 
-$button-main-enabled: var(--bng-orange-500);
-$button-main-hold-fill: var(--bng-orange-300);
-$button-main-active: var(--bng-orange-600);
-$button-main-hover: var(--bng-orange-b400);
-$button-main-disabled: var(--bng-cool-gray-400);
+$main-enabled: var(--bng-orange-500);
+$main-hold-fill: var(--bng-orange-300);
+$main-active: var(--bng-orange-600);
+$main-hover: var(--bng-orange-b400);
+$main-disabled: var(--bng-cool-gray-400);
 
-$button-secondary-enabled: var(--bng-ter-blue-gray-700);
-$button-secondary-active: var(--bng-ter-blue-gray-800);
-$button-secondary-hover: var(--bng-ter-blue-gray-600);
-$button-secondary-disabled: var(--bng-cool-gray-800);
+$secondary-enabled: var(--bng-ter-blue-gray-700);
+$secondary-active: var(--bng-ter-blue-gray-800);
+$secondary-hover: var(--bng-ter-blue-gray-600);
+$secondary-disabled: var(--bng-cool-gray-800);
 
-$button-attention-enabled: var(--bng-add-red-600);
-$button-attention-active: var(--bng-add-red-700);
-$button-attention-hover: var(--bng-add-red-500);
-$button-attention-disabled: var(--bng-add-red-700);
+$attention-enabled: var(--bng-add-red-600);
+$attention-active: var(--bng-add-red-700);
+$attention-hover: var(--bng-add-red-500);
+$attention-disabled: var(--bng-add-red-700);
 
-$button-attention-ghost-fg: var(--bng-add-red-500);
-$button-attention-ghost-enabled: var(--bng-off-black);
-$button-attention-ghost-active: var(--bng-off-black);
-$button-attention-ghost-hover: var(--bng-add-red-700);
-$button-attention-ghost-disabled: var(--bng-off-black);
+$attention-ghost-fg: var(--bng-add-red-500);
+$attention-ghost-enabled: var(--bng-off-black);
+$attention-ghost-active: var(--bng-off-black);
+$attention-ghost-hover: var(--bng-add-red-700);
+$attention-ghost-disabled: var(--bng-off-black);
 
-$button-ghost-enabled: transparent;
-$button-ghost-active: transparent;
-$button-ghost-hover: var(--bng-orange-700);
-$button-ghost-disabled: transparent;
+$destructive-enabled: var(--bng-cool-gray-900);
+$destructive-hover: var(--bng-add-red-600);
+$destructive-active: var(--bng-add-red-900);
+$destructive-disabled: var(--bng-cool-gray-900);
+$destructive-focus: var(--bng-add-red-700);
+$destructive-enabled-opacity: 1;
+$destructive-hover-opacity: 1;
+$destructive-active-opacity: 1;
+$destructive-focus-opacity: 1;
+$destructive-border: var(--bng-add-red-600);
+$destructive-border-hover: $destructive-border;
+$destructive-border-active: $destructive-border;
+$destructive-border-disabled: $destructive-border;
+$destructive-border-focus: $destructive-border;
+$destructive-text: var(--bng-add-red-400);
+$destructive-text-hover: var(--bng-off-white);
+$destructive-text-focus: var(--bng-off-white);
 
-$button-text-enabled: var(--bng-off-black);
-$button-text-active: var(--bng-off-black);
-$button-text-hover: var(--bng-orange-600);
-$button-text-disabled: var(--bng-off-black);
+$ghost-enabled: transparent;
+$ghost-active: transparent;
+$ghost-hover: var(--bng-orange-700);
+$ghost-disabled: transparent;
 
-$button-menu-enabled: transparent;
-$button-menu-active: var(--bng-ter-blue-gray-500);
-$button-menu-hover: var(--bng-ter-blue-gray-500);
-$button-menu-disabled: transparent;
+$outlined-enabled: var(--bng-black-o4);
+$outlined-active: var(--bng-orange-800);
+$outlined-hover: var(--bng-orange-600);
+$outlined-disabled: var(--bng-black-o6);
+$outlined-border-enabled: var(--bng-cool-gray-600);
+$outlined-border-active: var(--bng-orange-700);
+$outlined-border-hover: var(--bng-orange-b400);
+$outlined-border-disabled: rgba(var(--bng-cool-gray-800-rgb), 0.8);
 
-$button-outlined-enabled: var(--bng-black-o4);
-$button-outlined-active: var(--bng-orange-800);
-$button-outlined-hover: var(--bng-orange-600);
-$button-outlined-disabled: var(--bng-black-o6);
-$button-outlined-border-enabled: var(--bng-cool-gray-600);
-$button-outlined-border-active: var(--bng-orange-700);
-$button-outlined-border-hover: var(--bng-orange-b400);
-$button-outlined-border-disabled: rgba(var(--bng-cool-gray-800-rgb), 0.8);
+$text-enabled: var(--bng-off-black);
+$text-active: var(--bng-off-black);
+$text-hover: var(--bng-orange-600);
+$text-disabled: var(--bng-off-black);
 
-// Custom button accent, use carefully and only if you know what you are doing
-// Custom accent background color variables
-$button-custom-enabled: var(--bng-button-custom-enabled, transparent);
-$button-custom-active: var(--bng-button-custom-active, transparent);
-$button-custom-hover: var(--bng-button-custom-hover, transparent);
-$button-custom-disabled: var(--bng-button-custom-disabled, transparent);
+$menu-enabled: transparent;
+$menu-active: var(--bng-ter-blue-gray-500);
+$menu-hover: var(--bng-ter-blue-gray-500);
+$menu-disabled: transparent;
 
-// Custom accent opacity variables
-$button-custom-enabled-opacity: var(--bng-button-custom-enabled-opacity, 1);
-$button-custom-hover-opacity: var(--bng-button-custom-hover-opacity, 1);
-$button-custom-active-opacity: var(--bng-button-custom-active-opacity, 1);
-$button-custom-disabled-opacity: var(--bng-button-custom-disabled-opacity, 1);
-$button-custom-border-enabled: var(--bng-button-custom-border-enabled, transparent);
-$button-custom-border-hover: var(--bng-button-custom-border-hover, transparent);
-$button-custom-border-active: var(--bng-button-custom-border-active, transparent);
-$button-custom-border-disabled: var(--bng-button-custom-border-disabled, transparent);
+// icon
+$base-icon-align: var(--bng-icon-align, baseline);
+$base-icon-size: var(--bng-icon-size, 1.5em);
+$base-icon-line-height: var(--bng-icon-line-height, 1em);
 
-
-// focus frame
+// hold
 $f-offset: 5px;
-$rad: $border-rad-1;
 // focus frame when holding
 // $hold-rad: calc($rad * 1.1);
 // $hold-f-offset: calc($f-offset * 1.4);
 $hold-rad: 4px;
 $hold-f-offset: $f-offset;
+$base-hold-offset: var(--bng-button-hold-offset, $hold-f-offset);
 
-// Custom accent border radius
-$button-custom-border-radius: var(--bng-button-custom-border-radius, #{$rad} #{$rad} #{$rad} #{$rad});
 
-// Custom background image for buttons, overriden by any hold state
-.bng-button {
-  > .background {
-    background-image: var(--bng-button-bg-image, unset);
-    background-size: var(--bng-button-bg-size, unset);
-    background-position: var(--bng-button-bg-position, unset);
+// important: "base" accent must have no overrides
+
+
+[accent="main"] {
+  --bng-bg-enabled: #{$main-enabled};
+  --bng-bg-hover: #{$main-hover};
+  --bng-bg-active: #{$main-active};
+  --btn-hold-fill: #{$main-enabled} 40%, #{$main-hold-fill} 50%, transparent 50%;
+}
+
+[accent="secondary"] {
+  font-weight: 900 !important;
+  --bng-bg-enabled: #{$secondary-enabled};
+  --bng-bg-hover: #{$secondary-hover};
+  --bng-bg-active: #{$secondary-active};
+  --bng-bg-disabled-opacity: 0.5;
+  --btn-hold-fill: #{$secondary-enabled} 40%, var(--bng-ter-blue-gray-500) 47%, var(--bng-ter-blue-gray-400) 50%, transparent 50%;
+}
+
+[accent="attention"] {
+  --bng-bg-enabled: #{$attention-enabled};
+  --bng-bg-hover: #{$attention-hover};
+  --bng-bg-active: #{$attention-active};
+  --bng-bg-disabled: #{$attention-disabled};
+  --bng-bg-disabled-opacity: 0.5;
+  --btn-hold-fill: #{$attention-enabled} 40%, var(--bng-add-red-500) 47%, var(--bng-add-red-400) 50%, transparent 50%;
+}
+
+[accent="attentionghost"] {
+  --bng-bg-enabled: #{$attention-ghost-enabled};
+  --bng-bg-hover: #{$attention-ghost-hover};
+  --bng-bg-active: #{$attention-ghost-active};
+  --bng-bg-active-opacity: 1;
+  --bng-bg-disabled: #{$attention-ghost-disabled};
+  --bng-bg-disabled-opacity: 0.4;
+  --bng-button-text-color: #{$attention-ghost-fg};
+  --bng-icon-color: #{$attention-ghost-fg};
+  --btn-hold-fill: #{$attention-ghost-enabled} 40%, var(--bng-add-red-700) 47%, var(--bng-add-red-500) 50%, transparent 50%;
+}
+
+[accent="ghost"] {
+  --bng-bg-enabled: #{$ghost-enabled};
+  --bng-bg-hover: #{$ghost-hover};
+  --bng-bg-hover-opacity: 0.4;
+  --bng-bg-active: #{$ghost-active};
+  --bng-bg-active-opacity: 0.6;
+  --bng-bg-disabled: #{$ghost-disabled};
+  --bng-bg-disabled-opacity: 0.4;
+  --btn-hold-fill: #{$ghost-enabled} 40%, var(--bng-orange-700) 47%, var(--bng-orange-500) 50%, transparent 50%;
+}
+
+[accent="outlined"] {
+  --bng-bg-enabled: #{$outlined-enabled};
+  --bng-bg-hover: #{$outlined-hover};
+  --bng-bg-active: #{$outlined-active};
+  --bng-bg-disabled: #{$outlined-disabled};
+  --bng-bg-disabled-opacity: 0.5;
+  --bng-bg-border-enabled: #{$outlined-border-enabled};
+  --bng-bg-border-hover: #{$outlined-border-hover};
+  --bng-bg-border-active: #{$outlined-border-active};
+  --bng-bg-border-disabled: #{$outlined-border-disabled};
+  --btn-hold-fill: #7D9FB588 40%, #7D9FB5 50%, transparent 50%;
+}
+
+[accent="attentionoutlined"] {
+  --bng-bg-enabled: #{$attention-enabled};
+  --bng-bg-hover: #{$ghost-hover};
+  --bng-bg-hover-opacity: 0.5;
+  --bng-bg-active: #{$outlined-active};
+  --bng-bg-active-opacity: 0.6;
+  --bng-bg-disabled: #{$outlined-disabled};
+  --bng-bg-disabled-opacity: 0.5;
+  --bng-bg-border-enabled: #{$attention-enabled};
+  --bng-bg-border-hover: #{$attention-hover};
+  --bng-bg-border-active: #{$attention-active};
+  --bng-bg-border-disabled: #{$attention-disabled};
+  --bng-button-text-hover-color: var(--bng-off-white);
+  --bng-button-text-active-color: var(--bng-off-white);
+  --btn-hold-fill: #7D9FB588 40%, #7D9FB5 50%, transparent 50%;
+}
+
+[accent="destructive"] {
+  --bng-bg-enabled: #{$destructive-enabled};
+  --bng-bg-enabled-opacity: #{$destructive-enabled-opacity};
+  --bng-bg-hover: #{$destructive-hover};
+  --bng-bg-hover-opacity: #{$destructive-hover-opacity};
+  --bng-bg-active: #{$destructive-active};
+  --bng-bg-active-opacity: #{$destructive-active-opacity};
+  --bng-bg-disabled: #{$destructive-disabled};
+  --bng-bg-disabled-opacity: 0.5;
+  --bng-bg-focus-opacity: #{$destructive-focus-opacity};
+  --bng-bg-border-enabled: #{$destructive-border};
+  --bng-bg-border-hover: #{$destructive-border-hover};
+  --bng-bg-border-active: #{$destructive-border-active};
+  --bng-bg-border-disabled: #{$destructive-border-disabled};
+  --bng-bg-border-focus: #{$destructive-border-focus};
+  --bng-bg-focus: #{$destructive-focus};
+  --bng-button-text-enabled-color: #{$destructive-text};
+  --bng-button-text-hover-color: #{$destructive-text-hover};
+  --bng-button-text-active-color: #{$destructive-text};
+  --bng-button-text-disabled-color: #{$destructive-text};
+  --bng-button-text-focus-color: #{$destructive-text-focus};
+  --btn-hold-fill: #{$destructive-enabled} 40%, #{$destructive-border} 47%, #{$destructive-text} 50%, transparent 50%;
+}
+
+[accent="text"] {
+  --bng-bg-enabled: #{$text-enabled};
+  --bng-bg-enabled-opacity: 0.4;
+  --bng-bg-hover: #{$text-hover};
+  --bng-bg-hover-opacity: 0.6;
+  --bng-bg-active: #{$text-active};
+  --bng-bg-active-opacity: 1;
+  --bng-bg-disabled: #{$text-disabled};
+  --bng-bg-disabled-opacity: 0.4;
+  --btn-hold-fill: #7D9FB544 40%, #7D9FB588 50%, transparent 50%;
+}
+
+[accent="menu"] {
+  --bng-bg-enabled: #{$menu-enabled};
+  --bng-bg-enabled-opacity: 0.4;
+  --bng-bg-hover: #{$menu-hover};
+  --bng-bg-hover-opacity: 0.4;
+  --bng-bg-active: #{$menu-active};
+  --bng-bg-active-opacity: 1;
+  --bng-bg-disabled: #{$menu-disabled};
+  --bng-bg-disabled-opacity: 0.4;
+
+  display: flex;
+  justify-content: stretch;
+  // width: 100%;
+  margin: 0.125rem;
+  text-align: left;
+  // @include modify-focus($rad, 0.0rem);
+
+  &.selected {
+    --bng-button-text-enabled-color: #f60;
+    --bng-button-text-hover-color: #f60;
+    --bng-button-text-active-color: #f60;
+    --bng-button-text-disabled-color: #f60;
   }
 }
 
+// fallback accent with older var names
+[accent="custom_old"] {
+  --bng-bg-enabled: var(--bng-button-custom-enabled);
+  --bng-bg-hover: var(--bng-button-custom-hover);
+  --bng-bg-active: var(--bng-button-custom-active);
+  --bng-bg-disabled: var(--bng-button-custom-disabled);
+  --bng-bg-enabled-opacity: var(--bng-button-custom-enabled-opacity);
+  --bng-bg-hover-opacity: var(--bng-button-custom-hover-opacity);
+  --bng-bg-active-opacity: var(--bng-button-custom-active-opacity);
+  --bng-bg-disabled-opacity: var(--bng-button-custom-disabled-opacity);
+  --bng-bg-border-enabled: var(--bng-button-custom-border-enabled);
+  --bng-bg-border-hover: var(--bng-button-custom-border-hover);
+  --bng-bg-border-active: var(--bng-button-custom-border-active);
+  --bng-bg-border-disabled: var(--bng-button-custom-border-disabled);
+  --bng-bg-image: var(--bng-button-bg-image, none);
+  --bng-bg-size: var(--bng-button-bg-size, auto);
+  --bng-bg-position: var(--bng-button-bg-position, center);
+  --bng-button-text-enabled-color: var(--bng-button-custom-text-enabled-color);
+  --bng-button-text-hover-color: var(--bng-button-custom-text-hover-color);
+  --bng-button-text-active-color: var(--bng-button-custom-text-active-color);
+  --bng-button-text-disabled-color: var(--bng-button-custom-text-disabled-color);
+}
+
+
+.bng-button {
+  .icon {
+    align-self: $base-icon-align;
+    font-size: $base-icon-size;
+    line-height: $base-icon-line-height;
+    transform: translateY(0.025em);
+    font-style: normal;
+    font-weight: 500 !important;
+    z-index: 1;
+  }
+
+  .bngicon {
+    min-width: 1.5em;
+    min-height: 1.5em;
+  }
+
+  &.l-icon:not(.empty) {
+    text-align: left;
+    .icon {
+      padding-right: 0.2em;
+    }
+    .bngicon {
+      margin-right: 0.2em;
+    }
+  }
+  &.r-icon:not(.empty) {
+    .icon {
+      padding-left: 0.2em;
+    }
+    .bngicon {
+      margin-left: 0.2em;
+    }
+  }
+
+  &.external-icon {
+    align-items: center;
+  }
+}
+
+
 .show-hold {
   $hold-grad: #fffd 50%, transparent 50%;
-  --btn-hold-fill: #ddd3 0%, #eee7 45%, #fffa 50%, transparent 50%;
+
+  // note: hold-fill will be deprecated soon so... whatever
+  // --btn-hold-fill-def: #ddd3 0%, #eee7 45%, #fffa 50%, transparent 50%;
+  --btn-hold-fill-def:
+    var(--bng-bg-enabled, transparent) 40%,
+    var(--bng-bg-hover, transparent) 47%,
+    var(--bng-bg-active, transparent) 50%,
+    transparent 50%
+  ;
 
   .hold-arrow {
     position: absolute;
@@ -244,27 +476,27 @@ $button-custom-border-radius: var(--bng-button-custom-border-radius, #{$rad} #{$
     transition: background-position 300ms, opacity 0ms 300ms;
     pointer-events: none;
   }
-  > .background {
-    background-image: linear-gradient(90deg, var(--btn-hold-fill));
+  > :deep(.bng-background) {
+    background-image: linear-gradient(90deg, var(--btn-hold-fill, var(--btn-hold-fill-def)));
     background-size: calc(200% + $hold-f-offset * 2) 100%;
     transition: background-position 300ms, opacity 0ms 300ms;
   }
   &::after {
     background-size: 200% 100%;
   }
-  > .background, &::after {
+  > :deep(.bng-background), &::after {
     background-position: 100% 50%;
   }
   &.hold-vertical {
-    > .background {
-      background-image: linear-gradient(0deg, var(--btn-hold-fill));
+    > :deep(.bng-background) {
+      background-image: linear-gradient(0deg, var(--btn-hold-fill, var(--btn-hold-fill-def)));
       background-size: 100% calc(200% + $hold-f-offset * 2);
     }
     &::after {
       background-size: 100% 200%;
       background-image: linear-gradient(0deg, $hold-grad);
     }
-    > .background, &::after {
+    > :deep(.bng-background), &::after {
       background-position: 50% 0%;
     }
   }
@@ -277,11 +509,11 @@ $button-custom-border-radius: var(--bng-button-custom-border-radius, #{$rad} #{$
 
   // when starting to hold
   &.hold-start {
-    > .background, &::after {
+    > :deep(.bng-background), &::after {
       background-position: 80% 50%;
       transition: none;
     }
-    &.hold-vertical > .background, &.hold-vertical::after {
+    &.hold-vertical > :deep(.bng-background), &.hold-vertical::after {
       background-position: 50% 20%;
     }
   }
@@ -297,11 +529,11 @@ $button-custom-border-radius: var(--bng-button-custom-border-radius, #{$rad} #{$
     &::after {
       opacity: 1;
     }
-    > .background, &::after {
+    > :deep(.bng-background), &::after {
       background-position: 0% 50%;
       transition: background-position var(--hold-time, 1s);
     }
-    &.hold-vertical > .background, &.hold-vertical::after {
+    &.hold-vertical > :deep(.bng-background), &.hold-vertical::after {
       background-position: 50% 100%;
     }
     // when not focused, emulate focus frame for flash effect on hold-complete
@@ -348,507 +580,26 @@ $button-custom-border-radius: var(--bng-button-custom-border-radius, #{$rad} #{$
       }
     }
   }
-}
 
-.bng-button {
-  color: white;
-  box-sizing: border-box;
-  font-family: var(--fnt-defs);
-  font-size: 1rem; // default value to be overriden with the parent component's styles
-  line-height: 1.5rem; // default value to be overriden with the parent component's styles
-  // min-height: 2em; Button size should be driven by the line-height. If you need it to be taller - override the line-height
-  padding: var(--bng-button-padding, 0.5em);
-  padding-top: var(--bng-button-padding-top, 0.3em);
-  padding-bottom: var(--bng-button-padding-bottom, 0.325em); // move the text up a little to compensate for lowercase alignment
-  border: 0;
-  border-radius: $rad; // Focus frame radius uses this variable to adjust, keep it
-  overflow: visible;
-  display: inline-flex;
-  flex-flow: var(--bng-content-flow, row) nowrap;
-  align-items: var(--bng-content-align, baseline);
-  justify-content: center;
-  position: relative;
-  flex: 0 0 auto;
-  background: transparent;
-  isolation: isolate;
-
-  > .background {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-radius: $rad;
-    background-color: $button-main-enabled;
-    opacity: 1;
-    z-index: -1;
+  // offsets
+  --custom-hold-offset: #{$base-hold-offset};
+  .hold-arrow {
+    top: calc(-1 * var(--custom-hold-offset) - 0.25rem);
     pointer-events: none;
   }
-
-  :not(.background) {
-    z-index: 1;
-  }
-
-  .icon {
-    align-self: var(--bng-icon-align, baseline);
-    font-size: var(--bng-icon-size, 1.5em);
-    line-height: var(--bng-icon-line-height, 1em);
-    transform: translateY(0.025em);
-    font-style: normal;
-    font-weight: 500;
-    z-index: 1;
-  }
-  &.allcaps {
-    text-transform: uppercase;
-    padding-top: 0.375rem;
-    padding-bottom: 0.375rem;
-    & > .label {
-      padding-left: 0.125rem;
-      padding-right: 0.125rem;
-    }
-    .icon {
-      transform: none;
-    }
-  }
-  &.large {
-    font-family: "Overpass", var(--fnt-defs);
-    font-size: 1.5em;
-    line-height: 1.25em;
-    font-weight: 700;
-    font-style: italic;
-    padding-top: 0.35em;
-    padding-bottom: 0.4em;
-    .icon {
-      font-weight: 500;
-    }
-    &.straight {
-      font-style: normal;
-    }
-  }
-  &.small {
-    font-size: 0.875em;
-    line-height: 1.15em;
-    font-weight: 500;
-    padding: 0.125em;
-    padding-top: 0.125em;
-    padding-bottom: 0.13em;
-  }
-  & > .label {
-    display: inline-block;
-    flex: 0.15 1 auto;
-    word-wrap: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    z-index: 1;
-  }
-
-  &:not(.empty) {
-    min-width: var(--bng-button-min-width, 6em);
-    max-width: var(--bng-button-max-width, 20em);
-  }
-
-  & > * {
-    flex: 0 0 auto;
-  }
-
-  & .bngicon {
-    min-width: 1.5em;
-    min-height: 1.5em;
-  }
-
-  &.l-icon:not(.empty) {
-    text-align: left;
-    .icon {
-      padding-right: 0.2em;
-    }
-    .bngicon {
-      margin-right: 0.2em;
-    }
-  }
-  &.r-icon:not(.empty) {
-    .icon {
-      padding-left: 0.2em;
-    }
-    .bngicon {
-      margin-left: 0.2em;
-    }
-  }
-
-  &.no-hover:hover {
-    cursor: default !important;
-    opacity: inherit;
-    > .background {
-      background-color: inherit;
-    }
-  }
-
-  &.external-icon {
-    align-items: center;
-  }
-
-  // Focus frame offset is set here, with this mixin
-  @include modify-focus($rad, $f-offset);
-
-  &:focus {
-    > .background {
-      border: none;
-    }
-  }
-
-  &:not(.no-hover):hover {
-    > .background {
-      background-color: $button-main-hover;
-      opacity: 1;
-    }
-  }
-
-  &:active,
   &.hold-active {
-    > .background{
-      background-color: $button-main-active;
+    .hold-arrow {
+      top: calc(-1 * var(--custom-hold-offset));
     }
   }
-
-  &:disabled {
-    opacity: 0.5;
-    pointer-events: none;
+  &::after {
+    top: calc(-1 * var(--custom-hold-offset));
+    left: calc(-1 * var(--custom-hold-offset));
+    right: calc(-1 * var(--custom-hold-offset));
+    bottom: calc(-1 * var(--custom-hold-offset));
   }
-
-  &[accent="main"] {
-    --btn-hold-fill: #{$button-main-enabled} 40%, #{$button-main-hold-fill} 50%, transparent 50%;
+  &.fallback-hold-offset::after {
+    @include rounded-clip($hold-rad, $rad, $hold-f-offset);
   }
-
-  &[accent="secondary"] {
-    > .background {
-      background-color: $button-secondary-enabled;
-    }
-    --btn-hold-fill: #{$button-secondary-enabled} 40%, var(--bng-ter-blue-gray-500) 47%, var(--bng-ter-blue-gray-400) 50%, transparent 50%;
-
-    &:not(.no-hover):hover {
-      > .background {
-        background-color: $button-secondary-hover;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background {
-        background-color: $button-secondary-active !important;
-      }
-    }
-
-    &:disabled {
-      > .background{
-        background-color: $button-secondary-disabled;
-      }
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  }
-
-  &[accent="attention"] {
-    > .background{
-      background-color: $button-attention-enabled;
-    }
-    --btn-hold-fill: #{$button-attention-enabled} 40%, var(--bng-add-red-500) 47%, var(--bng-add-red-400) 50%, transparent 50%;
-
-    &:not(.no-hover):hover {
-      > .background {
-        background-color: $button-attention-hover;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background {
-        background-color: $button-attention-active !important;
-      }
-    }
-
-    &:disabled {
-      > .background {
-        background-color: $button-attention-disabled;
-      }
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  }
-
-  &[accent="attentionghost"] {
-    --bng-icon-color: #{$button-attention-ghost-fg};
-    color: var(--bng-add-red-500);
-    > .background{
-      background-color: $button-attention-ghost-enabled;
-      opacity: 0;
-    }
-    --btn-hold-fill: #{$button-attention-ghost-enabled} 40%, var(--bng-add-red-700) 47%, var(--bng-add-red-500) 50%, transparent 50%;
-
-    &:not(.no-hover):hover {
-      > .background {
-        background-color: $button-attention-ghost-hover;
-        opacity: 0.4;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background {
-        background-color: $button-attention-ghost-active !important;
-        opacity: 1 !important;
-      }
-    }
-
-    &:disabled {
-      > .background {
-        background-color: $button-attention-ghost-disabled;
-      }
-      opacity: 0.4;
-      pointer-events: none;
-    }
-  }
-
-  &[accent="ghost"] {
-    > .background{
-      background-color: $button-ghost-enabled;
-      opacity: 1;
-    }
-    --btn-hold-fill: #{$button-ghost-enabled} 40%, var(--bng-orange-700) 47%, var(--bng-orange-500) 50%, transparent 50%;
-
-    &:not(.no-hover):hover {
-      > .background {
-        background-color: $button-ghost-hover;
-        opacity: 0.4;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background {
-        background-color: $button-ghost-active !important;
-        opacity: 0.6 !important;
-      }
-    }
-
-    &:disabled {
-      > .background {
-        background-color: $button-ghost-disabled;
-      }
-      opacity: 0.4;
-      pointer-events: none;
-    }
-  }
-
-  &[accent="custom"] {
-    margin: var(--bng-button-custom-margin, 0.25rem);
-    > .background{
-      background-color: $button-custom-enabled;
-      opacity: $button-custom-enabled-opacity;
-      border-radius: $button-custom-border-radius;
-      border: 0.125rem solid $button-custom-border-enabled;
-    }
-    --btn-hold-fill: #{$button-custom-enabled} 40%, var(--bng-button-custom-hover) 47%, var(--bng-button-custom-active) 50%, transparent 50%;
-
-    &:not(.no-hover):hover {
-      > .background {
-        background-color: $button-custom-hover;
-        opacity: $button-custom-hover-opacity;
-        border: 0.125rem solid $button-custom-border-hover;
-      }
-    }
-
-    &.show-hold {
-      --custom-hold-offset: var(--bng-button-custom-hold-offset, $hold-f-offset);
-
-      .hold-arrow {
-        top: calc(-1 * var(--custom-hold-offset) - 0.25rem);
-        pointer-events: none;
-      }
-
-      &.hold-active {
-        .hold-arrow {
-          top: calc(-1 * var(--custom-hold-offset));
-        }
-      }
-
-      &::after {
-        top: calc(-1 * var(--custom-hold-offset));
-        left: calc(-1 * var(--custom-hold-offset));
-        right: calc(-1 * var(--custom-hold-offset));
-        bottom: calc(-1 * var(--custom-hold-offset));
-      }
-      &.fallback-hold-offset::after {
-        @include rounded-clip($hold-rad, $rad, $hold-f-offset);
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background {
-        background-color: $button-custom-active !important;
-        opacity: $button-custom-active-opacity !important;
-        border: 0.125rem solid $button-custom-border-active !important;
-      }
-    }
-
-    &:disabled {
-      > .background {
-        background-color: $button-custom-disabled;
-        border: 0.125rem solid $button-custom-border-disabled;
-      }
-      opacity: $button-custom-disabled-opacity;
-      pointer-events: none;
-    }
-  }
-
-  &[accent="outlined"],
-  &[accent="attentionoutlined"] {
-    --btn-hold-fill: #7D9FB588 40%, #7D9FB5 50%, transparent 50%;
-
-    > .background{
-      background-color: $button-outlined-enabled;
-      border: 0.125rem solid $button-outlined-border-enabled;
-    }
-
-    &:not(.no-hover):hover {
-      > .background {
-        background-color: $button-outlined-hover;
-        border: 0.125rem solid $button-outlined-border-hover;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background {
-        background-color: $button-outlined-active !important;
-        border: 0.125rem solid $button-outlined-border-active !important;
-      }
-    }
-
-    &:disabled {
-      > .background {
-        background-color: $button-outlined-disabled;
-        border: 0.125rem solid $button-outlined-border-disabled;
-      }
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  }
-
-  &[accent="attentionoutlined"] {
-    color: var(--bng-add-red-400);
-
-    > .background{
-      background-color: $button-attention-enabled;
-      border: 0.125rem solid $button-attention-enabled;
-    }
-
-    &:not(.no-hover):hover {
-      color: var(--bng-off-white);
-      > .background {
-        background-color: $button-ghost-hover;
-        border: 0.125rem solid $button-attention-hover;
-        opacity: 0.5;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      color: var(--bng-off-white) !important;
-      > .background {
-        background-color: $button-outlined-active !important;
-        border: 0.125rem solid $button-attention-active !important;
-        opacity: 0.6 !important;
-      }
-    }
-
-    &:disabled {
-      > .background {
-        background-color: $button-outlined-disabled;
-        border: 0.125rem solid $button-attention-disabled;
-      }
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  }
-
-  &[accent="text"] {
-    > .background{
-      background-color: $button-text-enabled;
-      opacity: 0.4;
-    }
-
-    &:not(.no-hover):hover {
-      > .background{
-        background-color: $button-text-hover;
-        opacity: 0.6;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background{
-        background-color: $button-text-active !important;
-        opacity: 1 !important;
-      }
-    }
-
-    &:disabled {
-      > .background{
-        background-color: $button-text-disabled;
-      }
-      opacity: 0.4;
-      pointer-events: none;
-    }
-  }
-
-  &:not([accent="menu"]):not([accent="custom"]) {
-    margin: var(--bng-button-margin, 0.25rem);
-  }
-
-  &[accent="menu"] {
-    display: flex;
-    justify-content: stretch;
-    // width: 100%;
-    margin: 0.125rem;
-    text-align: left;
-    // @include modify-focus($rad, 0.0rem);
-
-    > .background {
-      background-color: $button-menu-enabled;
-      opacity: 0.4;
-    }
-
-    &.selected {
-      color: #f60;
-    }
-
-    &:not(.no-hover):hover,
-    &:focus {
-      > .background {
-        background-color: $button-menu-hover;
-        opacity: 0.4;
-      }
-    }
-
-    &:active,
-    &.hold-active {
-      > .background {
-        background-color: $button-menu-active !important;
-        opacity: 1 !important;
-      }
-    }
-
-    &:disabled {
-      > .background {
-        background-color: $button-menu-disabled;
-      }
-      opacity: 0.4;
-      pointer-events: none;
-    }
-  }
-}
-
-:deep(span[ui-event]) {
-  padding-right: var(--bng-ui-event-padding-override,0.25em);
 }
 </style>

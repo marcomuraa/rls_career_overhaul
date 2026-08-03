@@ -10,8 +10,15 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
   const preselectedPage = ref(null)
 
   const userSettingsModel = ref({})
+  const startingOptions = ref(null)
   const repairOptions = ref(null)
   const startOptionModel = ref(null)
+
+  const pickDefaultStartOptionType = typedOptions => {
+    if (!typedOptions?.length) return null
+    const enabled = typedOptions.find(x => x.enabled !== false)
+    return enabled ? enabled.type : typedOptions[0].type
+  }
   const activeObjectives = ref({})
   const context = ref(null)
   let sameUserSettingsAsLast = ref(false)
@@ -46,6 +53,7 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
       order: missionIndex,
       leagues: data.leagues,
       hasRules: data.hasRules,
+      hideProgressKeyInLeaderboards: data.hideProgressKeyInLeaderboards,
       //currentProgressKey: data.currentProgressKey,
     }
   })
@@ -79,6 +87,8 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
         official: currentMission.value.official,
         author: currentMission.value.author,
         date: currentMission.value.parentInfo.date,
+        requiredVehicleClass: currentMission.value.requiredVehicleClass,
+        playerVehicleClass: currentMission.value.playerVehicleClass,
       }
 
     } else {
@@ -94,6 +104,8 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
         official: currentMission.value.official,
         author: currentMission.value.author,
         date: currentMission.value.date,
+        requiredVehicleClass: currentMission.value.requiredVehicleClass,
+        playerVehicleClass: currentMission.value.playerVehicleClass,
       }
     }
   })
@@ -164,29 +176,53 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
 
     if (context.value === 'availableMissions') {
       const startable = currentMission.value.unlocks.startable
+      const allOptions = startingOptions.value
+      const typedOptions = allOptions ? allOptions.filter(x => x.type) : null
 
-      if (!repairOptions.value && !startable) {
+      if (!allOptions && !startable) {
         console.log("no repair ooptions")
         return null
       }
 
-      if (startOptionModel.value === "defaultStart"){
-        let ret = { startableVisible: currentMission.value.unlocks.startable, startableEnabled: true }
+      if (!allOptions) {
+        return {
+          startableVisible: startable,
+          startableEnabled: true,
+        }
+      }
+
+      // Message-only options from Lua (enabled: false, no type) — e.g. walking, can't pay fee
+      if (allOptions.length > 0 && !typedOptions?.length) {
+        const blocker = allOptions[0]
+        return {
+          startableVisible: true,
+          startableEnabled: blocker.enabled !== false,
+          selectedRepairTypeLabel: blocker.label,
+          needsRepair: false,
+        }
+      }
+
+      if (startOptionModel.value === "defaultStart") {
+        const defaultOpt = typedOptions.find(x => x.type === "defaultStart")
+        const ret = {
+          startableVisible: currentMission.value.unlocks.startable,
+          startableEnabled: defaultOpt ? defaultOpt.enabled !== false : false,
+          selectedRepairTypeLabel: defaultOpt?.label ?? null,
+        }
         //console.log("default start", ret)
         return ret
       }
 
-      const needsRepair = repairOptions.value ? repairOptions.value.length > 0 : false
-      const repairType = repairOptions.value ? repairOptions.value.find(x => x.type === startOptionModel.value) : null
-      //console.log("regular value")
+      const needsRepair = typedOptions.some(x => x.type !== "defaultStart")
+      const repairType = typedOptions.find(x => x.type === startOptionModel.value)
       return {
         needsRepair,
-        repairOptions: repairOptions.value,
+        repairOptions: typedOptions,
         selectedRepairTypeLabel: repairType ? repairType.label : null,
         selectedRepairType: startOptionModel.value,
 
         startableVisible: true,
-        startableEnabled: !needsRepair || repairType.enabled,
+        startableEnabled: !needsRepair || (repairType && repairType.enabled !== false),
       }
     } else if (context.value === 'ongoingMission') {
       //console.log(currentMission.value.lastUserSettings)
@@ -222,8 +258,10 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
 
   events.on("missionStartingOptionsForUserSettingsReady", data => {
     //console.log("missionStartingOptionsForUserSettingsReady", data)
-    repairOptions.value = data.options && Array.isArray(data.options) && data.options.length > 0 ? data.options.filter(x => x.type) : null
-    startOptionModel.value = repairOptions.value && repairOptions.value.length > 0 ? repairOptions.value[0].type : null
+    const options = data.options && Array.isArray(data.options) && data.options.length > 0 ? data.options : null
+    startingOptions.value = options
+    repairOptions.value = options ? options.filter(x => x.type) : null
+    startOptionModel.value = pickDefaultStartOptionType(repairOptions.value)
     entryFee.value = data.options && data.entryFee ? data.entryFee : null
   })
 
@@ -242,6 +280,8 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
   const stopSettingsWatcher = watch(
     () => userSettingsModel.value,
     async () => {
+      if (!selectedMissionId.value || !currentMission.value) return
+
       // Get Active Stars
       const settings = Object.keys(userSettingsModel.value).map(key => ({ key, value: userSettingsModel.value[key] }))
       //console.log("stopSettingsWatcher", settings)
@@ -335,6 +375,7 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
   const customRecoveryOptionsActiveState = ref({})
   const hideReconfigureButton = ref(false)
   const hideRecoveryOptions = ref(false)
+  const disableAbandonButton = ref(false)
 
   const init = async () => {
     const data = await lua.extensions.gameplay_missions_missionScreen.getMissionScreenData()
@@ -391,6 +432,7 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
     showMissionCards.value = data.showMissionCards
     hideReconfigureButton.value = data.hideReconfigureButton
     hideRecoveryOptions.value = data.hideRecoveryOptions
+    disableAbandonButton.value = data.disableAbandonButton
   }
 
   function selectMissionByIndex(index) {
@@ -433,6 +475,7 @@ export const useMissionDetailsStore = defineStore("missionDetails", () => {
     customRecoveryOptionsActiveState,
     hideReconfigureButton,
     hideRecoveryOptions,
+    disableAbandonButton,
     preselectedPage,
     selectMission,
     selectPreviousMission,

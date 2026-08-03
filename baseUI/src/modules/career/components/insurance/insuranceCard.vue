@@ -431,8 +431,8 @@ const cardStyles = computed(() => {
   display: flex;
   align-items: center;
   flex-direction: column;
-  gap: 0.625rem;
-  padding: 0.625rem 1rem;
+  gap: 0.225rem;
+  padding: 0rem 1rem;
   padding-bottom: 1.25rem;
 
   font-weight: 600;
@@ -449,7 +449,7 @@ const cardStyles = computed(() => {
 .grey-small-text {
   font-size: 0.86rem;
   font-weight: 300;
-  text-align: left;
+  text-align: center;
   opacity: 0.6;
 }
 

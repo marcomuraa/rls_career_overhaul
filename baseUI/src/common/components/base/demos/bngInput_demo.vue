@@ -1,64 +1,154 @@
 <template>
   <div class="input-demo-container">
     <div class="input-entry">
-      <BngInput v-model="basicValue" type="text" :min="-10" :max="10" :step="1" @valueChanged="onDefaultValueChanged"> </BngInput>
+      <h1>Default Input</h1>
+      <BngInput v-model="textValue" type="text" />
     </div>
     <div class="input-entry">
-      Read only: <BngInput v-model="basicValue" readonly type="number" :min="-10" :max="10" :step="1" @valueChanged="onDefaultValueChanged"> </BngInput>
+      <h1>Number Input</h1>
+      <BngInput v-model="numberValue" type="number" />
+      <h2>Min, Max, Step</h2>
+      <BngInput v-model="numberValue" type="number" :min="-10" :max="10" :step="0.5" label="Min -10, Max 10, Step 0.5" />
+      <h2>Custom Step Icon</h2>
+      <BngInput
+        v-model="numberValue"
+        no-step-bindings
+        type="number"
+        :step-icon-type="STEP_ICON_TYPES.plusMinus"
+        :min="-10"
+        :max="10"
+        :step="0.5"
+        label="Min -10, Max 10, Step 0.5" />
+    </div>
+    <div class="input-entry">
+      <h1>Hover Spinners (in-field)</h1>
+      <h2>Plain number - hover to reveal stacked spinners inside the field</h2>
+      <BngInput v-model="hoverSpinnerValue" type="number" :step="1" label="Hover me" />
+      <h2>Right-edge stress: suffix + trailing icon</h2>
+      <BngInput
+        v-model="hoverSpinnerValue"
+        type="number"
+        :min="0"
+        :max="100"
+        :step="0.5"
+        suffix="kg"
+        :trailing-icon="icons.beamXPLo"
+        label="Suffix + trailing icon" />
+      <h2>Right-edge stress: no external button</h2>
+      <BngInput v-model="hoverSpinnerValue" type="number" :min="0" :max="100" :step="1" :show-external-button="false" label="No external button" />
+    </div>
+    <div class="input-entry">
+      <h1>Labels</h1>
+      <BngInput value="Input with external label" label="External Label(default)" />
+      <br />
+      <BngInput value="Input with floating label" label="Floating Label" floating-label />
+    </div>
+    <div class="input-entry">
+      <h1>Extras</h1>
+      <BngInput prefix="Prefix" suffix="Suffix" :trailing-icon="icons.beamXPLo" :leading-icon="icons.beamXPFull" value="Extras" />
+    </div>
+    <div class="input-entry">
+      <h1>Max Length &amp; Input Width</h1>
+      <h2>maxlength + inputWidth (ch units)</h2>
+      <BngInput v-model="maxLengthValue" :maxlength="10" input-width="10ch" prefix="Prefix" suffix="Suffix" :trailing-icon="icons.beamXPLo" :leading-icon="icons.beamXPFull" />
+      <h2>maxlength only (full width, character limited)</h2>
+      <BngInput v-model="maxLengthValue" :maxlength="10" prefix="Prefix" suffix="Suffix" :trailing-icon="icons.beamXPLo" :leading-icon="icons.beamXPFull" />
+      <h2>inputWidth only (no character limit)</h2>
+      <BngInput v-model="textValue" input-width="20ch" prefix="Prefix" suffix="Suffix" :trailing-icon="icons.beamXPLo" :leading-icon="icons.beamXPFull" />
+    </div>
+    <div class="input-entry">
+      <h1>Read only</h1>
+      <BngInput value="123" type="number" readonly />
+    </div>
+    <div class="input-entry">
+      <h1>No Scope (direct nav)</h1>
+      <BngInput v-model="noScopeValue" no-scope label="Direct nav (no scope)" />
+      <br />
+      <BngInput v-model="scopedValue" label="Normal scoped input" />
     </div>
     <div class="input-entry demo-1">
-      <BngInput
-        ref="iptChanged"
-        external-label="Demo 1 (10 chars max)"
-        floating-label="Floating Label"
-        prefix="Prefix"
-        suffix="Suffix"
-        maxlength="10"
-        v-model="defaultValue"
-        :initial-value="'test'"
-        :trailing-icon="icons.bus"
-        @valueChanged="onDefaultValueChanged"
-      >
-      </BngInput>
+      <BngInput ref="iptChanged" v-model="defaultValue" label="Mark Clean Demo" prefix="Prefix" suffix="Suffix" :trailing-icon="icons.bus"> </BngInput>
       <span v-if="iptChanged">Value is {{ iptChanged.dirty ? "dirty" : "the same" }}</span>
       <BngButton v-if="iptChanged && iptChanged.dirty" @click="iptChanged.markClean()">Mark clean</BngButton>
     </div>
     <div class="input-entry">
-      <BngInput
-        external-label="Demo 2"
-        floating-label="Floating Label"
-        prefix="Prefix"
-        suffix="Suffix"
-        :leading-icon="icons.bus"
-        :trailing-icon="icons.bus"
-        :trailing-icon-outside="true"
-      >
-      </BngInput>
+      <h1>Validation</h1>
+      <BngInput prefix="Prefix" suffix="Suffix" label="Type 'error'" floating-label error-message="Invalid Text" :validate="validate"></BngInput>
     </div>
     <div class="input-entry">
-      <BngInput floatingLabel="Type 'error'" initial-value="test" error-message="Invalid Text" :validate="validate"></BngInput>
+      <h1>Validation Timing</h1>
+      <h2>Blur validation</h2>
+      <BngInput
+        v-model="blurValidationValue"
+        label="Type 'error' - validates on blur"
+        floating-label
+        error-message="Invalid Text"
+        :validate="validate"
+        :validation-type="VALIDATION_TYPES.blur" />
+      <h2>Value change validation</h2>
+      <BngInput
+        v-model="instantValidationValue"
+        label="Type 'error' - validates on value change"
+        floating-label
+        error-message="Invalid Text"
+        :validate="validate"
+        :validation-type="VALIDATION_TYPES.valueChange" />
     </div>
     <div class="input-entry">
+      <h1>Number Validation</h1>
+      <h2>Instant (type a number outside 0–100)</h2>
       <BngInput
-        external-label="Demo 3"
-        floating-label="Floating Label"
-        prefix="Prefix"
-        suffix="Suffix"
-        :leading-icon="icons.bus"
-        :trailing-icon="icons.bus"
-      >
-      </BngInput>
+        v-model="numValidationInstant"
+        type="number"
+        :min="0"
+        :max="100"
+        :step="0.1"
+        label="Min 0, Max 100"
+        floating-label
+        :validation-type="VALIDATION_TYPES.valueChange" />
+      <h2>Blur</h2>
+      <BngInput
+        v-model="numValidationBlur"
+        type="number"
+        :min="0"
+        :max="100"
+        :step="0.1"
+        label="Min 0, Max 100 - blur"
+        floating-label
+        :validation-type="VALIDATION_TYPES.blur" />
+    </div>
+    <div class="input-entry">
+      <h1>No Validation</h1>
+      <BngInput
+        v-model="noValidationValue"
+        type="number"
+        :min="0"
+        :max="100"
+        :step="0.1"
+        label="Min 0, Max 100 - no validation"
+        floating-label
+        no-validation />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onUnmounted } from "vue"
-import { BngInput, BngButton } from "@/common/components/base"
-import { icons } from '@/common/components/base/bngIcon.vue'
+import { BngButton, BngInput, STEP_ICON_TYPES, VALIDATION_TYPES, icons } from "@/common/components/base"
 
+const textValue = ref("test1")
+const numberValue = ref(0)
+const hoverSpinnerValue = ref(0)
 const basicValue = ref(0)
 const defaultValue = ref("test1")
+const maxLengthValue = ref("test1")
+const blurValidationValue = ref("")
+const instantValidationValue = ref("")
+const numValidationInstant = ref(50)
+const numValidationBlur = ref(50)
+const noScopeValue = ref("no scope")
+const scopedValue = ref("scoped")
+const noValidationValue = ref(50)
 
 const iptChanged = ref()
 
@@ -77,7 +167,7 @@ const stopValueWatcher = watch(
 const onDefaultValueChanged = val => console.log("onDefaultValueChanged", val)
 
 const validate = val => {
-  if (val &&val.length > 0 && val.includes("error")) {
+  if (val && val.length > 0 && val.includes("error")) {
     return false
   }
   return true
@@ -103,101 +193,3 @@ onUnmounted(() => {
   margin-top: 1em;
 }
 </style>
-
-<script>
-
-// Demo Metadata
-// -------------------------------------------------------
-import source from "./bngInput_demo.vue?raw"
-export default {
-  source,
-  title: "Text input component",
-  description: `Essentially a wrapper for the native input element, providing additional features and styling`,
-  propInfo: [
-    {
-      name: "modelValue",
-      type: "String/Number",
-      desc: "For `v-model` - shouldn't be used directly",
-    },
-    {
-      name: "type",
-      type: "String",
-      desc: "Type of input element. Should be one of: `'text'` (default), `'number'`",
-    },
-    {
-      name: "min",
-      type: "Number/String",
-      desc: "Mininum value for `number` inputs",
-    },
-    {
-      name: "max",
-      type: "Number/String",
-      desc: "Maximum value for `number` inputs",
-    },
-    {
-      name: "step",
-      type: "Number/String",
-      desc: "Numeric step for increase and decrease spinners on `number` inputs (default is `1`)",
-    },
-    {
-      name: "maxlength",
-      type: "Number/String",
-      desc: "Maximum length for the input text",
-    },
-    {
-      name: "readonly",
-      type: "Boolean",
-      desc: "Switch to make the input element read-only",
-    },
-    {
-      name: "floatingLabel",
-      type: "String",
-      desc: "Defines a floating label for the input",
-    },
-    {
-      name: "externalLabel",
-      type: "String",
-      desc: "Defines an external label for the input",
-    },
-    {
-      name: "placeholder",
-      type: "String",
-      desc: "Defines placeholder text for the input",
-    },
-    {
-      name: "initialValue",
-      type: "String",
-      desc: "Initial text for the input",
-    },
-    {
-      name: "leadingIcon",
-      type: "Object",
-      desc: "Defines an icon to be displayed before the input text",
-    },
-    {
-      name: "trailingIcon",
-      type: "Object",
-      desc: "Defines an icon to be displayed after the input text",
-    },
-    {
-      name: "trailingIconOutside",
-      type: "Boolean",
-      desc: "Switch to make the trailing icon appear outside the input",
-    },
-    {
-      name: "disabled",
-      type: "Boolean",
-      desc: "Switch for disabling/enabling the input",
-    },
-    {
-      name: "validate",
-      type: "Function",
-      desc: "Validation function for the text",
-    },
-  ],
-  attrInfo: [
-
-  ],
-}
-
-</script>

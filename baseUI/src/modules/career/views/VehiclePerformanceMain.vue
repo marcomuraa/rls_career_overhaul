@@ -1,161 +1,94 @@
 <template>
-  <div v-if="testInProgress" class="certification-test-in-progress">
-    <BngCard class="certification-card">
-      <div class="certification-content">
-        <div>
-          <div class="certificationTestText" :class="{ 'cancelling': cancellingTest }">{{ assessmentProgressMessage }}</div>
-        </div>
-        <div class="certification-icon">
-          <BngIcon :type="icons.timeUnlockOutline" />
-        </div>
-      </div>
-      <div class="cancelButton">
-        <BngButton
-          :accent="ACCENTS.RED"
-          @click="cancelTest"
-          v-bng-on-ui-nav:back,menu.asMouse
-          tabindex="0"
-        >
-          Cancel Test
-        </BngButton>
-      </div>
-    </BngCard>
-  </div>
-  <div v-else>
-    <ComputerWrapper ref="wrapper" :path="['Performance Index']" :title="title" back @back="close">
-      <VehiclePerformanceTile
-        :vehicle-data="vehicleData"
-      />
-    </ComputerWrapper>
-  </div>
+  <ComputerWrapper :title="title" @back="close">
+    <VehiclePerformanceTile :vehicle-data="vehicleData" />
+
+    <!-- Tabs are shown in infobar because they are tracked events by crossfire.
+     This is a hack to prevent them from displaying in the infobar -->
+    <BngBinding v-show="false" ui-event="tab_l" controller />
+    <BngBinding v-show="false" ui-event="tab_r" controller />
+  </ComputerWrapper>
 </template>
 
 <script setup>
-import { ref, computed, watch, onUnmounted, onMounted } from "vue"
-import ComputerWrapper from "./ComputerWrapper.vue"
-import { vBngOnUiNav, vBngBlur } from "@/common/directives"
-import { BngCard, BngIcon, BngButton, icons, ACCENTS } from "@/common/components/base"
+import { computed, ref, watch, nextTick } from "vue"
+import { BngBinding } from "@/common/components/base"
+import { useRoute } from "vue-router"
 import { lua } from "@/bridge"
+import { $translate } from "@/services/translation"
+import { useRouteDataStore } from "@/services/routeData"
+import { activateRouteTargetScope } from "@/services/scopedNav/api"
+
 import VehiclePerformanceTile from "../components/vehiclePerformance/VehiclePerformanceTile.vue"
-import { useLibStore } from "@/services"
-import { useRouter } from "vue-router"
+import ComputerWrapper from "./ComputerWrapper.vue"
 
-const router = useRouter()
+const route = useRoute()
+const routeDataStore = useRouteDataStore()
 
-const vehicleData = ref({})
-const assessmentProgressMessage = ref('Performance Assessment in progress...')
-const cancellingTest = ref(false)
-const testInProgress = ref(false)
+const vehicleData = computed(() => routeDataStore.data?.vehicleData || {})
 
-const { $game } = useLibStore()
+const title = computed(() => vehicleData.value.niceName ? $translate.instant("ui.career.vehiclePerformance.titleWithVehicle", { name: vehicleData.value.niceName }) : "ui.career.vehiclePerformance.title")
 
-const title = computed(() => vehicleData.value.niceName ? "Performance Index: " + vehicleData.value.niceName : "Performance Index")
+const close = () => lua.extensions.ui_router.back()
 
-const props = defineProps({
-  inventoryId: String
+const isPerformanceReady = computed(() => routeDataStore.routeName === route.name && routeDataStore.status === "mounted-ready")
+
+const lastMountedAckRouteName = ref("")
+let mountedAckRequestId = 0
+
+async function notifyRouteMounted() {
+  const routeName = route.name
+  if (!routeName || routeName === "unknown" || routeName === "__legacyAngular") return
+
+  const requestId = ++mountedAckRequestId
+  await nextTick()
+
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    await new Promise(resolve => window.requestAnimationFrame(() => resolve()))
+  }
+
+  if (requestId !== mountedAckRequestId) return
+  if (route.name !== routeName) return
+  const canonicalRoute = window.__luaRouter__?._pendingCanonicalRoute || routeDataStore.routeName || routeName
+  if (lastMountedAckRouteName.value === canonicalRoute) return
+
+  const result = await lua.extensions.ui_router.routeMounted(canonicalRoute)
+  lastMountedAckRouteName.value = canonicalRoute
+  if (!result?.success) return
+  if (window.__luaRouter__) window.__luaRouter__._pendingCanonicalRoute = null
+
+  // Data may already be present on fast re-entry; try activating right away.
+  activatePerformanceScopeWhenReady()
+}
+
+let scopeActivationRequestId = 0
+async function activatePerformanceScopeWhenReady() {
+  if (!isPerformanceReady.value) return
+  if (!lastMountedAckRouteName.value) return
+
+  const requestId = ++scopeActivationRequestId
+  const routeName = route.name
+  await nextTick()
+
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    await new Promise(resolve => window.requestAnimationFrame(() => resolve()))
+  }
+
+  if (requestId !== scopeActivationRequestId) return
+  if (route.name !== routeName) return
+
+  activateRouteTargetScope()
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    lastMountedAckRouteName.value = ""
+    notifyRouteMounted()
+  },
+  { immediate: true }
+)
+
+watch(isPerformanceReady, ready => {
+  if (ready) activatePerformanceScopeWhenReady()
 })
-
-const DISPLAYED_VEHICLE_DATA_KEYS = [
-  'time_60',
-  'time_330',
-  'time_1000',
-  'time_1_8',
-  'velAt_1_8',
-  'time_1_4',
-  'velAt_1_4',
-  'time_0_60',
-  'weight',
-  'power',
-  'torque',
-]
-
-$game.events.on('PerformanceTestMessage', (data) => {
-  assessmentProgressMessage.value = data.message
-  cancellingTest.value = true
-})
-
-$game.events.on('PerformanceTestStarted', (data) => {
-  testInProgress.value = data.testInProgress
-  getVehicleData()
-})
-
-const close = () => {
-  router.back()
-}
-
-const kill = () => {
-  $game.events.off('PerformanceTestMessage')
-  $game.events.off('PerformanceTestStarted')
-}
-
-const getVehicleData = () => {
-  lua.career_modules_inventory.getVehicleUiData(Number(props.inventoryId)).then(data => {
-    vehicleData.value = data
-  })
-}
-
-const start = () => {
-  getVehicleData()
-}
-
-const cancelTest = () => {
-  lua.career_modules_vehiclePerformance.cancelTest()
-}
-
-onUnmounted(kill)
-onMounted(start)
 </script>
-
-<style scoped lang="scss">
-.certification-test-in-progress {
-  padding: 1em;
-  width: 20%;
-  height: 20%;
-}
-
-.certification-card {
-  background-color: var(--bng-black-8);
-}
-
-.certification-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.certification-icon {
-  font-size: 5rem;
-  color: white;
-}
-
-.certificationTestText {
-  padding: 1em;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: white;
-
-  &.cancelling {
-    color: var(--bng-add-red-400);
-    animation: pulse 1.5s infinite;
-  }
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.cancelButton {
-  text-align: center;
-  margin: 0 auto;
-}
-
-
-</style>

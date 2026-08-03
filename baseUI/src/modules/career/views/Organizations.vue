@@ -1,29 +1,29 @@
 <template>
-  <LayoutSingle class="layout-content-full content-center layout-paddings" v-bng-blur>
+  <LayoutSingle class="organizations-layout layout-content-full content-center" v-bng-blur>
     <div class="milestones-wrapper">
-      <BngScreenHeading>Organizations</BngScreenHeading>
+      <BngScreenHeading>{{ $translate.instant("ui.career.organizations.title") }}</BngScreenHeading>
       <div bng-ui-scope="organizations" class="career-milestones-card" v-bng-on-ui-nav:back,menu="exit">
         <div class="career-milestones-container">
           <div class="actions">
             <BngButton class="exitButton" @click="exit" :accent="ACCENTS.attention"
-              ><BngBinding tabindex="1" ui-event="back" deviceMask="xinput" />Back</BngButton
+              ><BngBinding tabindex="1" ui-event="back" deviceMask="xinput" />{{ $translate.instant("ui.common.back") }}</BngButton
             >
             <CareerStatus class="career-page-status" ref="careerStatusRef" />
           </div>
           <div class="general-info" >
             <div class="text">
               <div>
-                Deliver cargo for these organizations to increase your reputation. A higher reputation will increase the rewards you get for delivering cargo for that organization.
+                {{ $translate.instant("ui.career.organizations.introReputation") }}
               </div>
               <div>
-                Some organizations also allow you to loan out vehicles. A higher reputation will grant you access to better vehicles. You will also have to pay a lower cut of the rewards to the company you loaned from.
+                {{ $translate.instant("ui.career.organizations.introLoaners") }}
               </div>
             </div>
             <template v-if="!selectedOrganization">
               <div class="card-wrapper selectedOrg">
                 <div class="header">
                   <div class="name">
-                    Click an organization to view details.
+                    {{ $translate.instant("ui.career.organizations.clickToViewDetails") }}
                   </div>
                   <BngIcon class="glyph" :type="icons.peopleOutline" />
                 </div>
@@ -40,15 +40,15 @@
           <div class="scrollable-container" bng-nav-scroll-force>
             <template v-for="level in reputationLevels">
               <template v-if="level.value >=-1 || (filteredOrganizationsByLevel[level.value] && filteredOrganizationsByLevel[level.value].length > 0)" >
-                <div class="level-header" :class="{['level-'+level.label]:true}">
+                <div class="level-header" :class="'level-' + level.levelClass">
                   <div class="label" v-if="level.value >= -1">
-                    {{level.label}} (Level {{level.value}})
+                    {{ $translate.instant("ui.career.organizations.levelLabel", { label: level.label, level: level.value }) }}
                   </div>
                   <div class="label"  v-else>
-                    Undiscovered Organizations
+                    {{ $translate.instant("ui.career.organizations.undiscovered") }}
                   </div>
                   <div class="info" v-if="level.bonus">
-                    <BngPropVal :iconType="icons.beamCurrency" :valueLabel="level.bonus" :keyLabel="'Delivery Rewards'" />
+                    <BngPropVal :iconType="icons.beamCurrency" :valueLabel="level.bonus" :keyLabel="$translate.instant('ui.career.organizations.deliveryRewards')" />
                   </div>
                 </div>
 
@@ -82,6 +82,7 @@ import { lua } from "@/bridge"
 import { ref, onMounted, computed, watch } from "vue"
 
 import { useUINavScope } from "@/services/uiNav"
+import { $translate } from "@/services/translation"
 useUINavScope("organizations") // UI Nav events to fire from (or from focused element inside) element with attribute: bng-ui-scope="milestones"
 
 const props = defineProps({
@@ -91,12 +92,12 @@ const careerStatusRef = ref()
 const organizations = ref([])
 const selectedOrgId = ref("")
 const reputationLevels = computed(() => [
-  { value: 3, label: 'Partner', color: '#00f', bonus:"+40%" },
-  { value: 2, label: 'Preferred', color: '#0f0',bonus:"+20%" },
-  { value: 1, label: 'Reliable', color: '#ff0', bonus:"+10%" },
-  { value: 0, label: 'Neutral', color: '#f00', bonus:"+0%" },
-  { value: -1, label: 'Questionable', color: '#999', bonus:"-10%" },
-  { value: -2, label: 'Undiscovered', color: '#999' },
+  { value: 3, levelClass: "Partner", label: $translate.instant("ui.career.organizations.reputation.partner"), color: '#00f', bonus:"+40%" },
+  { value: 2, levelClass: "Preferred", label: $translate.instant("ui.career.organizations.reputation.preferred"), color: '#0f0',bonus:"+20%" },
+  { value: 1, levelClass: "Reliable", label: $translate.instant("ui.career.organizations.reputation.reliable"), color: '#ff0', bonus:"+10%" },
+  { value: 0, levelClass: "Neutral", label: $translate.instant("ui.career.organizations.reputation.neutral"), color: '#f00', bonus:"+0%" },
+  { value: -1, levelClass: "Questionable", label: $translate.instant("ui.career.organizations.reputation.questionable"), color: '#999', bonus:"-10%" },
+  { value: -2, levelClass: "Undiscovered", label: $translate.instant("ui.career.organizations.reputation.undiscovered"), color: '#999' },
 ]);// Filter organizations by level
 // Create a computed property to filter organizations by each level
 const filteredOrganizationsByLevel = computed(() => {
@@ -159,7 +160,7 @@ const openOrganizationPage = organizationId => {
 }
 
 const exit = () => {
-  window.bngVue.gotoGameState("progressLanding")
+  window.bngVue.gotoGameState("career.domainSelection")
 }
 
 const start = () => {
@@ -181,7 +182,8 @@ hr {
   border-top: 1px solid var(--bng-cool-gray-600);
 }
 
-.layout-content {
+.organizations-layout {
+  --content-flow: column;
   color: $textcolor;
   font-size: $fontsize;
 }
@@ -189,7 +191,7 @@ hr {
 .milestones-wrapper {
   display: flex;
   max-width: 80em;
-  flex-flow: column;
+  flex-direction: column;
   overflow: hidden;
   align-self: stretch;
   flex: 1 1 auto;
@@ -207,8 +209,7 @@ hr {
   display: flex;
   flex: 1 0 auto;
   flex-direction: column;
-  //justify-content: flex-start;
-  //align-items: stretch;
+  color: $textcolor;
 
   background: rgba(0, 0, 0, 0.8);
   border-radius: var(--bng-corners-3);
@@ -343,7 +344,7 @@ hr {
   flex: 0 0 auto;
   padding: 1rem;
   display: flex;
-  flex-flow: row;
+  flex-direction: row;
   > .text {
     font-size: 1.25rem;
     padding-right: 2rem;
@@ -380,7 +381,7 @@ hr {
   height: 100%;
   color: white;
   display: flex;
-  flex-flow:column;
+  flex-direction: column;
 
 
   > .header {
@@ -388,7 +389,7 @@ hr {
     flex: 1 1 auto;
     align-items: auto;
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     > .name {
       font-weight: 800;
       font-size: 1.25rem;

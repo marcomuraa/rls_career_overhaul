@@ -168,7 +168,7 @@ function cont() {
 }
 
 function gotoMenu() {
-  window.bngVue.gotoAngularState("menu.mainmenu")
+  window.bngVue.gotoAngularState("menu")
 }
 
 function showRules() {
@@ -183,7 +183,8 @@ function preventAutoFocus() {
 <style scoped lang="scss">
 .pills {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: flex-start;
   padding-bottom: 0.5rem;
   > * {

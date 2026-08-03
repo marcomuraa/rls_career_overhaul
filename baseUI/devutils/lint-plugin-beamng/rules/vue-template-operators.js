@@ -11,27 +11,33 @@ module.exports = {
   },
   create(context) {
     function hasComparisonOperator(expr) {
-      if (expr?.type === "BinaryExpression") {
-        if (expr.operator === "<" || expr.operator === ">") {
-          return true;
-        }
-      } else if (expr?.type === "LogicalExpression") {
-        return hasComparisonOperator(expr.left) || hasComparisonOperator(expr.right);
+      switch (expr?.type) {
+        case "LogicalExpression":
+          return hasComparisonOperator(expr.left) || hasComparisonOperator(expr.right)
+        case "BinaryExpression":
+          if (expr.operator === "<" || expr.operator === ">")
+            return true
+        default:
+          return false
       }
-      return false;
     }
 
-    const templateVisitor = context.parserServices.defineTemplateBodyVisitor(
+    const sourceCode = context.sourceCode || context.getSourceCode()
+    const parserServices = sourceCode?.parserServices || context.parserServices
+
+    if (!parserServices || typeof parserServices.defineTemplateBodyVisitor !== "function")
+      return {}
+
+    const templateVisitor = parserServices.defineTemplateBodyVisitor(
       {
-        "VAttribute"(node) {
-          if (node.directive && hasComparisonOperator(node.value?.expression)) {
-            return;
-          }
+        VAttribute(node) {
+          if (node.directive && hasComparisonOperator(node.value?.expression))
+            return
         }
       },
       {}
-    );
+    )
 
-    return templateVisitor;
+    return templateVisitor
   }
-};
+}

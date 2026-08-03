@@ -36,15 +36,16 @@ const descriptionParsed = computed(() => $content.bbcode.parse($translate.contex
   position: relative;
   display: flex;
   flex-direction: column;
-  padding-top: 0.625em;
+  padding-top: 0.50em;
   padding-left: 1.25em;
   padding-right: 1.25em;
-  padding-bottom: 0.5em;
+  padding-bottom: 0.2em;
   border-bottom: 0.17em solid #ff6600;
   font-style: italic;
   font-weight: 800;
   font-size: 1.5em;
-  line-height: 110%;
+  line-height: 100%;
+
   letter-spacing: 0.01em;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.6);
@@ -70,6 +71,7 @@ const descriptionParsed = computed(() => $content.bbcode.parse($translate.contex
     line-height: 1em;
     /* or 120% */
     letter-spacing: 0.01em;
+    padding-top: 0.15em;
   }
 }
 </style>

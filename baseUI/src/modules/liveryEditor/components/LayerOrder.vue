@@ -1,5 +1,13 @@
 <template>
-  <LayerInspectorBase v-bng-blur :heading="'Order'">
+  <LayerInspectorBase
+    v-bng-scoped-nav="{
+      scopeId: LAYER_ORDER_SCOPE,
+      activateOnMount: true,
+      preferAutoFocus: true,
+      canDeactivate: onBack,
+    }"
+    v-bng-blur
+    :heading="'Order'">
     <div class="direction-buttons-row">
       <BngTile bng-nav-item label="Move Up" v-bng-on-ui-nav:ok.focusRequired="moveUp" @click="moveUp">
         <div class="icon-binding-wrapper">
@@ -40,15 +48,27 @@
 
 <script setup>
 import { computed, onMounted, ref } from "vue"
-import { vBngOnUiNav, vBngBlur, vBngDisabled } from "@/common/directives"
+import { vBngOnUiNav, vBngBlur, vBngDisabled, vBngScopedNav } from "@/common/directives"
 import { BngDropdown, BngIcon, BngTile, icons } from "@/common/components/base"
 import { lua, useBridge } from "@/bridge"
 import LayerInspectorBase from "../components/layerSettings/LayerInspectorBase.vue"
 import { useLiveryEditorStore } from "@/modules/liveryEditor/stores"
 
+const LAYER_ORDER_SCOPE = "layer-order"
+
 const ORDER_TOOL = lua.extensions.ui_liveryEditor_tools_group
 
 const store = useLiveryEditorStore()
+
+const emit = defineEmits(["back"])
+
+// BACK from the layer order panel is owned by the parent: emit so it can restore
+// and reactivate the actions drawer. Returning false stops the directive's
+// route-back handling from running before the drawer scope is available again.
+function onBack() {
+  emit("back")
+  return false
+}
 
 const _order = ref(2)
 const order = computed({

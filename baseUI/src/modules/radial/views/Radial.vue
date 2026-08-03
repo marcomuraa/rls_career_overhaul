@@ -1,98 +1,103 @@
 <template>
-  <div
-    class="radial-menu"
-    :class="{ temporaryHidden }"
-    v-bng-blur="!temporaryHidden"
-    bng-ui-scope="radialMenu"
-    v-bng-on-ui-nav:context="openFavoriteSelector"
-    v-bng-on-ui-nav:menu,back="back"
-    v-bng-on-ui-nav:tab_l,tab_r="processTabInput"
-    v-bng-on-ui-nav:focus_lr,focus_ud="processStickInput"
-    v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.down="processDpadInput"
-    v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.up="processDpadInput"
-    v-bng-on-ui-nav:ok,context="processMouseClick"
-    @mousedown="handleMouseDown"
+  <LayoutSingle class="radial-menu-layout" :blur="!temporaryHidden">
+    <div
+      class="radial-menu"
+      :class="{ temporaryHidden }"
+      v-bng-scoped-nav="{ scopeId: 'radial-menu', type: SCOPED_NAV_TYPES.nonav, activateOnMount: true, canDeactivate: canDeactivateScope }"
+      v-bng-on-ui-nav:context="openFavoriteSelector"
+      v-bng-on-ui-nav:menu,back="back"
+      v-bng-on-ui-nav:tab_l,tab_r="processTabInput"
+      v-bng-on-ui-nav:focus_lr,focus_ud="processStickInput"
+      v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.down="processDpadInput"
+      v-bng-on-ui-nav:focus_l,focus_r,focus_u,focus_d.up="processDpadInput"
+      v-bng-on-ui-nav:ok,context="processMouseClick"
+      @deactivate="close"
+      @mousedown="handleMouseDown"
 
-    v-bng-ui-nav-label:menu,back="radialData.backButtonIndex ? 'ui.common.back' : 'ui.common.close'"
-    v-bng-ui-nav-label:focus_lr,focus_ud,focus_l,focus_r,focus_u,focus_d="'Radial menu navigation'"
-    v-bng-ui-nav-label:ok="'Select'"
-    v-bng-ui-nav-label:context="'Configure Slot'"
-    v-bng-ui-nav-label:tab_l,tab_r="'Switch Category'"
-  >
-    <div class="radial-infos">
-      <BngCardHeading class="radial-title">
-        {{ headingTitle }}
-      </BngCardHeading>
-      <div class="radial-breadcrumbs">{{ breadcrumbs }}</div>
-      <div v-if="hasCategories" class="radial-categories">
+      v-bng-ui-nav-label:menu,back="radialData.backButtonIndex ? 'ui.common.back' : 'ui.common.close'"
+      v-bng-ui-nav-label:focus_lr,focus_ud,focus_l,focus_r,focus_u,focus_d="'Radial menu navigation'"
+      v-bng-ui-nav-label:ok="'Select'"
+      v-bng-ui-nav-label:context="'Configure Slot'"
+      v-bng-ui-nav-label:tab_l,tab_r="'Switch Category'"
+    >
+      <div class="radial-messages">
+        <component :is="topLeftApps" />
+      </div>
+      <div class="radial-infos">
+        <BngCardHeading class="radial-title">
+          {{ headingTitle }}
+        </BngCardHeading>
+        <div class="radial-breadcrumbs">{{ breadcrumbs }}</div>
+        <div v-if="hasCategories" class="radial-categories">
+          <BngBinding
+            class="radial-plate radial-tab-left"
+            ui-event="tab_l"
+            :style="{ '--rad-tab-icon': `'${icons.arrowSmallLeft.glyph}'` }"
+            controller
+            @click="switchCategory(true)"
+          />
+          <div class="radial-plate">
+            <BngImageTile v-for="category in radialData.categories"
+              :key="category.id"
+              @click="setLevel(category.goto)"
+              tabindex="0" bng-nav-item v-bng-on-ui-nav:ok.asMouse.focusRequired
+              class="radial-category"
+              :class="{ selected: category.id === radialData.selectedCategory }"
+              :icon="icons[category.icon || 'beamNG']"
+            >
+              <div class="radial-category-label">{{ $translate.instant(category.title) }}</div>
+            </BngImageTile>
+            <div class="background-plate"></div>
+          </div>
+          <BngBinding
+            class="radial-plate radial-tab-right"
+            ui-event="tab_r"
+            controller
+            :style="{ '--rad-tab-icon': `'${icons.arrowSmallRight.glyph}'` }"
+            @click="switchCategory(false)"
+          />
+        </div>
+      </div>
+      <div v-if="hasLRShoulderButtons" class="radial-quick-tabs">
         <BngBinding
           class="radial-plate radial-tab-left"
-          ui-event="tab_l"
           :style="{ '--rad-tab-icon': `'${icons.arrowSmallLeft.glyph}'` }"
+          ui-event="tab_l"
           controller
-          @click="switchCategory(true)"
+          @click="LRAction('tab_l')"
         />
-        <div class="radial-plate">
-          <BngImageTile v-for="category in radialData.categories"
-            :key="category.id"
-            @click="setLevel(category.goto)"
-            tabindex="0" bng-nav-item v-bng-on-ui-nav:ok.asMouse.focusRequired
-            class="radial-category"
-            :class="{ selected: category.id === radialData.selectedCategory }"
-            :icon="icons[category.icon || 'beamNG']"
-          >
-            <div class="radial-category-label">{{ $translate.instant(category.title) }}</div>
-          </BngImageTile>
-          <div class="background-plate"></div>
-        </div>
         <BngBinding
           class="radial-plate radial-tab-right"
+          :style="{ '--rad-tab-icon': `'${icons.arrowSmallRight.glyph}'` }"
           ui-event="tab_r"
           controller
-          :style="{ '--rad-tab-icon': `'${icons.arrowSmallRight.glyph}'` }"
-          @click="switchCategory(false)"
+          @click="LRAction('tab_r')"
         />
       </div>
-    </div>
-    <div v-if="hasLRShoulderButtons" class="radial-quick-tabs">
-      <BngBinding
-        class="radial-plate radial-tab-left"
-        :style="{ '--rad-tab-icon': `'${icons.arrowSmallLeft.glyph}'` }"
-        ui-event="tab_l"
-        controller
-        @click="LRAction('tab_l')"
-      />
-      <BngBinding
-        class="radial-plate radial-tab-right"
-        :style="{ '--rad-tab-icon': `'${icons.arrowSmallRight.glyph}'` }"
-        ui-event="tab_r"
-        controller
-        @click="LRAction('tab_r')"
-      />
-    </div>
-    <div ref="radialCont" class="radial-svg"></div>
+      <div ref="radialCont" class="radial-svg"></div>
+      <canvas ref="centerCanvas" class="radial-center-canvas" aria-hidden="true"></canvas>
 
-    <div v-if="focusedItem?.desc" class="radial-description">
-      {{$content.bbcode.parse($translate.contextTranslate(focusedItem.desc, true))}}
+      <div v-if="focusedItem?.desc" class="radial-description">
+        {{$content.bbcode.parse($translate.contextTranslate(focusedItem.desc, true))}}
+      </div>
     </div>
-  </div>
+  </LayoutSingle>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeMount } from "vue"
+import { ref, computed, onMounted, onUnmounted } from "vue"
 import { BngBinding, BngImageTile, icons } from "@/common/components/base"
-import { vBngOnUiNav, vBngUiNavLabel, vBngBlur } from "@/common/directives"
+import { vBngOnUiNav, vBngUiNavLabel, vBngScopedNav } from "@/common/directives"
 import { lua } from "@/bridge"
 import { useEvents } from "@/services/events"
-import { useUINavScope } from "@/services/uiNav"
+import { SCOPED_NAV_TYPES } from "@/services/scopedNav/constants"
 import RadialSVG from "../radialsvg"
-import { useInfoBar } from "@/services/infoBar"
+import RadialCenterCanvas from "../radialCenterCanvas"
 import useControls from "@/services/controls"
 import { $translate, $content } from "@/services"
 import BngCardHeading from "@/common/components/base/bngCardHeading.vue"
-
-useUINavScope("radialMenu")
-const infobar = useInfoBar()
+import { topLeftApps } from "@/modules/apps"
+import { LayoutSingle } from "@/common/layouts"
 
 const controls = useControls()
 const events = useEvents()
@@ -120,6 +125,55 @@ const hasLRShoulderButtons = computed(() => {
   return radialData.value && radialData.value.hasLRShoulderButtons
 })
 
+const radialCont = ref()
+const centerCanvas = ref()
+const radialCenterCanvas = new RadialCenterCanvas()
+
+const getHotkey = (action, separator = "") => {
+  const viewerObj = controls.makeViewerObj({ action })
+  if (viewerObj) {
+    return icons[viewerObj.icon].glyph
+      + " "
+      + viewerObj.control.split(/[ -]/).map(s => s.substring(0, 1).toUpperCase() + s.substring(1)).join(separator)
+  } else {
+    return ""
+  }
+}
+
+const getCenterLabel = item => {
+  return typeof item.title === "string"
+    ? $translate.contextTranslate({ txt: item.title, context: item.context })
+    : $translate.contextTranslate(item.title)
+}
+
+const getCenterPrice = item => {
+  return item?.price?.money?.amount !== undefined ? item.price.money.amount + " \u{EC0D}" : ""
+}
+
+const getDefaultCenterState = () => ({
+  icon: radialData.value.menuIcon || "beamNG",
+  label: $translate.instant("ui.radialmenu2.selectOption"),
+  price: "",
+  hotkey: getHotkey("menu_item_focus_ud", "+"),
+  focused: false,
+  color: null,
+})
+
+const setCenterDefault = () => {
+  radialCenterCanvas.setState(getDefaultCenterState())
+}
+
+const setCenterFocus = item => {
+  radialCenterCanvas.setState({
+    icon: item.icon || radialData.value.menuIcon || "beamNG",
+    label: getCenterLabel(item),
+    price: getCenterPrice(item),
+    hotkey: item.hotkey || "",
+    focused: true,
+    color: item.color || null,
+  })
+}
+
 const radialSvg = new RadialSVG({
   click: (item, index) => {
     lua.ui_audio.playEventSound("bng_click_hover_generic", "click");
@@ -127,11 +181,13 @@ const radialSvg = new RadialSVG({
     lua.core_quickAccess.selectItem(index + 1, true, 1)
   },
   down: (item, index) => { lua.ui_audio.playEventSound("bng_click_hover_generic", "click"); lua.core_quickAccess.selectItem(index + 1, true, 1) },
-  focus: (item, index) => { lua.ui_audio.playEventSound("bng_click_hover_generic", "focus") },
+  focus: () => { lua.ui_audio.playEventSound("bng_click_hover_generic", "focus") },
+  centerFocus: setCenterFocus,
+  centerBlur: setCenterDefault,
   contextAction: (item, index) => { lua.ui_audio.playEventSound("bng_click_hover_generic", "focus"); lua.core_quickAccess.contextAction(index + 1, true, 1) },
   //blur: (item, index) => console.log("blur", item, index),
 })
-const radialCont = ref()
+let closeRequested = false
 
 const requestData = async () => {
   radialData.value = await lua.core_quickAccess.getUiData()
@@ -140,19 +196,12 @@ const requestData = async () => {
   for (const item of items) {
     item.hotkey = getHotkey(item.action)
   }
-  radialSvg.setMenuIcon(radialData.value.menuIcon || "beamNG")
+  const menuIcon = radialData.value.menuIcon || "beamNG"
+  radialSvg.setMenuIcon(menuIcon)
+  setCenterDefault()
   radialSvg.update(items)
-}
-
-const getHotkey = action => {
-  const viewerObj = controls.makeViewerObj({ action })
-  if (viewerObj) {
-    return icons[viewerObj.icon].glyph
-      + " "
-      + viewerObj.control.split(/[ -]/).map(s => s.substring(0, 1).toUpperCase() + s.substring(1)).join("")
-  } else {
-    return ""
-  }
+  const focusedCenterItem = items.find(item => item.focused)
+  if (focusedCenterItem) setCenterFocus(focusedCenterItem)
 }
 
 const setLevel = level => {
@@ -161,16 +210,18 @@ const setLevel = level => {
 }
 
 const close = () => {
-  lua.core_quickAccess.setEnabled(false, '', false)
+  if (closeRequested) return
+  closeRequested = true
+  console.log("[devmode only: remove after finding issue] radial menu: calling lua.core_quickAccess.setEnabled(false, '', false)")
+  lua.core_quickAccess.setEnabled(false, "", false)
 }
 
 const back = () => {
-  if (radialData.value.backButtonIndex) {
-    lua.core_quickAccess.back()
-  } else {
-    close()
-  }
+  console.log("[devmode only: remove after finding issue] radial menu: calling lua.extensions.ui_router.back()")
+  lua.extensions.ui_router.back()
 }
+
+const canDeactivateScope = () => false
 
 const switchCategory = left => {
   const indexOffset = left ? -1 : 1
@@ -337,21 +388,23 @@ events.on("RadialTemporaryHide", hide => {
   temporaryHidden.value = hide
 })
 
-onBeforeMount(() => {
-  infobar.clearHints()
+onMounted(() => {
+  radialSvg.create(radialCont.value)
+  radialCenterCanvas.create(centerCanvas.value)
+  setCenterDefault()
+  requestData()
 })
 
-onMounted(() => {
-  infobar.visible = true
-  radialSvg.create(radialCont.value)
-  requestData()
+onUnmounted(() => {
+  radialCenterCanvas.dispose()
+  radialSvg.dispose()
 })
 
 const headingTitle = computed(() => {
   if (radialData.value?.breadcrumbs?.[0]) {
     return $translate.instant(radialData.value.breadcrumbs[0])
   }
-  return radialData.value?.items?.length ? 'Radial Menu' : 'No Actions Available'
+  return radialData.value?.items?.length ? $translate.instant("ui.radialmenu2.radialMenu") : $translate.instant("ui.radialmenu2.noActionsAvailable")
 })
 
 const hasCategories = computed(() => {
@@ -367,38 +420,54 @@ const hasCategories = computed(() => {
 
 $z-index-base: var(--z-index-override, 1);
 
+.radial-menu-layout {
+  --content-flow: column;
+  --bng-bg-enabled: var(--bng-off-black);
+  --bng-bg-enabled-opacity: 0.4;
+}
+
 .radial-menu {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   align-items: center;
+  flex: 1 0 auto;
   height: 100%;
   color: var(--bng-off-white);
-  background: rgba(0, 0, 0, 0.2);
-  padding: 2em 0;
   --bng-icon-color: var(--bng-off-white);
-
+  // Change this one value to manually probe full radial menu scaling.
+  --radial-menu-size: 450px;
+  --radial-menu-radius: calc(var(--radial-menu-size) / 2);
+  --radial-menu-center-y: 55%;
+  padding: 2em 0;
   &.temporaryHidden {
     opacity: 0.5;
   }
 }
 
-.radial-svg {
+.radial-svg,
+.radial-center-canvas {
   display: block;
-  min-width: 450px;
-  height: 450px;
+  width: var(--radial-menu-size);
+  min-width: var(--radial-menu-size);
+  height: var(--radial-menu-size);
   position: absolute;
-  top: calc(55% - 225px);
+  top: calc(var(--radial-menu-center-y) - var(--radial-menu-radius));
   margin: auto;
+}
+
+.radial-center-canvas {
+  pointer-events: none;
 }
 
 .radial-quick-tabs {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   position: absolute;
-  bottom: calc(45% - 2em);
-  gap: calc(450px + 1em);
+  bottom: calc(100% - var(--radial-menu-center-y) - 2em);
+  gap: calc(var(--radial-menu-size) + 1em);
   padding-bottom: 1em;
 }
 
@@ -428,7 +497,8 @@ $z-index-base: var(--z-index-override, 1);
 
 .radial-categories {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   margin: 0.5em 0 0 0;
@@ -437,7 +507,8 @@ $z-index-base: var(--z-index-override, 1);
   > * {
     flex: 0 0 auto;
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
     margin: 0 0.25em;
     > * {
@@ -522,7 +593,7 @@ $z-index-base: var(--z-index-override, 1);
   align-items: center;
   justify-content: center;
   position: absolute;
-  bottom: calc(45% + 225px);
+  bottom: calc(100% - var(--radial-menu-center-y) + var(--radial-menu-radius));
   padding-bottom: 1em;
 }
 
@@ -554,7 +625,7 @@ $z-index-base: var(--z-index-override, 1);
 
 .radial-description {
   position: absolute;
-  top: calc(55% + 225px);
+  top: calc(var(--radial-menu-center-y) + var(--radial-menu-radius));
   left: 50%;
   transform: translateX(-50%);
   padding: 0.5em 1em;
@@ -562,5 +633,15 @@ $z-index-base: var(--z-index-override, 1);
   border-radius: var(--bng-corners-1);
   background-color: #0008;
   text-align: center;
+}
+
+.radial-messages {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  width: 25rem;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 </style>

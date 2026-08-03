@@ -41,17 +41,20 @@ import { BngButton, ACCENTS } from "@/common/components/base"
 import { vBngUiNavScroll } from "@/common/directives"
 import { useSettings } from "@/services/settings"
 import { getAssetURL } from "@/utils"
+import { lua } from "@/bridge"
 
 const settings = useSettings()
 
 const handleFinish = async () => {
   await settings.apply({ showedInputLayoutPopupV37: true })
-  window.bngVue.gotoGameState("menu.mainmenu")
+  // window.bngVue.gotoGameState("menu")
+  lua.extensions.ui_router.navigate("menu", null, null)
 }
 
 const goToControls = async () => {
   await settings.apply({ showedInputLayoutPopupV37: true })
-  window.bngVue.gotoGameState("menu.options.controls.bindings")
+  // window.bngVue.gotoGameState("menu.options.controls.bindings")
+  lua.extensions.ui_router.navigate("menu.options.controls.bindings", null, null)
 }
 
 onMounted(async () => {

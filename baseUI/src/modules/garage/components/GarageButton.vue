@@ -1,7 +1,7 @@
 <template>
   <BngButton
     ref="btnRef"
-    :accent="ACCENTS.custom"
+    :accent="ACCENTS.custom_old"
     :disabled="disabled"
     :icon="icon"
     :externalIcon="externalIcon"

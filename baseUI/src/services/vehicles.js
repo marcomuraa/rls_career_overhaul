@@ -1,8 +1,8 @@
 // Store for Vehicle data
 
-import { computed, inject, ref } from "vue"
+import { computed, ref } from "vue"
 import { defineStore } from "pinia"
-import { lua } from "@/bridge"
+import { useBridge } from "@/bridge"
 
 const STORE_NAME = "vehicles"
 let store
@@ -10,7 +10,7 @@ let store
 const OFFICIAL_CONFIG_SOURCE = "BeamNG - Official"
 
 const makeStore = defineStore(STORE_NAME, () => {
-  const $game = inject("$game")
+  const { lua, events } = useBridge()
 
   const currentVehicleData = ref(false)
 
@@ -42,7 +42,7 @@ const makeStore = defineStore(STORE_NAME, () => {
 
   function connect(state = true) {
     const method = state ? "on" : "off"
-    $game.events[method]("VehicleChange", _getCurrentVehicleData)
+    events[method]("VehicleChange", _getCurrentVehicleData)
   }
 
   function disconnect() {

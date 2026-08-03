@@ -1,3 +1,49 @@
-html, body {
-  font-size: 16px;
+@use "./colors" as *;
+@use "./mixins" as *;
+
+:root {
+  @include set-ui-rem(16px);
+  @include bng-colors();
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-thumb {
+  background: #f60;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #f72;
+}
+::-webkit-scrollbar-thumb:active {
+  background: #d50;
+}
+::-webkit-scrollbar-track {
+  background: #222;
+}
+::-webkit-scrollbar-track:hover {
+  background: #333;
+}
+::-webkit-scrollbar-track:active {
+  background: #000;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+// body {
+//   user-select: none;
+// }
+
+body.ui-hidden {
+  display: none !important;
+  // opacity: 0 !important;
+  // pointer-events: none !important;
 }

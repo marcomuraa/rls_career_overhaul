@@ -1,6 +1,10 @@
 <!-- this is the old vehicle tile, replaced by VehicleTileRow.vue -->
 <template>
-  <div v-if="data" :class="{ [`veh-${layout}`]: true, selected, 'hover-enabled': enableHover }" role="button" v-bng-disabled="data.disabled">
+  <Button
+    v-if="data"
+    :class="{ [`veh-${layout}`]: true, selected, 'hover-enabled': enableHover }"
+    :disabled="data.disabled"
+  >
     <div :class="{ preview: true, locked }">
       <img v-if="thumbUrl" :src="thumbUrl" alt="" />
       <span class="lock-reason" v-if="locked">{{ locked.reason }}</span>
@@ -14,14 +18,13 @@
         <span class="name">{{ data.niceName }}</span>
         <div class="class-info">
           <div class="class-details">
-            <span class="class-badge">
-              <span v-if="data.certificationData && data.certificationData.vehicleClass">
-                {{ data.certificationData.vehicleClass.class.name }} | {{ data.certificationData.vehicleClass.performanceIndex.toFixed(0) }}
-              </span>
-              <span v-else>
-                N/A
-              </span>
-            </span>
+            <PerformanceIndexSticker
+              :vehicle-class="data.certificationData && data.certificationData.vehicleClass"
+              size="md"
+              show-index="false"
+              show-class="false"
+              high-contrast
+            />
           </div>
         </div>
         <BngIcon v-if="data.favorite" :type="icons.star" color="#fd0" v-bng-tooltip="'Favourite'" />
@@ -61,7 +64,7 @@
       </div>
 
     </div>
-  </div>
+  </Button>
 </template>
 
 <script>
@@ -74,8 +77,10 @@ export default {
 <script setup>
 import { computed } from "vue"
 import { BngCondition, BngUnit, BngIcon, icons } from "@/common/components/base"
-import { vBngDisabled, vBngTooltip } from "@/common/directives"
+import { Button } from "@/common/components/utility"
+import { vBngTooltip } from "@/common/directives"
 import InsurancePerkIcon from "@/modules/career/components/insurance/insurancePerkIcon"
+import PerformanceIndexSticker from "@/modules/career/components/vehiclePerformance/PerformanceIndexSticker.vue"
 // import { formatTime } from "@/utils/datetime"
 import { useBridge } from "@/bridge"
 const { units } = useBridge()
@@ -161,14 +166,38 @@ const locked = computed(() => {
 <style lang="scss" scoped>
 .veh-tile,
 .veh-row {
+  --bng-content-flow: row;
+  --bng-content-align: stretch;
+  --bng-content-justify: flex-start;
+  --bng-button-min-width: auto;
+  --bng-button-max-width: none;
+  --bng-button-margin: 0.25em;
+  --bng-button-padding: 0;
+  --bng-button-padding-top: 0;
+  --bng-button-padding-bottom: 0;
+  --bng-bg-border-radius: var(--bng-corners-1);
+  --bng-bg-border-width: 1px;
+  --bng-bg-enabled: rgba(0, 0, 0, 0.6);
+  --bng-bg-hover: rgba(var(--bng-cool-gray-700-rgb), 0.8);
+  --bng-bg-active: rgba(var(--bng-cool-gray-700-rgb), 0.8);
+  --bng-bg-focus: rgba(var(--bng-cool-gray-700-rgb), 0.8);
+  --bng-bg-disabled: rgba(0, 0, 0, 0.6);
+  --bng-bg-enabled-opacity: 1;
+  --bng-bg-hover-opacity: 1;
+  --bng-bg-active-opacity: 1;
+  --bng-bg-focus-opacity: 1;
+  --bng-bg-disabled-opacity: 1;
+  --bng-bg-border-enabled: rgba(255, 255, 255, 0.15);
+  --bng-bg-border-hover: rgba(255, 255, 255, 0.15);
+  --bng-bg-border-active: rgba(255, 255, 255, 0.15);
+  --bng-bg-border-focus: var(--bng-cool-gray-300);
+  --bng-bg-border-disabled: rgba(255, 255, 255, 0.15);
+
   // flex: 1 0 14em;
-  margin: 0.25em;
-
   font-family: "Overpass", var(--fnt-defs);
-  background-color: rgba(#000, 0.6);
-  color: #fff;
+  color: var(--bng-off-white);
 
-  > * {
+  > :not(.bng-background) {
     margin: 0.25em;
   }
 
@@ -210,7 +239,7 @@ const locked = computed(() => {
 
 .veh-row {
   display: flex;
-  flex-flow: row;
+  flex-direction: row;
   flex-wrap: nowrap;
   justify-content: stretch;
   align-content: stretch;
@@ -292,7 +321,8 @@ const locked = computed(() => {
 .info {
   > * {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     justify-content: stretch;
     align-items: baseline;
     > * {
@@ -407,15 +437,6 @@ const locked = computed(() => {
 
   .class-na {
     color: #888;
-  }
-
-  .class-badge {
-    display: inline-flex;
-    align-items: center;
-    background-color: rgba(90, 78, 20, 0.541);
-    padding: 6px 8px 2px 8px;
-    border-radius: 999px;
-    color: #f0a500;
   }
 }
 </style>

@@ -1,7 +1,7 @@
 <!-- Reusable Progress View Layout Component -->
 <template>
   <LayoutSingle v-bng-on-ui-nav:back,menu="handleExit" class="progress-view-layout" v-bng-blur>
-    <div class="progress-view-wrapper" :style="branchStyle" bng-ui-scope="progressView" v-bng-on-ui-nav:back,menu="handleExit">
+    <div class="progress-view-wrapper" :style="branchStyle" v-bng-on-ui-nav:back,menu="handleExit">
       <div class="progress-view-actions">
         <BngBreadcrumbs
           class="progress-view-breadcrumbs"
@@ -9,6 +9,7 @@
           limit="5"
           simple
           disable-last-item
+          :navigable="false"
           :show-back-button="showBackButton"
           @click="handleBreadcrumbClick"
           @back="handleBreadcrumbBack"
@@ -36,7 +37,7 @@
 
               <div class="reward-multiplier-label">
                 <BngIcon :type="skillInfo.rewardMultiplierSourceIcon" />
-                Reward Multiplier:
+                {{ $t("ui.career.rewards.rewardMultiplier") }}:
               </div>
               <div class="reward-multiplier-value">
                 <BngIcon :type="icons.beamCurrency" />
@@ -115,28 +116,24 @@ $textcolor: #fff;
 $fontsize: 1rem;
 
 .progress-view-layout {
-  --safezone-top: 0;
-  --safezone-bottom: var(--safezone-new-info-bar);
-  --content-flow: column nowrap;
+  --content-flow: column;
   color: $textcolor;
-  margin-top: 1rem;
   font-size: $fontsize;
 }
 
 .progress-view-wrapper {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   flex: 0 1 auto;
   margin: 0 auto;
   width: 100%;
   max-width: 76rem;
-  padding-top: 1rem;
   height: 100%;
 }
 
 .progress-view-page {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   background: rgba(0, 0, 0, 0.6);
   border-radius: var(--bng-corners-2);
   width: 100%;
@@ -202,7 +199,7 @@ $fontsize: 1rem;
 
 .progress-view-contents {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
 }

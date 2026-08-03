@@ -8,14 +8,17 @@
     <BngSlider :min="minSlider" :max="maxSlider" @valueChanged="() => {}" />
     <div class="amount-value">
       <BngButton :accent="ACCENTS.text" class="empty"><BngBinding class="controller" ui-event="focus_l" deviceMask="xinput" /></BngButton>
-      <BngInput class="value" suffix="L" initial-value="1234567"></BngInput>
+      <BngInput class="value" suffix="L" v-model="fuelAmount"></BngInput>
       <BngButton :accent="ACCENTS.text" class="empty"><BngBinding class="controller" ui-event="focus_r" deviceMask="xinput" /></BngButton>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref } from "vue"
 import { BngButton, ACCENTS, BngInput, BngSlider, BngBinding } from "@/common/components/base"
+
+const fuelAmount = ref(1234567)
 
 const props = defineProps({
   minSlider: {

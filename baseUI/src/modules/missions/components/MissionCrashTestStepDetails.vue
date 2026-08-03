@@ -1,55 +1,52 @@
 <template>
-  <InfoCard :header="translatedHeader" headerType="ribbon" class="dynamic" :class="{'experimental':panel.experimental, 'full-height': panel.fullHeight}" :no-blur="noBlur">
+  <InfoCard
+    :header="translatedHeader"
+    headerType="ribbon"
+    class="dynamic"
+    :class="{ 'experimental': panel.experimental, 'full-height': panel.fullHeight }"
+    :no-blur="noBlur"
+  >
     <template #content>
       <BngCardHeading type="ribbon" class="replay-heading">
         Stage Score
       </BngCardHeading>
       <div class="score-section-container">
-        <div class="score-section" v-if="panel.stepScoreData.speedScore">
-          <span class="score-section-title">{{ panel.stepScoreData.speedScore.scoreName }}</span>
-          <span>{{ panel.stepScoreData.speedScore.actualSpeed.text }} : {{ panel.stepScoreData.speedScore.actualSpeed.value }} {{ panel.stepScoreData.speedScore.actualSpeed.unit }}</span>
-          <span>{{ panel.stepScoreData.speedScore.targetSpeed.text }} : {{ panel.stepScoreData.speedScore.targetSpeed.value }} {{ panel.stepScoreData.speedScore.targetSpeed.unit }}</span>
-          <span>{{ panel.stepScoreData.speedScore.diff.text }} : {{ panel.stepScoreData.speedScore.diff.value }} {{ panel.stepScoreData.speedScore.diff.unit }}</span>
-          <span class="score-earned">Score : {{ panel.stepScoreData.speedScore.score }} / {{ panel.stepScoreData.speedScore.maxScore }}</span>
+        <div class="score-section" v-if="speedScore">
+          <span class="score-section-title">{{ speedScore.scoreName }}</span>
+          <span>{{ speedScore.actualSpeed.text }} : {{ speedScore.actualSpeed.value }} {{ speedScore.actualSpeed.unit }}</span>
+          <span>{{ speedScore.targetSpeed.text }} : {{ speedScore.targetSpeed.value }} {{ speedScore.targetSpeed.unit }}</span>
+          <span>{{ speedScore.diff.text }} : {{ speedScore.diff.value }} {{ speedScore.diff.unit }}</span>
+          <span class="score-earned">Score : {{ speedScore.score }} / {{ speedScore.maxScore }}</span>
         </div>
 
-        <div class="score-section" v-if="panel.stepScoreData.timeScore">
-          <span class="score-section-title">{{ panel.stepScoreData.timeScore.scoreName }}</span>
-          <span>{{ panel.stepScoreData.timeScore.timeToImpact.text }} : {{ panel.stepScoreData.timeScore.timeToImpact.value }} {{ panel.stepScoreData.timeScore.timeToImpact.unit }}</span>
-          <span class="score-earned">Score : {{ panel.stepScoreData.timeScore.score }} / {{ panel.stepScoreData.timeScore.maxScore }}</span>
+        <div class="score-section" v-if="timeScore">
+          <span class="score-section-title">{{ timeScore.scoreName }}</span>
+          <span>{{ timeScore.timeToImpact.text }} : {{ timeScore.timeToImpact.value }} {{ timeScore.timeToImpact.unit }}</span>
+          <span class="score-earned">Score : {{ timeScore.score }} / {{ timeScore.maxScore }}</span>
         </div>
 
-        <div class="score-section" v-if="panel.stepScoreData.damageLocationScore">
-          <span class="score-section-title">{{ panel.stepScoreData.damageLocationScore.scoreName }}</span>
-          <span>{{ panel.stepScoreData.damageLocationScore.requiredImpactLocation.text }} : {{ panel.stepScoreData.damageLocationScore.requiredImpactLocation.value }}</span>
-          <span>{{ panel.stepScoreData.damageLocationScore.actualImpactLocation.text }} : {{ panel.stepScoreData.damageLocationScore.actualImpactLocation.value }} {{ panel.stepScoreData.damageLocationScore.actualImpactLocation.precision }}</span>
-          <span class="score-earned">Score : {{ panel.stepScoreData.damageLocationScore.score }} / {{ panel.stepScoreData.damageLocationScore.maxScore }}</span>
+        <div class="score-section" v-if="damageLocationScore">
+          <span class="score-section-title">{{ damageLocationScore.scoreName }}</span>
+          <span>{{ damageLocationScore.requiredImpactLocation.text }} : {{ damageLocationScore.requiredImpactLocation.value }}</span>
+          <span>{{ damageLocationScore.actualImpactLocation.text }} : {{ damageLocationScore.actualImpactLocation.value }} {{ damageLocationScore.actualImpactLocation.precision }}</span>
+          <span class="score-earned">Score : {{ damageLocationScore.score }} / {{ damageLocationScore.maxScore }}</span>
         </div>
       </div>
 
       <span class="new-score-title">New score : </span>
       <PointsBar />
 
-      <DynamicComponent  :template="content" v-if="content && content !== ''"/>
+      <DynamicComponent v-if="content" :template="content"/>
     </template>
   </InfoCard>
 </template>
 
-
-
 <script setup>
-import { ref, computed } from "vue"
-import { onMounted, onBeforeUnmount } from 'vue';
-import { $translate } from "@/services"
-import BngCardHeading from "@/common/components/base/bngCardHeading.vue"
-import { lua, useBridge } from "@/bridge"
+import { computed } from "vue"
+import { BngCardHeading } from "@/common/components/base"
 import InfoCard from "../components/InfoCard.vue"
-import Grid from "../components/Grid.vue"
 import { DynamicComponent } from "@/common/components/utility"
-import { BngPropVal } from "@/common/components/base"
-import { $content } from "@/services"
-import PointsBar from "@/modules/apps/pointsBar/app.vue"
-const { units } = useBridge()
+import { PointsBar } from "@/modules/apps"
 
 const props = defineProps({
   panel: {
@@ -62,18 +59,9 @@ const props = defineProps({
   }
 })
 
-let wooshDelays = []
-let thumpDelays = []
-
-onMounted(() => {
-
-});
-
-onBeforeUnmount(() => {
-
-});
-
-
+const speedScore = computed(() => props.panel.stepScoreData?.speedScore)
+const timeScore = computed(() => props.panel.stepScoreData?.timeScore)
+const damageLocationScore = computed(() => props.panel.stepScoreData?.damageLocationScore)
 </script>
 
 <style scoped lang="scss">

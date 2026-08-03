@@ -1,5 +1,5 @@
 <template>
-  <div class="layer-tile" @mouseover="isHovered = true" @mouseleave="isHovered = false">
+  <div class="layer-tile">
     <div class="layer-content">
       <slot name="content">
         <div class="layer-name">
@@ -7,7 +7,7 @@
         </div>
         <div v-if="forceShowActions || !layer.enabled" class="layer-actions">
           <BngBinding v-if="forceShowActions" :track-ignore="true" uiEvent="action_2" deviceMask="xinput" />
-          <BngButton accent="outlined" @click="$emit('enableClicked')" :icon="layer.enabled ? icons.eyeSolidOpened : icons.eyeSolidClosed" />
+          <BngButton accent="outlined" @click="$emit('enable-click')" :icon="layer.enabled ? icons.eyeSolidOpened : icons.eyeSolidClosed" />
         </div>
       </slot>
     </div>
@@ -22,11 +22,10 @@
 </template>
 
 <script setup>
-import { ref } from "vue"
 import { BngBinding, BngButton, BngIcon, icons } from "@/common/components/base"
 import DecalPreviewTile from "@/modules/liveryEditor/components/DecalPreviewTile.vue"
 
-const props = defineProps({
+defineProps({
   layer: Object,
   isTargeted: Boolean, // Not explicityly selected but is hovered by controller and possibly target for actions
   forceShowActions: Boolean,
@@ -34,9 +33,7 @@ const props = defineProps({
   disableMoveDown: Boolean,
 })
 
-defineEmits(["lockClicked", "hideClicked", "moveClicked", "enableClicked"])
-
-const isHovered = ref(false)
+defineEmits(["lock-click", "hide-click", "move-click", "enable-click"])
 
 const toRgba255Styles = colors => `rgba(${colors[0] * 255}, ${colors[1] * 255}, ${colors[2] * 255}, ${colors[3]})`
 </script>

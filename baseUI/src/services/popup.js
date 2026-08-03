@@ -3,6 +3,7 @@
 
 import { reactive, computed, markRaw } from "vue"
 import { reportPopupState } from "@/services/stateReporter.js"
+import { useBridge } from "@/bridge"
 
 import { ACCENTS } from "@/common/components/base"
 
@@ -34,7 +35,6 @@ let count = -1
  * @prop {object}          props           Component props
  * @prop {Array<string>}   position        Popup position
  * @prop {boolean}         animated        Animate popup in/out
- * @prop {boolean}         reportState     Report popup open/close state to Lua state reporter
  * @prop {object}          wrapper         Wrapper properties
  * @prop {boolean}         wrapper.fade    If all other elements on the screen should fade away to a semi-transparency
  * @prop {boolean}         wrapper.blur    If screen should be blurred
@@ -89,6 +89,9 @@ const popupsAll = reactive([])
 const popupsFiltered = computed(() => popupsAll.filter(itm => itm.type >= PopupTypes.normal))
 const activitiesFiltered = computed(() => popupsAll.filter(itm => itm.type < PopupTypes.normal))
 
+const luaDialogs = new Map()
+let listenerRegistered = false
+
 /**
  * Data, used by Popup component to view the popups
  */
@@ -122,6 +125,17 @@ function accumulateWrapper(popups, wrapper) {
   return wrapper
 }
 
+function normalizePopupProps(props) {
+  const normalizedProps = { ...props }
+  if (normalizedProps.message && typeof normalizedProps.message === "object" && normalizedProps.message.component) {
+    normalizedProps.message = {
+      ...normalizedProps.message,
+      component: markRaw(normalizedProps.message.component),
+    }
+  }
+  return normalizedProps
+}
+
 /**
  * Adds a new popup
  * @param {object|string} componentOrName Name of the popup base component or a direct reference to the component
@@ -134,6 +148,7 @@ export function addPopup(componentOrName, props = {}, type = PopupTypes.normal) 
   if (!component) {
     throw new Error(`There is no popup base component named "${componentOrName}".` + `Available components: "${Object.keys(components).join('", "')}"`)
   }
+  const normalizedProps = normalizePopupProps(props)
 
   /**
    * New popup data
@@ -146,10 +161,9 @@ export function addPopup(componentOrName, props = {}, type = PopupTypes.normal) 
     typeName: getPopupTypeName(type),
     component: markRaw({ ref: component }), // FIXME: there should be a better way
     componentName: component.__name,
-    props: { __id: count, ...props },
+    props: { __id: count, ...normalizedProps },
     position: [popupPosition.default],
     animated: true,
-    reportState: true,
     wrapper: type >= PopupTypes.normal ? getPopupWrapperDefaults() : getActivityWrapperDefaults(),
   }
 
@@ -158,9 +172,6 @@ export function addPopup(componentOrName, props = {}, type = PopupTypes.normal) 
   }
   if (typeof component.animated === "boolean") {
     popup.animated = component.animated
-  }
-  if (typeof component.reportState === "boolean") {
-    popup.reportState = component.reportState
   }
   if ("wrapper" in component) {
     if (typeof component.wrapper.fade === "boolean") popup.wrapper.fade = component.wrapper.fade
@@ -184,7 +195,7 @@ export function addPopup(componentOrName, props = {}, type = PopupTypes.normal) 
       if (popupsAll[i].id === popup.id) {
         popupsAll.splice(i, 1)
         if (popupsAll.length > 0) popupsAll[popupsAll.length - 1].active = true
-        if (popup.reportState !== false) reportPopupState(popup, false)
+        reportPopupState(popup, false)
         break
       }
     }
@@ -202,7 +213,7 @@ export function addPopup(componentOrName, props = {}, type = PopupTypes.normal) 
       // put a new less prioritised popup before the first one with a higher priority
       // note: there's no need to change active flag in this case
       popupsAll.splice(i, 0, popup)
-      if (popup.reportState !== false) reportPopupState(popup, true)
+      reportPopupState(popup, true)
       return popup
     }
   }
@@ -212,7 +223,7 @@ export function addPopup(componentOrName, props = {}, type = PopupTypes.normal) 
   popup.active = true
   // append
   popupsAll.push(popup)
-  if (popup.reportState !== false) reportPopupState(popup, true)
+  reportPopupState(popup, true)
 
   return popup
 }
@@ -227,7 +238,75 @@ export function closeLastPopups(count = 1) {
 }
 
 export function registerListener() {
-  // TODO: register a listener for incoming events from Lua
+  if (listenerRegistered) return
+  listenerRegistered = true
+
+  const { events, api } = useBridge()
+  const translate = value => $translate.contextTranslate(value, true)
+  const dialogKey = (type, title, message = "") => `${type}:${JSON.stringify([title ?? "", message ?? ""])}`
+  const runLuaCallback = callback => {
+    if (typeof callback === "string" && callback) api.engineLua(callback)
+  }
+  const openLuaDialog = (key, title, message, buttons) => {
+    if (luaDialogs.has(key)) return
+
+    const popup = addPopup("Confirmation", {
+      title: translate(title),
+      message: translate(message),
+      buttons,
+      unordered: true,
+    })
+    luaDialogs.set(key, popup)
+    popup.promise
+      .then(runLuaCallback, () => {})
+      .finally(() => {
+        if (luaDialogs.get(key) === popup) luaDialogs.delete(key)
+      })
+  }
+
+  events.on("showConfirmationDialog", options => {
+    if (!options || typeof options !== "object" || !Array.isArray(options.buttons)) return
+
+    const key = dialogKey("legacy", options.title, options.text)
+    const buttons = options.buttons.map(button => ({
+      label: translate(button.label),
+      value: button.luaCallback || null,
+      extras: {
+        default: !!button.default,
+        cancel: !!button.isCancel,
+        accent: button.default ? ACCENTS.main : ACCENTS.secondary,
+        disabled: button.enabled === false,
+        ...(button.class ? { class: button.class } : {}),
+        ...(button.soundClass ? { soundClass: button.soundClass } : {}),
+      },
+    }))
+    openLuaDialog(key, options.title, options.text, buttons)
+  })
+
+  events.on("ConfirmationDialogOpen", (title, body, buttonOkText, buttonOkLua, buttonCancelText, buttonCancelLua) => {
+    const buttons = []
+    let defaultButton = false
+    if (typeof buttonCancelText === "string" && typeof buttonCancelLua === "string") {
+      buttons.push({
+        label: translate(buttonCancelText),
+        value: buttonCancelLua,
+        extras: { cancel: true, default: defaultButton, accent: defaultButton ? ACCENTS.main : ACCENTS.secondary },
+      })
+      defaultButton = true
+    }
+    if (typeof buttonOkText === "string" && typeof buttonOkLua === "string") {
+      buttons.push({
+        label: translate(buttonOkText),
+        value: buttonOkLua,
+        extras: { default: defaultButton, accent: defaultButton ? ACCENTS.main : ACCENTS.secondary },
+      })
+    }
+    openLuaDialog(dialogKey("positional", title), title, body, buttons)
+  })
+
+  events.on("ConfirmationDialogClose", title => {
+    luaDialogs.get(dialogKey("positional", title))?.return()
+  })
 }
 
 // expose basic functionality for easy access
@@ -240,7 +319,7 @@ export function registerListener() {
  * @returns {Promise} Result from button's value
  */
 export const openMessage = (title, message) =>
-  addPopup("Confirmation", { title, message, buttons: [{ label: $translate.instant("ui.common.okay"), value: true, extras: { default: true } }] }).promise
+  addPopup("Confirmation", { title, message, buttons: [{ label: $translate.instant("ui.common.okay"), value: true, extras: { default: true } }], unordered: true }).promise
 
 /**
  * Open a simple confirmation popup dialog
@@ -252,14 +331,25 @@ export const openMessage = (title, message) =>
  * @return     {Promise}  Result from button's value
  */
 export const openConfirmation = (
-  title,
-  message,
+  title = "",
+  message = "",
   buttons = [
     { label: $translate.instant("ui.common.okay"), value: true, extras: { default: true } },
-    { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, accent: ACCENTS.secondary } },
+    { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, outsideCancel: true, accent: ACCENTS.text } },
   ],
-  appearance = ""
-) => addPopup("Confirmation", { title, message, buttons, appearance }).promise
+  appearance = "",
+  unordered = true
+) => addPopup("Confirmation", { title, message, buttons, appearance, unordered }).promise
+
+export const confirmCancelButtons = ({ confirmLabel, destructive } = {}) => [
+  { label: confirmLabel ?? $translate.instant("ui.common.okay"), value: true, extras: { confirm: true, ...(destructive ? { destructive: true } : {}) } },
+  { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, default: true, outsideCancel: true, accent: ACCENTS.text } },
+]
+
+export const yesNoButtons = ({ defaultButton = "yes", destructive } = {}) => [
+  { label: $translate.instant("ui.common.yes"), value: true, extras: { ...(defaultButton === "yes" ? { default: true } : {}), confirm: true, ...(destructive ? { destructive: true } : {}) } },
+  { label: $translate.instant("ui.common.no"), value: false, extras: { cancel: true, outsideCancel: false, accent: ACCENTS.text, ...(defaultButton === "no" ? { default: true } : {}) } },
+]
 
 /**
  * Open a simple prompt popup dialog to get some text from the user
@@ -275,15 +365,16 @@ export const openPrompt = (
   {
     buttons = [
       { label: $translate.instant("ui.common.okay"), value: text => text },
-      { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, accent: ACCENTS.secondary } },
+      { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, outsideCancel: true, accent: ACCENTS.text } },
     ],
     defaultValue,
     maxLength,
     validate,
     errorMessage,
     disableWhenInvalid,
+    unordered = true,
   } = {}
-) => addPopup("Prompt", { message, title, buttons, defaultValue, maxLength, validate, errorMessage, disableWhenInvalid }).promise
+) => addPopup("Prompt", { message, title, buttons, defaultValue, maxLength, validate, errorMessage, disableWhenInvalid, unordered }).promise
 
 /**
  * Open a simple confirmation popup dialog with OK button only
@@ -298,8 +389,9 @@ export const openExperimental = (
   buttons = [
     { label: $translate.instant("ui.common.yes"), value: true },
     { label: $translate.instant("ui.common.no"), value: false },
-  ]
-) => addPopup("Confirmation", { title, message, buttons, appearance: "experimental" }).promise
+  ],
+  unordered = true
+) => addPopup("Confirmation", { title, message, buttons, appearance: "experimental", unordered }).promise
 
 /**
  * Open a full screen overlay view
@@ -307,6 +399,8 @@ export const openExperimental = (
  * @returns
  */
 export const openScreenOverlay = component => addPopup("ScreenOverlay", { view: markRaw(component) }, PopupTypes.activity).promise
+
+export const openScreenOverlayRight = component => addPopup("ScreenOverlayRight", { view: markRaw(component) }, PopupTypes.activity).promise
 
 /**
  * Open a popup configured for forms
@@ -324,10 +418,11 @@ export const openFormDialog = (
   description,
   buttons = [
     { label: $translate.instant("ui.common.okay"), value: true, emitData: true },
-    { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, accent: ACCENTS.secondary } },
+    { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, outsideCancel: true, accent: ACCENTS.text } },
   ],
   maxWidth,
-) => addPopup("FormDialog", { view: markRaw(component), formModel, formValidator, title, description, buttons, maxWidth }, PopupTypes.normal).promise
+  unordered = true,
+) => addPopup("FormDialog", { view: markRaw(component), formModel, formValidator, title, description, buttons, maxWidth, unordered }, PopupTypes.normal).promise
 
 /**
  * Open a simple progress popup dialog to show user something is happening (and how far it has progressed)
@@ -343,7 +438,18 @@ export const openProgress = (
   title = "",
   { buttons = [], indeterminate, min, max, initialValue, valueLabelFormat, timeout, cancellable } = {}
 ) => {
-  const popup = addPopup("Progress", { message, title, buttons, indeterminate, min, max, initialValue, valueLabelFormat, timeout, cancellable, tunnel: {} })
+  let pendingUpdate
+  const tunnel = {
+    update: (...args) => {
+      pendingUpdate = args
+    },
+    flushPendingUpdate: update => {
+      if (!pendingUpdate) return
+      update(...pendingUpdate)
+      pendingUpdate = null
+    },
+  }
+  const popup = addPopup("Progress", { message, title, buttons, indeterminate, min, max, initialValue, valueLabelFormat, timeout, cancellable, tunnel })
   popup.progress = popup.props.tunnel
   popup.progress.done = popup.return
   return popup

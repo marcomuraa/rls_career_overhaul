@@ -13,11 +13,6 @@ export const usePartInventoryStore = defineStore("partInventory", () => {
   const searchString = ref("")
 
   // Actions
-  function requestInitialData() {
-    // TODO refactor this to use the return value method
-    lua.career_modules_partInventory.sendUIData()
-  }
-
   function closeNewPartsPopup() {
     newPartsPopupOpen.value = false
   }
@@ -80,7 +75,6 @@ export const usePartInventoryStore = defineStore("partInventory", () => {
     openNewPartsPopup,
     partInventoryClosed,
     partInventoryData,
-    requestInitialData,
     searchString
   }
 })

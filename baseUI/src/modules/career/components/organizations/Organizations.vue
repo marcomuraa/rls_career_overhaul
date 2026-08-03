@@ -157,7 +157,7 @@
   }
 
   const exit = () => {
-    window.bngVue.gotoGameState("progressLanding")
+    window.bngVue.gotoGameState("career.domainSelection")
   }
 
   const start = () => {
@@ -186,7 +186,7 @@
 
   .milestones-wrapper {
     display: flex;
-    flex-flow: column;
+    flex-direction: column;
     overflow: hidden;
     align-self: stretch;
     flex: 1 1 auto;
@@ -394,7 +394,7 @@
     flex: 0 0 auto;
     padding: 1rem 0;
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     > .text {
       font-size: 1.25rem;
       padding-right: 2rem;
@@ -431,7 +431,7 @@
     height: 100%;
     color: white;
     display: flex;
-    flex-flow:column;
+    flex-direction: column;
 
 
     > .header {
@@ -439,7 +439,7 @@
       flex: 1 1 auto;
       align-items: auto;
       display: flex;
-      flex-flow: row;
+      flex-direction: row;
       > .name {
         font-weight: 800;
         font-size: 1.25rem;

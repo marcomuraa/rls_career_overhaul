@@ -1,22 +1,33 @@
 <template>
-  <div style="height: 100%; color: white;" v-bng-blur>
-    <BngInput class="searchField" floating-label="Search" :leading-icon="icons.search" v-model.trim="partInventoryStore.searchString" />
-    <BngCard style="max-height: 90%;" v-bng-disabled="!partInventoryStore">
-      <div v-if="!partInventoryStore">
-        Please wait...
-      </div>
-      <!-- <div v-else-if="groups.length === 0">
-        You don't currently own any parts
-      </div> -->
-      <Accordion v-else class="part-groups" singular>
-        <AccordionItem v-for="(group, index) in groups" :key="group.id" :data-groupid="group.id" ref="accordionItems"
-          navigable @expanded="group.onExpanded" @selected="accordionItems[index] ? accordionItems[index].captionClick() : undefined">
-
+  <BngCard
+    class="part-inventory-card"
+    v-bng-blur
+    v-bng-scoped-nav="{ scopeId: 'part-inventory-list' }"
+    tabindex="-1"
+    v-bng-disabled="!partInventoryStore">
+    <BngInput class="searchField" :label="$translate.instant('ui.common.search')" floating-label :leading-icon="icons.search" v-model.trim="partInventoryStore.searchString" />
+    <div v-if="!partInventoryStore">
+      {{ $translate.instant("ui.career.vehicleShopping.pleaseWait") }}
+    </div>
+    <!-- <div v-else-if="groups.length === 0">
+      You don't currently own any parts
+    </div> -->
+    <div v-else class="part-list-scroll" v-bng-ui-nav-scroll.force>
+      <Accordion class="part-groups" singular>
+        <AccordionItem
+          v-for="(group, index) in groups"
+          :key="group.id"
+          :data-groupid="group.id"
+          ref="accordionItems"
+          navigable
+          @expanded="state => setGroupExpanded(group.id, state)"
+          @selected="accordionItems[index] ? accordionItems[index].captionClick() : undefined">
           <BngButton
-            v-if="group.name == ' Inventory'"
+            v-if="group.id == 0"
             :accent="ACCENTS.outlined"
+            :disabled="group.parts.length === 0"
             @click="openSellPopup()">
-            Sell Parts
+            {{ $translate.instant("ui.career.partInventory.sellParts") }}
           </BngButton>
 
           <template #caption>
@@ -24,7 +35,7 @@
               <BngIcon v-if="group.icon" class="veh-icon" :type="group.icon" />
               <div v-if="group.thumbnail" class="veh-preview" :style="{ backgroundImage: `url('${group.thumbnail}')` }" ></div>
               <span class="veh-name">
-                {{ group.name }}
+                {{ group.id == 0 ? $translate.instant("ui.career.partShopping.inventory") : group.name }}
                 <span class="veh-name-count">({{ group.parts.length }})</span>
               </span>
             </div>
@@ -32,8 +43,8 @@
 
           <div v-for="(part, index) in group.parts" class="part-item"
             bng-ui-scope="veh-part-inv"
-            v-bng-on-ui-nav:back="() => group.onExpanded(false)">
-            <div class="part-info-col" v-if="(group.ready || index < immediateLimit)">
+            v-bng-on-ui-nav:back="() => setGroupExpanded(group.id, false, true)">
+            <div class="part-info-col" v-if="(readyGroups[group.id] || index < immediateLimit)">
               <div>
                 <span class="part-name">{{ part.name }}</span>
               </div>
@@ -42,41 +53,43 @@
                 <span class="right"><BngPropVal :iconType="icons.beamCurrency" :valueLabel="part.valueFormatted" /></span>
                 <span v-if="groupBy !== 'location'" class="center">{{ part.location }}</span>
                 <span v-else-if="groupBy !== 'model'" class="center">{{ part.model }}</span>
-                <span class="center"><span v-if="part.data.repairCount">Repairs: {{ part.data.repairCount }} </span></span>
-                <span class="center"> <span v-if="part.data.primered">Not painted</span></span>
+                <span class="center"><span v-if="part.data.repairCount">{{ $translate.instant("ui.career.partInventory.repairs", { count: part.data.repairCount }) }} </span></span>
+                <span class="center"> <span v-if="part.data.primered">{{ $translate.instant("ui.career.partInventory.notPainted") }}</span></span>
               </div>
             </div>
             <BngButton
-              v-if="(group.ready || index < immediateLimit) && part.functions.sell"
+              v-if="(readyGroups[group.id] || index < immediateLimit) && part.functions.sell"
               :accent="ACCENTS.outlined"
               class="part-button"
               @click="confirmSellPart(part.data)">
-              Sell
+              {{ $translate.instant("ui.career.partInventory.sell") }}
             </BngButton>
           </div>
         </AccordionItem>
       </Accordion>
-    </BngCard>
-  </div>
-
+    </div>
+  </BngCard>
 </template>
 
 <script setup>
-import { ref, toRaw, watchEffect, markRaw } from "vue"
+import { ref, watchEffect } from "vue"
 import { lua, useBridge } from "@/bridge"
-import { BngCard, BngUnit, BngPropVal, BngButton, BngIcon, ACCENTS, icons, BngInput } from "@/common/components/base"
+import { BngCard, BngPropVal, BngButton, BngIcon, ACCENTS, icons, BngInput } from "@/common/components/base"
+import { vBngOnUiNav, vBngDisabled, vBngBlur, vBngScopedNav, vBngUiNavScroll } from "@/common/directives"
 import { Accordion, AccordionItem } from "@/common/components/utility"
-import { vBngDisabled, vBngTooltip, vBngBlur } from "@/common/directives"
-import { usePartInventoryStore } from "../../stores/partInventoryStore"
-import { openConfirmation, openExperimental, openMessage, openScreenOverlay,openPrompt,addPopup } from "@/services/popup"
+import { openConfirmation, openMessage, addPopup } from "@/services/popup"
 import { $translate } from "@/services/translation"
-import { vBngOnUiNav } from "@/common/directives"
+
+import { usePartInventoryStore } from "../../stores/partInventoryStore"
 import PartSellingPopup from "../partInventory/PartSellingPopup.vue"
 
 const { units } = useBridge()
 
 const emit = defineEmits(["partSold"])
 const partInventoryStore = usePartInventoryStore()
+
+// Leading space keeps this group sorted to the top; do not use for display.
+const INVENTORY_GROUP_SORT_NAME = " Inventory"
 
 // number of parts to show right away
 const immediateLimit = 15
@@ -87,27 +100,27 @@ const groups = ref([])
 const accordionItems = ref([])
 const disableInstallButtons = ref(false)
 
-const addExpandedFuncToGroup = (group) => {
-  group.onExpanded = state => {
-    // group will be mutated later, so it's better to find it
-    const grp = groups.value.find(g => g.id === group.id)
-    grp.expanded = state
-    if (!state) {
-      delete grp.ready
-      const elm = document.querySelector(`[data-groupid="${group.id}"] > .bng-accitem-caption`)
+const expandedGroups = ref({})
+const readyGroups = ref({})
+
+const setGroupExpanded = (groupId, state, focusOnCollapse = false) => {
+  expandedGroups.value[groupId] = state
+  if (!state) {
+    delete readyGroups.value[groupId]
+    if (focusOnCollapse) {
+      const elm = document.querySelector(`[data-groupid="${groupId}"] > .bng-accitem-caption`)
       elm && elm.focus()
-      return
     }
-    if (!("ready" in grp)) {
-      grp.ready = false
-      setTimeout(() => {
-        // for safety, find it again
-        const grp = groups.value.find(g => g.id === group.id)
-        if (grp && (typeof grp.ready === "boolean")) {
-          grp.ready = true
-        }
-      }, 100)
-    }
+    return
+  }
+  if (!(groupId in readyGroups.value)) {
+    readyGroups.value[groupId] = false
+    setTimeout(() => {
+      // only flip to ready if the group is still expanded
+      if (expandedGroups.value[groupId]) {
+        readyGroups.value[groupId] = true
+      }
+    }, 100)
   }
 }
 
@@ -128,12 +141,10 @@ watchEffect(() => {
   if (groupBy.value == "location") {
     let group = {
       id: 0,
-      name: " Inventory",
+      name: INVENTORY_GROUP_SORT_NAME,
       parts: [],
-      expanded: false,
       icon: icons.BNGFolder
     }
-    addExpandedFuncToGroup(group)
     res.push(group)
 
     for (const [vehId, vehicle] of Object.entries(partInventoryStore.partInventoryData.vehicles)) {
@@ -141,41 +152,28 @@ watchEffect(() => {
         id: vehId,
         name: vehicle.niceName,
         parts: [],
-        expanded: false,
         thumbnail: partInventoryStore.partInventoryData.vehicles[vehId].thumbnail
       }
-      addExpandedFuncToGroup(group)
       res.push(group)
     }
   }
 
   for (const part of partInventoryStore.partInventoryData.filteredPartList) {
     const item = {
-      name: part.missingFile ? "Missing File" : part.description.description,
-      model: part.vehicleModel,
+      name: part.missingFile ? $translate.instant("ui.career.partInventory.missingFile") : part.description.description,
+      model: part.vehicleModelDisplayName || part.vehicleModel,
       mileage: units.buildString("length", part.partCondition.odometer, 0),
       // value: part.finalValue,
       valueFormatted: units.beamBucks(part.finalValue),
       location: part.location,
       // please leave the whitespace in inventory name - it helps it sort to the top without any visual change
-      locationName: part.location === 0 ? " Inventory" : partInventoryStore.partInventoryData.vehicles[part.location].niceName,
+      locationName: part.location === 0 ? INVENTORY_GROUP_SORT_NAME : partInventoryStore.partInventoryData.vehicles[part.location].niceName,
       functions: {
-        install: false,
-        uninstall: false,
         sell: false,
       },
       data: part,
     }
     if (!part.missingFile && part.accessible) {
-      item.functions.install =
-        part.fitsCurrentVehicle
-        && part.location !== partInventoryStore.partInventoryData.currentVehicle
-        && (part.location === 0 || !partInventoryStore.partInventoryData.brokenVehicleInventoryIds[part.location])
-        && !partInventoryStore.partInventoryData.brokenVehicleInventoryIds[partInventoryStore.partInventoryData.currentVehicle]
-      item.functions.uninstall =
-        part.location !== 0
-        && !part.isInCoreSlot
-        && !partInventoryStore.partInventoryData.brokenVehicleInventoryIds[part.location]
       item.functions.sell =
         part.location === 0
     }
@@ -186,7 +184,6 @@ watchEffect(() => {
         id: groupId,
         name: item[`${groupBy.value}Name`] || item[groupBy.value],
         parts: [],
-        expanded: false,
       }
       if (part.location > 0) {
         group.thumbnail = partInventoryStore.partInventoryData.vehicles[part.location].thumbnail
@@ -194,9 +191,6 @@ watchEffect(() => {
         // folder BNGFolder
         group.icon = icons.BNGFolder
       }
-      // this function and group.ready is solely to relieve the lag effect with a magic trick of not showing everything right away, until we find a better solution
-      // right now only 15 elements are rendered right away, others - after the 100ms delay
-      addExpandedFuncToGroup(group)
       res.push(group)
     }
     group.parts.push(item)
@@ -208,22 +202,13 @@ watchEffect(() => {
       group.parts.sort(sorter)
     }
   }
-  // restore the state
-  for (const group of groups.value) {
-    if (group.ready) {
-      const grp = res.find(g => g.name === group.name)
-      if (grp) {
-        grp.expanded = true
-        grp.ready = true
-      }
-    }
-  }
-  // show the result
+  // show the result; expansion/ready state lives in expandedGroups/readyGroups
+  // (keyed by group id) and persists across rebuilds without retriggering here
   groups.value = res
 })
 
 const confirmSellPart = async partToSell => {
-  const res = await openConfirmation(partToSell.description.description, `Do you want to sell this part for ${units.beamBucks(partToSell.finalValue)}?`, [
+  const res = await openConfirmation(partToSell.description.description, $translate.instant("ui.career.partInventory.confirmSell", { price: units.beamBucks(partToSell.finalValue) }), [
     { label: $translate.instant("ui.common.yes"), value: true, extras: { default: true } },
     { label: $translate.instant("ui.common.no"), value: false, extras: { accent: ACCENTS.secondary } },
   ])
@@ -247,18 +232,42 @@ const sellPart = part => {
 </script>
 
 <style scoped lang="scss">
+.part-inventory-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  color: white;
+  padding: 0.5em;
+  --bng-card-height: auto;
+
+  :deep(.card-cnt) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+}
+
+.part-list-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .part-groups {
-  max-height: 100%;
-  overflow: hidden auto;
+  min-height: 0;
 }
 
 .searchField {
+  margin: 0.5em;
   background-color: rgba(0, 0, 0, 0.575);
 }
 
 .veh-part-caption {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: center;
   overflow: hidden;
@@ -291,7 +300,8 @@ const sellPart = part => {
 
 .part-item {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: center;
   overflow: hidden;
@@ -313,7 +323,8 @@ const sellPart = part => {
 }
 .part-info-row {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: baseline;
   > * {

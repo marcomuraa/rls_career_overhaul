@@ -1,8 +1,12 @@
 <template>
-  <div class="popup-content">
+  <div
+    class="popup-content"
+    v-bng-scoped-nav="popupScopeBinding"
+    v-bng-on-ui-nav:back="cancel"
+  >
     <div class="popup-header">
       <BngCardHeading type="ribbon">
-        {{ mode === "purchase" ? "Insure your " : "Switch insurance for your " }}
+        {{ mode === "purchase" ? $translate.instant("ui.career.chooseInsurance.insureYour") : $translate.instant("ui.career.chooseInsurance.switchInsuranceForYour") }}
         {{ vehicleInfo.Name }}
       </BngCardHeading>
     </div>
@@ -30,8 +34,8 @@
     </div>
     <div class="buttons-wrapper">
       <div class="button-container">
-        <BngButton @click="cancel" :accent="ACCENTS.attention">Cancel</BngButton>
-        <BngButton @click="viewCostBreakdown" :disabled="selectedShelfIndex === 0 || (mode === 'change' && selectedInsuranceId === currentInsuranceId)" :accent="ACCENTS.secondary">View Cost Breakdown</BngButton>
+        <BngButton @click="cancel" :accent="ACCENTS.attention">{{ $translate.instant("ui.common.cancel") }}</BngButton>
+        <BngButton @click="viewCostBreakdown" :disabled="selectedShelfIndex === 0 || (mode === 'change' && selectedInsuranceId === currentInsuranceId)" :accent="ACCENTS.secondary">{{ $translate.instant("ui.career.chooseInsurance.viewCostBreakdown") }}</BngButton>
         <BngButton :disabled="!selectedInsuranceId || (mode === 'change' && selectedInsuranceId === currentInsuranceId)" @click="continueWithInsurance">{{ buttonText }}</BngButton>
       </div>
     </div>
@@ -39,14 +43,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from "vue"
+import { computed, onMounted, onUnmounted, ref, watch, useAttrs } from "vue"
 import { BngButton, ACCENTS, BngOverflowContainer, BngCardHeading } from "@/common/components/base"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 import useChooseInsurance from "../stores/chooseInsuranceComposable"
 import { lua, useBridge } from "@/bridge"
 import { InsuranceCard, PurchaseInsuranceDetails, ChangeInsuranceDetails } from "@/modules/career/components"
 import { addPopup, closeLastPopups } from "@/services/popup"
 import { useUINavBlocker } from "@/services/uiNavTracker"
 import { DOM_UI_NAVIGATION_EVENT } from "@/services/uiNav"
+import { $translate } from "@/services/translation"
 
 const uiNavBlocker = useUINavBlocker()
 uiNavBlocker.ensureNoBlock(["tab_l", "tab_r"])
@@ -69,12 +75,24 @@ const props = defineProps({
   params: {
     type: Object,
     required: true
-  }
+  },
+  popupActive: Boolean
 })
 
 const emit = defineEmits(["return"])
 
 const { units } = useBridge()
+
+const attrs = useAttrs()
+const scopeName = `_chooseInsuranceMain__${attrs.__id}`
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const selectedInsuranceId = ref(null)
 const selectedShelfIndex = ref(0)
@@ -138,14 +156,14 @@ const onShelfClick = (insuranceId, index) => {
 const buttonText = computed(() => {
   if (mode.value === "change") {
     if (selectedInsuranceId.value === -1) {
-      return "Remove Coverage"
+      return $translate.instant("ui.career.chooseInsurance.removeCoverage")
     } else if (selectedInsuranceId.value === currentInsuranceId.value) {
-      return "Current Provider"
+      return $translate.instant("ui.career.chooseInsurance.currentProvider")
     } else {
-      return "Move vehicle here"
+      return $translate.instant("ui.career.chooseInsurance.moveVehicleHere")
     }
   }
-  return "Select this option"
+  return $translate.instant("ui.career.chooseInsurance.selectThisOption")
 })
 
 const viewCostBreakdown = () => {

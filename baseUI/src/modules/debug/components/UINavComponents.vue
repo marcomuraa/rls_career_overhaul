@@ -86,7 +86,7 @@ const componentBinds = Object.fromEntries(
 
 .demo-column {
   display: inline-flex;
-  flex-flow: column;
+  flex-direction: column;
   width: 40%;
   height: 90%;
   overflow: hidden scroll;

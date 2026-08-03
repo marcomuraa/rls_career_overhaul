@@ -2,8 +2,8 @@
   <LayoutSingle class="cargo-overview-main-layout" bng-ui-scope="delivery" ref="screenCover">
     <div class="screen" @click="cargoOverviewStore.cardDeselect()" @click.capture="popHideAll">
       <div v-if="cargoOverviewStore.cargoData" class="heading-container">
-        <BngScreenHeading :preheadings="['Delivery Mode']" divider>
-          {{ cargoOverviewStore.cargoData.facility ? cargoOverviewStore.cargoData.facility.name : "My Cargo" }}
+        <BngScreenHeading :preheadings="[$translate.instant('ui.career.cargoOverview.deliveryMode')]" divider>
+          {{ cargoOverviewStore.cargoData.facility ? $translate.instant(cargoOverviewStore.cargoData.facility.name) : $translate.instant("ui.career.cargoOverview.myCargo") }}
         </BngScreenHeading>
         <BngCard class="status-container">
           <CareerStatus />
@@ -58,7 +58,7 @@
           </template>
         </div>-->
         <BngButton v-if="!facilityId && cargoOverviewStore.cargoData && cargoOverviewStore.cargoData.player.penaltyForAbandon.money < 0" accent="attention" :iconLeft="icons.trashBin1" @click="exitMode" class="right-button">
-          Abandon all deliveries
+          {{ $translate.instant("ui.career.cargoOverview.abandonAllDeliveries") }}
         </BngButton>
       </div>
 
@@ -88,7 +88,7 @@
                   :icon="icons.group"
                   v-bng-popover:bottom.click="'facility-grouping'"
                   @click.stop>
-                  Grouping:
+                  {{ $translate.instant("ui.career.cargoOverview.grouping") }}
                   {{ cargoOverviewStore.cargoData.facilityCardGroupSets[cargoOverviewStore.facilityGroupingKey].label }}
                 </BngButton>
                 <BngPopoverMenu name="facility-grouping" focus @show="popShown" @hide="popHidden">
@@ -117,12 +117,12 @@
                     :icon="icons.order"
                     v-bng-popover:bottom.click="'facility-sorting'"
                     @click.stop>
-                    Sorting:
+                    {{ $translate.instant("ui.career.cargoOverview.sorting") }}
                     {{ cargoOverviewStore.cargoData.sortingSets[cargoOverviewStore.facilitySortingKey].label }}
                   </BngButton>
                   <BngButton class="groupSortButtonSmall" :accent="ACCENTS.text"
                     :icon="facilitySortAsc ? icons.sortAsc : icons.sortDesc"
-                    v-bng-tooltip:top="facilitySortAsc ? 'Ascending order' : 'Descending order'"
+                    v-bng-tooltip:top="facilitySortAsc ? $translate.instant('ui.career.cargoOverview.ascendingOrder') : $translate.instant('ui.career.cargoOverview.descendingOrder')"
                     @click.stop="facilitySortAsc = !facilitySortAsc" />
                 </div>
                 <BngPopoverMenu name="facility-sorting" focus @show="popShown" @hide="popHidden">
@@ -151,7 +151,7 @@
               <template v-if="cargoOverviewStore.currentFilterTutorialInfo?.tasks">
                 <div class="tasklist">
                   <div class="tasklist-header">
-                    {{ cargoOverviewStore.selectedFilter.label }} Tutorial
+                    {{ cargoOverviewStore.selectedFilter.label }}{{ $translate.instant("ui.career.cargoOverview.tutorialSuffix") }}
                   </div>
                   <div class="task" v-for="task in cargoOverviewStore.currentFilterTutorialInfo.tasks" :key="task.label">
                     <BngIcon class="icon" :type="icons[task.done ? 'checkboxOn' : 'checkboxOff']" />
@@ -187,7 +187,7 @@
                 :show-buttons="
                   (!cargoOverviewStore.focusedCargo && cargoOverviewStore.selectedCargo) || cargoOverviewStore.focusedCargo === cargoOverviewStore.selectedCargo
                 " />
-              <div v-else class="empty-cargo-card">Select a card to view details.</div>
+              <div v-else class="empty-cargo-card">{{ $translate.instant("ui.career.cargoOverview.selectCardForDetails") }}</div>
             </BngCard>
 
             <div class="map" ref="mapPanel">
@@ -197,7 +197,7 @@
                   <BngCardHeading type="ribbon" class="cardHeading wide">
                     {{ $t(cargoOverviewStore.cargoData.levelInfo.name) }}
                   </BngCardHeading>
-                  <BngSwitch v-model="cargoOverviewStore.automaticRoute" @click.stop> Automatic route </BngSwitch>
+                  <BngSwitch v-model="cargoOverviewStore.automaticRoute" @click.stop> {{ $translate.instant("ui.career.cargoOverview.automaticRoute") }} </BngSwitch>
                 </div>
               </div>
 
@@ -211,7 +211,7 @@
                       (!cargoOverviewStore.focusedCargo && cargoOverviewStore.selectedCargo) || cargoOverviewStore.focusedCargo === cargoOverviewStore.selectedCargo
                     " />
                   <div v-else class="empty-cargo-card">
-                    Select a card to view details.
+                    {{ $translate.instant("ui.career.cargoOverview.selectCardForDetails") }}
                   </div>
                 </BngCard>
               </div>
@@ -221,13 +221,13 @@
           <BngCard class="content-row my-cargo-panel">
             <div class="header-container">
               <BngCardHeading type="ribbon" class="cardHeadingFlex wide">
-                <span>My Cargo</span>
+                <span>{{ $translate.instant("ui.career.cargoOverview.myCargo") }}</span>
                 <!--<BngButton class="right" @click.stop="cargoOverviewStore.openCargoScreenSettings" :accent="ACCENTS.text" :icon="icons.order" v-bng-tooltip="'Filters'" />-->
                 <TutorialButton class="howto-button right" accent="secondary" :icon="icons.help" :pages="['delivery/myCargo', 'delivery/parcelDelivery']" />
               </BngCardHeading>
               <div class="info-line">
                 <BngIcon :type="icons.info" />
-                <span>Check your loaded cargo and other delivery-related tasks.</span>
+                <span>{{ $translate.instant("ui.career.cargoOverview.myCargoDescription") }}</span>
               </div>
               <div class="header-flex wrap padding">
                 <BngButton
@@ -236,7 +236,7 @@
                   :icon="icons.group"
                   v-bng-popover:bottom.click="'player-grouping'"
                   @click.stop>
-                  Grouping:
+                  {{ $translate.instant("ui.career.cargoOverview.grouping") }}
                   {{ cargoOverviewStore.cargoData.playerCardGroupSets[cargoOverviewStore.playerGroupingKey].label }}
                 </BngButton>
                 <BngPopoverMenu name="player-grouping" focus @show="popShown" @hide="popHidden">
@@ -265,12 +265,12 @@
                     :icon="icons.order"
                     v-bng-popover:bottom.click="'player-sorting'"
                     @click.stop>
-                    Sorting:
+                    {{ $translate.instant("ui.career.cargoOverview.sorting") }}
                     {{ cargoOverviewStore.cargoData.sortingSets[cargoOverviewStore.playerSortingKey].label }}
                   </BngButton>
                   <BngButton class="groupSortButtonSmall" :accent="ACCENTS.text"
                     :icon="playerSortAsc ? icons.sortAsc : icons.sortDesc"
-                    v-bng-tooltip:top="playerSortAsc ? 'Ascending order' : 'Descending order'"
+                    v-bng-tooltip:top="playerSortAsc ? $translate.instant('ui.career.cargoOverview.ascendingOrder') : $translate.instant('ui.career.cargoOverview.descendingOrder')"
                     @click.stop="playerSortAsc = !playerSortAsc" />
                 </div>
                 <BngPopoverMenu name="player-sorting" focus @show="popShown" @hide="popHidden">
@@ -308,14 +308,14 @@
                   <div class="content">
                     <span>
                       <BngIcon :type="icons.info" />
-                      You do not have any containers installed that can load this type of cargo.
+                      {{ $translate.instant("ui.career.cargoOverview.noContainersInstalled") }}
                     </span>
                     <TutorialButton
                       class="button"
                       accent="secondary"
                       :icon="icons.help"
                       :pages="['delivery/cargoContainerHowTo']"
-                      :text="'How do I install cargo containers?'" />
+                      :text="$translate.instant('ui.career.cargoOverview.howToInstallContainers')" />
                   </div>
                 </BngCard>
               </template>
@@ -335,7 +335,7 @@
             Discard
           </BngButton>-->
               <BngButton class="accept-button" :icon="icons.checkmark" @click.stop="acceptLoad" v-if="cargoOverviewStore.cargoData.confirmButtonInfo.itemCount > 0">
-                Continue ({{ cargoOverviewStore.cargoData.confirmButtonInfo.itemCount }} items)
+                {{ $translate.instant("ui.career.cargoOverview.continueItems", { count: cargoOverviewStore.cargoData.confirmButtonInfo.itemCount }) }}
               </BngButton>
             </div>
           </BngCard>
@@ -346,14 +346,14 @@
             <BngCard class="info-left">
               <BngCardHeading v-if="cargoOverviewStore.cargoData.facility.organization" type="ribbon" class="cardHeadingFlex">
                 <span>
-                <span>Reputation:&nbsp;</span>
+                <span>{{ $translate.instant("ui.career.cargoOverview.reputation") }}&nbsp;</span>
                 <span>{{cargoOverviewStore.cargoData.facility.organization.reputation.label +
                       ' (lvl ' +
                       cargoOverviewStore.cargoData.facility.organization.reputation.level +
                       ')'}}
                     </span>
                   </span>
-                <BngButton :icon="icons.signal05a" accent="secondary" @click="gotoOrganizations(cargoOverviewStore.cargoData.facility.organization.id)">Progress</BngButton>
+                <BngButton :icon="icons.signal05a" accent="secondary" @click="gotoOrganizations(cargoOverviewStore.cargoData.facility.organization.id)">{{ $translate.instant("ui.career.cargoOverview.progress") }}</BngButton>
                </BngCardHeading >
               <div class="header-flex progress-bar-padding" v-if="cargoOverviewStore.cargoData.facility.organization">
                 <BngIcon class="progress-icon" :type="icons.peopleOutline" />
@@ -370,8 +370,8 @@
                 </div>
               </div>
               <AspectRatio class="image" :ratio="'5:3'" :external-image="cargoOverviewStore.cargoData.facility.preview"> </AspectRatio>
-              <BngCardHeading type="ribbon" class="cardHeading"> Facility Information </BngCardHeading>
-              <div class="content text-justify" v-html="$content.bbcode.parse(cargoOverviewStore.cargoData.facility.longDescription)"></div>
+              <BngCardHeading type="ribbon" class="cardHeading"> {{ $translate.instant("ui.career.cargoOverview.facilityInformation") }} </BngCardHeading>
+              <div class="content text-justify" v-html="$content.bbcode.parse($translate.instant(cargoOverviewStore.cargoData.facility.longDescription))"></div>
             </BngCard>
 
             <div class="info-right">
@@ -382,7 +382,7 @@
                       <span>{{ panel.heading }}:&nbsp;</span>
                       <span v-if="panel.skillInfo">{{panel.skillInfo.unlocked ? $ctx_t(panel.skillInfo.levelLabel) : ''}}</span>
                     </span>
-                    <BngButton v-if="panel.skillInfo" :icon="icons.signal05a" accent="secondary" @click="gotoSkillProgress(panel)">Progress</BngButton>
+                    <BngButton v-if="panel.skillInfo" :icon="icons.signal05a" accent="secondary" @click="gotoSkillProgress(panel)">{{ $translate.instant("ui.career.cargoOverview.progress") }}</BngButton>
                   </BngCardHeading>
                   <div class="header-flex progress-bar-padding"  v-if="panel.skillInfo">
                       <BngIcon class="progress-icon" :type="icons[panel.skillInfo.icon]" />
@@ -394,7 +394,7 @@
                           :value="panel.skillInfo.max == -1 ? 1 : panel.skillInfo.value - panel.skillInfo.min"
                           :max="panel.skillInfo.max == -1 ? 1 : panel.skillInfo.max - panel.skillInfo.min"
                           :showValueLabel="true"
-                          :valueLabelFormat="panel.skillInfo.max === -1 ? 'Max' : panel.skillInfo.value + '&nbspXP'" />
+                          :valueLabelFormat="panel.skillInfo.max === -1 ? $translate.instant('ui.career.cargoOverview.maxLabel') : panel.skillInfo.value + '&nbspXP'" />
                       </div>
                   </div>
                   <div class="content">
@@ -455,7 +455,7 @@
         </div>
         {{cargoOverviewStore.cargoData.facility.thumbnail}}
         <BngCardHeading type="ribbon" class="cardHeading" >
-          Facility Information
+          {{ $translate.instant("ui.career.cargoOverview.facilityInformation") }}
         </BngCardHeading>
         <div class="flex-description">
           <span>
@@ -512,7 +512,7 @@
 <script setup>
 import { lua } from "@/bridge"
 import { useCargoOverviewStore } from "../stores/cargoOverviewStore"
-import { ref, watch, onMounted, onBeforeUnmount, onUnmounted, nextTick } from "vue"
+import { ref, watch, onMounted, onBeforeUnmount, onUnmounted, onActivated, nextTick } from "vue"
 import {
   BngCard,
   BngCardHeading,
@@ -530,7 +530,8 @@ import {
 } from "@/common/components/base"
 import { AspectRatio } from "@/common/components/utility"
 import { vBngPopover, vBngTooltip, vBngOnUiNav } from "@/common/directives"
-import { useUINavScope } from "@/services/uiNav"
+import { useUINavScope, getUINavServiceInstance } from "@/services/uiNav"
+import { useUINavBlocker } from "@/services/uiNavTracker"
 import { CareerStatus } from "@/modules/career/components"
 import ProvidedOrdersPanel from "../components/cargoOverview/panels/ProvidedOrdersPanel.vue"
 import CargoCard from "../components/cargoOverview/CargoCard.vue"
@@ -540,10 +541,21 @@ import { LayoutSingle } from "@/common/layouts"
 import TutorialButton from "@/modules/career/components/TutorialButton.vue"
 import { openConfirmation } from "@/services/popup"
 import { $content } from "@/services"
+import { $translate } from "@/services/translation"
 
 const tabPills = ref()
 
 useUINavScope("delivery")
+const uiNavBlocker = useUINavBlocker()
+
+const ensureUINavReady = () => {
+  lua.extensions.core_input_bindings.setMenuActionMapEnabled(true)
+  const uiNavService = getUINavServiceInstance()
+  uiNavService.activate()
+  uiNavService.clearFilteredEvents()
+  uiNavService.setActiveScope("delivery")
+  uiNavBlocker.allowNavigationOnly(true)
+}
 
 const props = defineProps({
   facilityId: String,
@@ -555,7 +567,7 @@ const cargoOverviewStore = useCargoOverviewStore()
 const updateCargoDataAll = () => {}
 
 async function openDiscardPopupExtButton(id) {
-  const res = await openConfirmation(null, "Discard Changes?")
+  const res = await openConfirmation(null, $translate.instant("ui.career.cargoOverview.discardChanges"))
   if (res) {
     lua.career_modules_delivery_cargoScreen.cancelDeliveryConfiguration()
     lua.career_modules_delivery_cargoScreen.exitCargoOverviewScreen()
@@ -575,7 +587,7 @@ const extButtonClicked = (id) => {
 }
 
 async function openDiscardPopup() {
-  const res = await openConfirmation(null, "Discard Changes?")
+  const res = await openConfirmation(null, $translate.instant("ui.career.cargoOverview.discardChanges"))
   if (res) {
     lua.career_modules_delivery_cargoScreen.cancelDeliveryConfiguration()
     lua.career_modules_delivery_cargoScreen.exitCargoOverviewScreen()
@@ -600,7 +612,7 @@ const acceptLoad = () => {
 }
 
 async function openExitModePopup() {
-  const res = await openConfirmation(null, "Throw away all cargo and exit delivery mode?")
+  const res = await openConfirmation(null, $translate.instant("ui.career.cargoOverview.throwAwayAllCargo"))
   if (res) {
     lua.career_modules_delivery_cargoScreen.exitDeliveryMode()
     lua.career_modules_delivery_cargoScreen.exitCargoOverviewScreen()
@@ -617,7 +629,7 @@ async function gotoSkillProgress(panel) {
   if (cargoOverviewStore.cargoData.confirmButtonInfo.itemCount > 0) {
 
   } else {
-    window.bngVue.gotoGameState("branchPage", { params: { branchKey:panel.branchId, skillKey:panel.skillId } })
+    window.bngVue.gotoGameState("career.branchPage", { params: { pathId: panel.skillId || panel.branchId } })
   }
 }
 
@@ -625,7 +637,7 @@ async function gotoOrganizations(id) {
   if (cargoOverviewStore.cargoData.confirmButtonInfo.itemCount > 0) {
 
   } else {
-    window.bngVue.gotoGameState("organizations", { params: { orgId : id } })
+    window.bngVue.gotoGameState("career.organizations", { params: { orgId: id } })
   }
 }
 
@@ -667,7 +679,7 @@ function resizer() {
 
   // FIXME: please try `relative` variable :)
   // `relative` is in a form of [0.3, 0.2, 0.5, 0.9] (x1, y1, x2, y2), relative to the screen, so it might be easier to use it instead
-  lua.freeroam_bigMapMode.setBigmapScreenBounds({ width, height }, rect)
+  //lua.freeroam_bigMapMode.setBigmapScreenBounds({ width, height }, rect)
 }
 
 // when element changes
@@ -697,11 +709,15 @@ watch(
 
 //mounting and unmounting
 onMounted(() => {
+  ensureUINavReady()
   observer = new ResizeObserver(resizer)
   resizer()
   cargoOverviewStore.requestCargoData(props.facilityId, props.parkingSpotPath)
   // set initial filter (don't use watcher for immediate set)
   selectedFilters.value = [cargoOverviewStore.selectedFilter.value]
+})
+onActivated(() => {
+  ensureUINavReady()
 })
 onBeforeUnmount(() => {
   observer?.disconnect()
@@ -714,9 +730,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .cargo-overview-main-layout {
-  --safezone-top: 0;
-  --safezone-bottom: 0;
-  --content-flow: column nowrap;
+  --content-flow: column;
   &::before {
     content: "";
     position: absolute;
@@ -735,7 +749,8 @@ onUnmounted(() => {
 .screen {
   position: relative;
   display: flex;
-  flex-flow: column nowrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   justify-content: stretch;
   width: 100%;
   height: 100%;
@@ -748,7 +763,8 @@ onUnmounted(() => {
 
   position: relative;
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   justify-content: flex-start;
   align-items: flex-start;
 
@@ -776,7 +792,8 @@ onUnmounted(() => {
 
 .controls-row {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: baseline;
   padding: 1em 0;
   .back-button {
@@ -848,7 +865,8 @@ onUnmounted(() => {
 
   .flex-container {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: stretch;
     width: 100%;
     height: 100%;
@@ -881,7 +899,8 @@ onUnmounted(() => {
   .info-right {
     flex: 1 0 auto;
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
     width: 50%;
     max-height: 100%;
@@ -963,7 +982,8 @@ onUnmounted(() => {
 .cargohold-info {
   flex: 1 1 auto;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   // margin: 0 auto; // centers container when there's a space
   // margin: 0 0 0 auto; // moves to the right
   > * {
@@ -1080,7 +1100,7 @@ onUnmounted(() => {
     padding: 0.2rem 1rem;
     .content {
       display: flex;
-      flex-flow: column;
+      flex-direction: column;
       align-items: stretch;
       padding-right: 1.4rem;
       .button {
@@ -1110,7 +1130,8 @@ onUnmounted(() => {
 
   .groupSortButtons {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     justify-items: stretch;
     .groupSortButton {
       margin-right: 0;
@@ -1146,7 +1167,8 @@ onUnmounted(() => {
 
 .buttons-wrapper {
   display: flex;
-  flex-flow: row-nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   flex: 0 0 auto;
   padding: 0.5rem 0.5rem 0.8rem 0.5rem;
   .cancel-button {

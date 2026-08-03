@@ -10,6 +10,7 @@
 import { computed } from "vue"
 import { BngIcon, icons } from "@/common/components/base"
 import { vBngTooltip } from "@/common/directives"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const props = defineProps({
   perkIconData:{
@@ -25,10 +26,6 @@ const computedColor = computed(() => {
   return props.perkIconData.color
 })
 </script>
-
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
 
 <style scoped lang="scss">
 .insurance-perk-icon {

@@ -3,45 +3,187 @@
 
 $font_path: "/ui/ui-vue/src/assets/fonts";
 
-:deep() {
-  --fnt-defs: "Noto Sans", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC", sans-serif;
+:root {
+  --fnt-defs: "Noto Sans", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC";
   --fnt-mono: "Overpass Mono", "Noto Sans Mono", var(--fnt-defs);
 }
 
 @font-face {
   font-family: "Overpass";
-  src: url("#{$font_path}/Overpass/Overpass-VariableFont_wght.ttf");
-  font-weight: 125 950;
-  font-stretch: 75% 125%;
+  src: url("#{$font_path}/Overpass/static/Overpass-Regular.ttf");
+  font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
   font-family: "Overpass";
-  src: url("#{$font_path}/Overpass/Overpass-Italic-VariableFont_wght.ttf");
-  font-weight: 125 950;
-  font-stretch: 75% 125%;
+  src: url("#{$font_path}/Overpass/static/Overpass-Italic.ttf");
+  font-weight: 400;
   font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass";
+  src: url("#{$font_path}/Overpass/static/Overpass-Medium.ttf");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass";
+  src: url("#{$font_path}/Overpass/static/Overpass-MediumItalic.ttf");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass";
+  src: url("#{$font_path}/Overpass/static/Overpass-SemiBold.ttf");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass";
+  src: url("#{$font_path}/Overpass/static/Overpass-SemiBoldItalic.ttf");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass";
+  src: url("#{$font_path}/Overpass/static/Overpass-Bold.ttf");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass";
+  src: url("#{$font_path}/Overpass/static/Overpass-BoldItalic.ttf");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
 }
 
 /* Secondary font (to be used in UI) */
 
 @font-face {
   font-family: "Noto Sans";
-  src: url("#{$font_path}/NotoSans/NotoSans-VariableFont_wdth,wght.ttf");
-  font-weight: 100 900;
+  src: url("#{$font_path}/NotoSans/NotoSans-ExtraLight.ttf");
+  font-weight: 200;
   font-style: normal;
-  font-variation-settings:
-    "wdth" 62.5 100;
+  font-display: swap;
 }
 
 @font-face {
   font-family: "Noto Sans";
-  src: url("#{$font_path}/NotoSans/NotoSans-Italic-VariableFont_wdth,wght.ttf");
-  font-weight: 100 900;
+  src: url("#{$font_path}/NotoSans/NotoSans-ExtraLightItalic.ttf");
+  font-weight: 200;
   font-style: italic;
-  font-variation-settings:
-    "wdth" 62.5 100;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-Light.ttf");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-LightItalic.ttf");
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-Regular.ttf");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-Italic.ttf");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-Medium.ttf");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-MediumItalic.ttf");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-SemiBold.ttf");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-SemiBoldItalic.ttf");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-Bold.ttf");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-BoldItalic.ttf");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-ExtraBold.ttf");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("#{$font_path}/NotoSans/NotoSans-ExtraBoldItalic.ttf");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
 }
 
 /* Set of fonts to fill the gaps for the hieroglyphic languages */
@@ -170,15 +312,48 @@ $font_path: "/ui/ui-vue/src/assets/fonts";
 
 @font-face {
   font-family: "Noto Sans Mono";
-  src: url("#{$font_path}/NotoSans/NotoSansMono-VariableFont_wdth,wght.ttf");
-  font-weight: 100 950;
-  font-stretch: 75% 125%;
+  src: url("#{$font_path}/NotoSans/NotoSansMono-Regular.ttf");
+  font-weight: 400;
   font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans Mono";
+  src: url("#{$font_path}/NotoSans/NotoSansMono-Bold.ttf");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
   font-family: "Overpass Mono";
-  src: url("#{$font_path}/OverpassMono/OverpassMono-VariableFont_wght.ttf");
-  font-weight: 100 950;
+  src: url("#{$font_path}/OverpassMono/static/OverpassMono-Regular.ttf");
+  font-weight: 400;
   font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass Mono";
+  src: url("#{$font_path}/OverpassMono/static/OverpassMono-Medium.ttf");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass Mono";
+  src: url("#{$font_path}/OverpassMono/static/OverpassMono-SemiBold.ttf");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Overpass Mono";
+  src: url("#{$font_path}/OverpassMono/static/OverpassMono-Bold.ttf");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }

@@ -17,6 +17,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { clamp } from '@/utils/maths'
 
 const props = defineProps({
   // Values are expected normalized: [0..1] or [-1..1] when bidirectional
@@ -28,8 +29,6 @@ const props = defineProps({
 })
 const isVertical = computed(() => props.vertical)
 
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
-
 const toUnits = (v, bidir) => {
   const vv = clamp(v, bidir ? -1 : 0, 1)
   return bidir ? (vv + 1) / 2 : vv // map [-1..1] to [0..1]
@@ -38,8 +37,6 @@ const toUnits = (v, bidir) => {
 const zeroUnits = computed(() => (props.isBidirectional ? 0.5 : 0))
 const actualUnits = computed(() => toUnits(props.value, props.isBidirectional))
 const targetUnits = computed(() => toUnits(props.targetValue, props.isBidirectional))
-
-const isLeft = v => props.isBidirectional && v < zeroUnits.value
 
 const makeFillStyle = (units) => {
   if (!isVertical.value) {

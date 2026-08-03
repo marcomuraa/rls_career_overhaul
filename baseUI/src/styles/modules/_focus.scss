@@ -11,8 +11,8 @@
 // see also crossfire.js service
 //&:focus-visible, // not working in current cef and if uncommented - will break the selector
 &.focus-visible { // this class comes from polyfill
-  &:not(.no-focus-visible),
-  &:not(.no-focus-frame) {
+  // &:not(.no-focus-visible),
+  // &:not(.no-focus-frame) {
     &::before {
       content: "";
       display: block;
@@ -26,11 +26,17 @@
       pointer-events: none;
       z-index: $focus !important;
     }
+  // }
+  &.no-focus-frame,
+  &.no-focus-visible {
+    &::before {
+      display: none !important;
+    }
   }
 }
 
 // disable for ui apps
-&.bng-app *:focus::before {
+&.ui-app-host *:focus::before {
   content: none;
 }
 

@@ -1,8 +1,10 @@
 <template>
-  <div class="layout-wrapper layout-safezones">
+  <div class="layout-wrapper" :class="{ 'layout-safezones': safezones }">
+    <Background v-if="blur" v-bng-blur="blur" />
     <div class="layout-content">
       <slot>Content here</slot>
     </div>
+    <InfoBar class="layout-info-bar" v-if="showInfoBar" />
   </div>
 </template>
 
@@ -15,20 +17,41 @@ export const LAYOUT_ALIGNMENTS = {
 }
 </script>
 
+<script setup>
+import { computed, inject, onMounted, onUnmounted } from "vue"
+import { useRoute } from "vue-router"
+import { Background } from "@/common/components/utility"
+import { vBngBlur } from "@/common/directives"
+import InfoBar from "@/common/modules/infobar/components/InfoBar.vue"
+
+defineProps({
+  blur: {
+    type: Boolean,
+    default: false,
+  },
+  safezones: {
+    type: Boolean,
+    default: true,
+  },
+})
+
+const layoutSinglePresence = inject("layoutSinglePresence", null)
+const route = useRoute()
+// TODO: use the routeData infoBar settings instead of the route meta
+const showInfoBar = computed(() => route.meta?.infoBar?.visible === true)
+
+onMounted(() => layoutSinglePresence?.register?.())
+onUnmounted(() => layoutSinglePresence?.unregister?.())
+</script>
+
 <style lang="scss">
 // set defaults for --layout-content-* in App.vue instead
 $content-max-width: var(--layout-content-width);
 $content-h-position: var(--content-h-position, var(--layout-content-alignment));
 $content-flow: var(--content-flow, row);
 
-// safezones
-$safezone-sides: var(--safezone-sides, 1em);
-$safezone-top: var(--safezone-top, 0.5em);
-$safezone-bottom: var(--safezone-bottom, 0.5em);
-
-// sides
-$sides-start: var(--sides-start, #0008);
-$sides-end: var(--sides-end, transparent);
+// do not override from outside, it must be controlled by App.vue ONLY
+$safezone: var(--safezone);
 
 .layout-wrapper {
   position: absolute;
@@ -39,47 +62,32 @@ $sides-end: var(--sides-end, transparent);
   overflow: hidden;
 
   display: flex;
-  flex-flow: row nowrap;
-  align-items: stretch;
-  justify-content: $content-h-position;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 1em;
+  // align-items: stretch;
+  align-items: $content-h-position;
 
   > .layout-content {
     flex: 1 1 auto;
     position: relative;
     display: flex;
-    flex-flow: $content-flow;
+    flex-direction: $content-flow;
     flex-wrap: nowrap;
     width: 100%;
     max-width: max(33.4%, $content-max-width);
     min-height: 0;
     overflow: hidden;
   }
+
+  .layout-info-bar.info-bar {
+    position: relative;
+    align-self: stretch;
+    bottom: unset;
+  }
 }
 
 .layout-safezones {
-  margin-top: $safezone-top;
-  margin-bottom: $safezone-bottom;
-  padding-left: $safezone-sides;
-  padding-right: $safezone-sides;
-}
-
-.layout-sides {
-  &::before, &::after {
-    flex: 1 1 auto;
-    content: "";
-    background-size: 100% auto;
-    background-repeat: repeat-y;
-    background-position-y: 0%;
-  }
-
-  &::before {
-    background-image: linear-gradient(-90deg, $sides-start, $sides-end);
-    background-position-x: 100%;
-  }
-
-  &::after {
-    background-image: linear-gradient(90deg, $sides-start, $sides-end);
-    background-position-x: 0%;
-  }
+  padding: $safezone;
 }
 </style>

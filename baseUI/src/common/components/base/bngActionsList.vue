@@ -37,7 +37,7 @@ $highlight-color: var(--bng-orange-500);
   display: flex;
   padding: 0.25rem 0.5rem;
   color: $text-color;
-  font-family: "Overpass";
+  font-family: "Overpass", var(--fnt-defs);
   font-style: normal;
   font-weight: 400;
   font-size: 16px;

@@ -90,7 +90,7 @@ const props = defineProps({
 }
 .condensed {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   position: relative;
   border-radius: var(--bng-corners-2);
   overflow: hidden;
@@ -160,7 +160,7 @@ const props = defineProps({
       }
     }
 
-    :deep(*) > .icon {
+    * > .icon {
       width: 2rem;
       height: 2rem;
     }

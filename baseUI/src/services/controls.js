@@ -1,6 +1,6 @@
 // Store/service for Controls data
 
-import { ref, computed } from "vue"
+import { ref, computed, watch, isRef } from "vue"
 import { defineStore } from "pinia"
 import { lua, useBridge } from "@/bridge"
 import { $translate } from "@/services"
@@ -13,13 +13,18 @@ import logger from "@/services/logger"
 const STORE_NAME = "controls"
 let store
 
+// sanitize keyboard/mouse bindings in simplemenu
+const SIMPLEMENU_NO_KBM = true
+
 const DEVICE_ICONS = {
   key: "keyboard", // keyboard
   mou: "mouseLMB", // mouse
   vin: "smartphone2", // vinput
   whe: "steeringWheelCommon", // wheel
   gam: "gamepadOld", // gamepad
-  xin: "gamepadOld", // xinput
+  xin: "gamepad", // xinput
+  sce: "dsGamepad", // Sony/PlayStation pad
+  ope: "gamepadOld", // openxr -- TODO pick a better icon for VR controllers
   default: "gamepad", // joystick and others
 }
 
@@ -171,6 +176,8 @@ const GROUPED_CONTROLS = {
   ]),
   xbox: extendControlGroupNames([
     { icon: "xboxDDefaultSolid", controls: ["upov", "dpov", "lpov", "rpov"] },
+    { icon: "xboxDUpDown", controls: ["upov", "dpov"] },
+    { icon: "xboxDLeftRight", controls: ["lpov", "rpov"] },
     // { icon: "", controls: ["lpov", "rpov"] },
     // { icon: "", controls: ["upov", "dpov"] },
     { icon: "xboxThumbL", controls: ["thumblx", "thumbly"] },
@@ -178,6 +185,8 @@ const GROUPED_CONTROLS = {
   ]),
   ps: extendControlGroupNames([
     { icon: "psDDefaultSolid", controls: ["upov", "dpov", "lpov", "rpov"] },
+    { icon: "psDUpDown", controls: ["upov", "dpov"] },
+    { icon: "psDLeftRight", controls: ["lpov", "rpov"] },
     // { icon: "", controls: ["lpov", "rpov"] },
     // { icon: "", controls: ["upov", "dpov"] },
     { icon: "psLS", controls: ["xaxis", "yaxis"] },
@@ -214,10 +223,13 @@ const getViewerOverrides = (devName = undefined, imagePack = undefined) => {
 }
 
 // Device Ordering
-const DEVICE_ORDER = ["wheel", "joystick", "xinput", "gamepad", "mouse", "keyboard"]
+const DEVICE_ORDER = ["wheel", "joystick", "xinput", "gamepad", "openxr", "mouse", "keyboard"]
 
 const makeStore = defineStore(STORE_NAME, () => {
   const { events } = useBridge()
+
+  const simplemenuRef = ref({ value: false })
+  const rejectKBM = computed(() => SIMPLEMENU_NO_KBM && !!simplemenuRef.value?.value)
 
   // this holds the list of all devNames ordered by heuristics
   const devNamesOrder = DEVICE_ORDER.map(devType => devType + "0")
@@ -241,9 +253,9 @@ const makeStore = defineStore(STORE_NAME, () => {
   /** last devices (controllers only) signature */
   const lastControllersSignature = computed(() => lastControllers.value.sort().join("::"))
   /** if controller is used last */
-  const isControllerUsed = computed(() => !isKbm(lastDeviceOrder.value[0]))
+  const isControllerUsed = computed(() => rejectKBM.value || !isKbm(lastDeviceOrder.value[0]))
   /** if controller is connected */
-  const isControllerAvailable = computed(() => lastDeviceOrder.value.some(devName => !isKbm(devName)))
+  const isControllerAvailable = computed(() => rejectKBM.value || lastDeviceOrder.value.some(devName => !isKbm(devName)))
   /** last device if controller, null if keyboard/mouse */
   const lastDeviceSimple = computed(() => isControllerUsed.value ? lastDevice.value : null)
 
@@ -251,13 +263,16 @@ const makeStore = defineStore(STORE_NAME, () => {
   const getDevType = devName => devName ? devName.replace(/\d+$/, "") : ""
   const deviceSorter = (a, b) => DEVICE_ORDER.indexOf(getDevType(a)) - DEVICE_ORDER.indexOf(getDevType(b))
 
-  const kbmDevNames = ["keyboard0", "mouse0"].sort(deviceSorter)
+  const kbmDevNames = ["keyboard0", "mouse0"].sort(deviceSorter) // it is intentional to have full names here
   const kbmShortNames = kbmDevNames.map(devName => devName.slice(0, 3))
   const isKbm = devName => devName && kbmShortNames.includes(devName.slice(0, 3))
 
-  const _receiveControlsData = data => ((controllers.value = data), _updateDeviceNotes()),
-    _receivePlayersData = data => (players.value = data),
-    _receiveBindingsData = _processBindingsData
+  const _receiveControlsData = data => {
+    controllers.value = data
+    _updateDeviceNotes()
+  }
+  const _receivePlayersData = data => players.value = data
+  const _receiveBindingsData = _processBindingsData
 
   const _getBindingsData = () => lua.extensions.core_input_bindings.notifyUI("Vue controls service needs the data")
 
@@ -270,7 +285,10 @@ const makeStore = defineStore(STORE_NAME, () => {
   }
   const disconnect = () => connect(false)
 
-  const deviceIcon = deviceName => DEVICE_ICONS[(deviceName || "").slice(0, 3)] || DEVICE_ICONS["default"]
+  const deviceIcon = (deviceName, inputMapName = null) =>
+    DEVICE_ICONS[(inputMapName || "").slice(0, 3)]
+    || DEVICE_ICONS[(deviceName || "").slice(0, 3)]
+    || DEVICE_ICONS["default"]
 
   async function _requestRecentDevices(devNames = undefined) {
     if (!devNames) devNames = await lua.extensions.core_input_bindings.getRecentDevices()
@@ -281,6 +299,9 @@ const makeStore = defineStore(STORE_NAME, () => {
       // move both kbd/mouse first if first device is one of them
       // we're using this instead of sorting because we want to have the original kbd-mouse order
       devNames = [...kbmDevNames, ...devNames.filter(devName => !isKbm(devName))]
+    }
+    if (rejectKBM.value) {
+      devNames = devNames.filter(devName => !isKbm(devName))
     }
     lastDeviceOrder.value.splice(0, lastDeviceOrder.value.length, ...devNames)
   }
@@ -355,8 +376,10 @@ const makeStore = defineStore(STORE_NAME, () => {
   // A conflicting binding refers to the same control of the same device, and the two actions belong to the same actionMap.
   // returns an array of the conflicting bindings
   const bindingConflicts = (device, control, action) => {
-    let dev = bindings.value.find(b => b.devname == device),
-      others = dev.contents.bindings.filter(b => b.control == control)
+    let dev = bindings.value.find(b => b.devname == device)
+    if (!dev) return []
+    let others = dev.contents.bindings.filter(b => b.control == control)
+    if (others.length === 0) return []
 
     return others
       .filter(b => b.action != action)
@@ -369,16 +392,19 @@ const makeStore = defineStore(STORE_NAME, () => {
 
   // Captures user input
   const captureBinding = (modifiersAllowed = true) => {
-    let controlCaptured = false,
-      eventsRegister = {},
-      d = defer(),
-      capturingBinding = true
+    let controlCaptured = false
+    let capturingBinding = true
+    const eventsRegister = {}
+    const d = defer()
 
     function _listener(data) {
       if (!capturingBinding) return // Not trying to capture bindings, ignore
       if (controlCaptured) return // No business listening to incoming events
 
       const devName = data.devName
+
+      if (rejectKBM.value && isKbm(devName)) return
+
       if (!eventsRegister[devName]) eventsRegister[devName] = { axis: {}, key: [null, null] }
       const eventData = eventsRegister[devName]
 
@@ -478,7 +504,7 @@ const makeStore = defineStore(STORE_NAME, () => {
 
     _captureHelper.stopListening = () => {
       lua.ActionMap.enableBindingCapturing(false)
-      lua.WinInput.setForwardRawEvents(false)
+      lua.Input.setForwardRawEvents(false)
       lua.setCEFTyping(false)
       events.off("RawInputChanged", _listener)
     }
@@ -486,7 +512,7 @@ const makeStore = defineStore(STORE_NAME, () => {
     // Set up the event listener and a function to remove it
     events.on("RawInputChanged", _listener)
 
-    lua.WinInput.setForwardRawEvents(true)
+    lua.Input.setForwardRawEvents(true)
 
     return d.promise
   }
@@ -579,7 +605,13 @@ const makeStore = defineStore(STORE_NAME, () => {
       return
     }
 
-    const deviceBindings = bindings.value.find(b => b.devname === device).contents.bindings
+    const deviceBinding = bindings.value.find(b => b.devname === device)
+    if (!deviceBinding) {
+      console.warn("Device binding not found: ", device)
+      return
+    }
+
+    const deviceBindings = deviceBinding.contents.bindings
     const common = {
       icon: deviceIcon(device),
       title: actionDetails.title,
@@ -593,6 +625,7 @@ const makeStore = defineStore(STORE_NAME, () => {
       ...details,
       ...common,
       isAxis: isBindingAxis,
+      isCentered: !!actionDetails.isCentered,
       action: actionDetails.action,
       actionName: actionDetails.actionName,
     }
@@ -772,6 +805,52 @@ const makeStore = defineStore(STORE_NAME, () => {
     else return filteredBindings()
   }
 
+  const vehicleSpecific = computed(() => {
+    const specialKeys = []
+
+    for (const deviceBinding of bindings.value) {
+      const deviceContents = deviceBinding?.contents || {}
+      const deviceType = deviceContents.devicetype
+      const deviceName = deviceBinding?.devname
+      const deviceBindings = Array.isArray(deviceContents.bindings) ? deviceContents.bindings : []
+
+      for (let i = 0; i < deviceBindings.length; i++) {
+        const bind = deviceBindings[i]
+        const actionData = actions.value[bind.action]
+        if (!actionData || actionData.cat !== "vehicle_specific") continue
+
+        const playerId = bind.player ?? 0
+        if (!specialKeys[playerId]) specialKeys[playerId] = []
+
+        const controlEntry = {
+          c: bind.control,
+          d: deviceType,
+          n: deviceName,
+        }
+        const existing = specialKeys[playerId].find(entry => entry.actionName === bind.action)
+        if (!existing) {
+          specialKeys[playerId].push({
+            control: [controlEntry],
+            actionName: bind.action,
+            action: actionData.title,
+            order: actionData.order,
+            i,
+          })
+        } else {
+          existing.control.push(controlEntry)
+        }
+      }
+    }
+
+    for (const entry in specialKeys) {
+      if (Array.isArray(entry)) {
+        entry.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      }
+    }
+
+    return specialKeys.map(entry => (entry || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
+  })
+
   const _captureHelper = { devName: null, stopListening: null }
 
   function _updateDeviceNotes() {
@@ -804,6 +883,10 @@ const makeStore = defineStore(STORE_NAME, () => {
         device.contents.bindings = Object.values(device.contents.bindings)
       }
     })
+
+    if (rejectKBM.value) {
+      data.bindings = data.bindings.filter(binding => !isKbm(binding.devname))
+    }
 
     bindingTemplate.value = data.bindingTemplate
     bindings.value = data.bindings
@@ -939,6 +1022,7 @@ const makeStore = defineStore(STORE_NAME, () => {
     }
     if (deviceKey) {
       const devName = viewerObj?.devName || (multiDevice ? device[0] : device)
+      if (rejectKBM.value && isKbm(devName)) return undefined
       viewerObj = {
         icon: deviceIcon(devName),
         control: deviceKey,
@@ -1028,9 +1112,17 @@ const makeStore = defineStore(STORE_NAME, () => {
     }
   }
 
-  // Setup
-  connect()
-  _getBindingsData()
+  const setSimplemenuRef = ref => SIMPLEMENU_NO_KBM && ref && isRef(ref) && (simplemenuRef.value = ref)
+
+  let isSet = false
+  function setup(simplemenuRef = undefined) {
+    if (isSet) return
+    isSet = true
+    setSimplemenuRef(simplemenuRef)
+    connect()
+    _getBindingsData()
+    SIMPLEMENU_NO_KBM && watch(rejectKBM, () => _getBindingsData())
+  }
 
   const computedProps = {
     categories: computed(() => categories.value),
@@ -1042,6 +1134,7 @@ const makeStore = defineStore(STORE_NAME, () => {
     lastDevices: lastDeviceOrder,
     lastControllers: lastControllers,
     lastControllersSignature: lastControllersSignature, // temp thing for performance
+    vehicleSpecific: vehicleSpecific,
     isControllerAvailable: isControllerAvailable,
     isControllerUsed: isControllerUsed,
     /** use this for a consistent way to show/hide elements based on controller availability */
@@ -1051,6 +1144,10 @@ const makeStore = defineStore(STORE_NAME, () => {
   }
 
   return {
+    // internals
+    setup,
+    setSimplemenuRef,
+    // properties
     ...computedProps,
     // methods
     addNewBinding,

@@ -4,7 +4,7 @@
       class="blur-carousel"
       :images="backgroundsBlur"
       :parent="parentCarousel"
-      transition
+      :transition="transition"
     />
   </div>
 </template>
@@ -17,6 +17,13 @@ import Slideshow from "./Slideshow.vue"
 const parentCarousel = inject("mainBackground")
 const backgroundsBlur = inject("mainBackgroundBlur")
 const bgRequired = SysInfo.mainMenuBackgroundRequired
+
+defineProps({
+  transition: {
+    type: [Boolean, Number],
+    default: 10,
+  },
+})
 </script>
 
 <style lang="scss" scoped>

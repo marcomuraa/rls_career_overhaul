@@ -17,12 +17,6 @@
 import { BngBinding } from "@/common/components/base"
 import { ref } from "vue"
 
-// for making demo work outside of game
-import { inject } from "vue"
-import { runInBrowser, getMockedData } from "@/utils/"
-const $game = inject("$game")
-runInBrowser(() => getMockedData("inputBindings.sample").then(data => $game.events.emit("InputBindingsChanged", data)))
-
 const dark = ref(true)
 
 const swapLightDark = () => (dark.value = !dark.value)

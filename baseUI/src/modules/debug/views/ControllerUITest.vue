@@ -19,13 +19,13 @@
 </template>
 
 <script setup>
-import { lua } from '@/bridge'
-import { onMounted, onUnmounted, ref, inject } from "vue"
+import { onMounted, onUnmounted, ref } from "vue"
+import { useBridge } from "@/bridge"
 import { getAssetURL } from "@/utils"
 
 //init controller events
-const $game = inject("$game")
-$game.uiNavEvents.activate(true)
+const bridge = useBridge()
+bridge.uiNavEvents.activate(true)
 
 //Test recieving ui_nav events for the document
 const lastDocumentControllerEvent = ref("N/A")
@@ -55,7 +55,7 @@ function processTestEvent(e) {
 
 const exit = () => {
   running = false
-  window.bngVue.gotoGameState("menu.mainmenu")
+  window.bngVue.gotoGameState("menu")
 }
 let running = true
 

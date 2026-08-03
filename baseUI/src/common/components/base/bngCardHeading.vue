@@ -10,12 +10,23 @@ defineProps({
   type: {
     type: String,
     default: "line",
-    validator: v => ["line", "ribbon", "none"].includes(v) || v === "",
+    validator: v => {
+      if (v === "") return true
+      if (typeof v !== "string") return false
+
+      const parts = v.trim().split(/\s+/).filter(Boolean)
+      if (parts.length === 1) return ["line", "ribbon", "none"].includes(parts[0])
+      if (parts.length !== 2) return false
+
+      const [style, modifier] = parts
+      return ["line", "ribbon"].includes(style) && modifier === "outline"
+    },
   },
   outline: {
     type: Boolean,
     default: false,
-  }
+  },
+
 })
 </script>
 
@@ -48,26 +59,27 @@ defineProps({
   }
   &.heading-style-line {
     &::before {
-      background: var(--bng-orange-b400);
+      background: var(--bng-card-heading-ribbon-color, var(--bng-orange-b400));
       width: 0.5em;
       left: 0.65em;
     }
     &.outline::before {
       background: transparent;
       box-sizing: border-box;
-      border: 0.1875rem solid var(--bng-orange-b400);
+      border: 0.1875rem solid var(--bng-card-heading-ribbon-color, var(--bng-orange-b400));
     }
   }
   &.heading-style-ribbon {
+    padding-left: 1.125em;
     &::before {
-      background: var(--bng-orange-b400);
+      background: var(--bng-card-heading-ribbon-color, var(--bng-orange-b400));
       width: 1.5em;
-      left: -0.35em;
+      left: -0.75em;
     }
     &.outline::before {
       background: transparent;
       box-sizing: border-box;
-      border: 0.1875rem solid var(--bng-orange-b400);
+      border: 0.1875rem solid var(--bng-card-heading-ribbon-color, var(--bng-orange-b400));
     }
   }
 }

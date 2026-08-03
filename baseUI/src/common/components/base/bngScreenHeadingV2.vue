@@ -90,7 +90,7 @@ $font-top-line-space: 1px;
   color: $heading-content-color;
   // min-height: 3.5em;
   flex: 0 0 auto;
-  margin-top: 0.5rem;
+  //margin-top: 0.5rem;
   gap: 0.25rem;
 
   --bng-button-min-width: 0;

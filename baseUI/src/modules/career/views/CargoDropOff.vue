@@ -9,26 +9,25 @@
         <!--
         <BngCard v-if="mode === MODES.wait">
           <CareerStatus class="career-status" />
-          <BngCardHeading type="ribbon">Dropping off...</BngCardHeading>
+          <BngCardHeading type="ribbon">{{ $translate.instant("ui.career.cargoDropOff.droppingOff") }}</BngCardHeading>
         </BngCard>
       -->
-
         <BngCard v-if="mode === MODES.cargoSelection">
           <CareerStatus class="career-status" />
-          <BngCardHeading type="ribbon">Dropping off...</BngCardHeading>
+          <BngCardHeading type="ribbon">{{ $translate.instant("ui.career.cargoDropOff.droppingOff") }}</BngCardHeading>
           <div class="card-content">
-            <BngPropVal class="limited-capacity-info" :valueLabel="'This facility has limited capacity for cargo.'" :iconType="icons.info"/>
+            <BngPropVal class="limited-capacity-info" :valueLabel="$translate.instant('ui.career.cargoDropOff.limitedCapacity')" :iconType="icons.info"/>
             <div class="scroll-wrapper">
               <template v-for="info in data.customAmountPerMaterialType">
                 <CardGroup class="fullwidth-group" :label="info.material.name" :meta="info.meta">
                   <div v-if="info.isFull">
-                    <BngPropVal :valueLabel="'The storage for this material is completely filled. Come back later.'" :iconType="icons.abandon"/>
+                    <BngPropVal :valueLabel="$translate.instant('ui.career.cargoDropOff.storageFull')" :iconType="icons.abandon"/>
                   </div>
                   <template v-for="item in info.items">
                     <div class="cargo-wrapper">
                       <div class="header">
-                        <BngPropVal :valueLabel="item.originName" :keyLabel="'Origin'" :iconType="icons.locationSource"/>
-                        <BngPropVal :valueLabel="item.containerName" :keyLabel="'Container'" :iconType="icons.cardboardBox "/>
+                        <BngPropVal :valueLabel="item.originName" :keyLabel="$translate.instant('ui.career.cargoDropOff.origin')" :iconType="icons.locationSource"/>
+                        <BngPropVal :valueLabel="item.containerName" :keyLabel="$translate.instant('ui.career.cargoDropOff.container')" :iconType="icons.cardboardBox "/>
                       </div>
                       <div class="amount-controls">
                         <BngButton :disabled="info.isFull" class="less" :iconLeft="icons.minus" accent="text"
@@ -58,7 +57,7 @@
               </template>
             </div>
             <!--
-            <span class="span2-heading">Manual Deliveries</span>
+            <span class="span2-heading">{{ $translate.instant("ui.career.cargoDropOff.manualDeliveries") }}</span>
             <div v-for="veh in data.playerVehicleData">
               <div v-for="con in veh.containers">
                 <template v-for="cargo in con.cargo">
@@ -67,7 +66,7 @@
                 </template>
               </div>
               <BngDivider />
-              <span class="span2-heading">Mandatory Deliveries</span>
+              <span class="span2-heading">{{ $translate.instant("ui.career.cargoDropOff.mandatoryDeliveries") }}</span>
               <div v-for="veh in data.playerVehicleData">
                 <div v-for="con in veh.containers">
                   <template v-for="cargo in con.cargo">
@@ -80,16 +79,16 @@
           </div>
 
           <template #buttons>
-            <BngButton @click="confirmSelection"><BngBinding ui-event="ok" deviceMask="xinput" /><span>Confirm Selection</span></BngButton>
+            <BngButton @click="confirmSelection"><BngBinding ui-event="ok" deviceMask="xinput" /><span>{{ $translate.instant("ui.career.cargoDropOff.confirmSelection") }}</span></BngButton>
           </template>
         </BngCard>
         <BngCard v-if="mode === MODES.results">
-          <BngCardHeading type="ribbon">Delivery Complete!</BngCardHeading>
+          <BngCardHeading type="ribbon">{{ $translate.instant("ui.career.cargoDropOff.deliveryComplete") }}</BngCardHeading>
           <div class="card-content">
 
             <div style="display: flex;">
-              <h3 style="float: left;">Delivered: {{ getDeliveryList() }}</h3>
-              <BngSwitch v-if="summary.detailledList.length > 1" style="float: right;" v-model="cargoOverviewStore.detailedDropOff">Detailed</BngSwitch>
+              <h3 style="float: left;">{{ $translate.instant("ui.career.cargoDropOff.delivered", { list: getDeliveryList() }) }}</h3>
+              <BngSwitch v-if="summary.detailledList.length > 1" style="float: right;" v-model="cargoOverviewStore.detailedDropOff">{{ $translate.instant("ui.career.cargoDropOff.detailed") }}</BngSwitch>
             </div>
 
             <div v-if="summary.detailledList.length <= 1 || cargoOverviewStore.detailedDropOff" class="rewards-breakdown-container padding-bottom">
@@ -108,7 +107,7 @@
                 </div>
                 <BngDivider />
                 <div class="grid-row grid">
-                  <div class="label primary">Summary</div>
+                  <div class="label primary">{{ $translate.instant("ui.career.cargoDropOff.summary") }}</div>
                   <div class="rewards primary"><RewardsPills :rewards="summary.total.rewards" /></div>
                 </div>
               </div>
@@ -118,24 +117,24 @@
               <!-- TODO - This is tabular data, would be more appropriate to use a table, and could do away with a lot of CSS -->
               <div class="grid-wrapper">
                 <div class="grid-row grid" v-if="summary.simpleBreakdown.base.length">
-                  <div class="label primary">Base Rewards</div>
+                  <div class="label primary">{{ $translate.instant("ui.career.cargoDropOff.baseRewards") }}</div>
                   <div class="rewards primary"><RewardsPills :rewards="summary.simpleBreakdown.base" /></div>
                 </div>
                 <div class="grid-row grid" v-if="summary.simpleBreakdown.bonus.length">
-                  <div class="label primary">Bonuses</div>
+                  <div class="label primary">{{ $translate.instant("ui.career.cargoDropOff.bonuses") }}</div>
                   <div class="rewards primary"><RewardsPills :rewards="summary.simpleBreakdown.bonus" /></div>
                 </div>
                 <div class="grid-row grid" v-if="summary.simpleBreakdown.loaner.length">
-                  <div class="label primary">Loaner Cuts</div>
+                  <div class="label primary">{{ $translate.instant("ui.career.cargoDropOff.loanerCuts") }}</div>
                   <div class="rewards primary"><RewardsPills :rewards="summary.simpleBreakdown.loaner" /></div>
                 </div>
                 <div class="grid-row grid" v-if="summary.simpleBreakdown.branch.length">
-                  <div class="label primary">Logistics Level Multiplier</div>
+                  <div class="label primary">{{ $translate.instant("ui.career.cargoDropOff.logisticsLevelMultiplier") }}</div>
                   <div class="rewards primary"><RewardsPills :rewards="summary.simpleBreakdown.branch" /></div>
                 </div>
                 <BngDivider />
                 <div class="grid-row grid">
-                  <div class="label primary">Summary</div>
+                  <div class="label primary">{{ $translate.instant("ui.career.cargoDropOff.summary") }}</div>
                   <div class="rewards primary"><RewardsPills :rewards="summary.total.rewards" /></div>
                 </div>
               </div>
@@ -178,7 +177,7 @@
 
             <div v-if="showUnloadingDelay">
               <BngDivider />
-              Unloading Delay
+              {{ $translate.instant("ui.career.cargoDropOff.unloadingDelay") }}
               <BngProgressBar
                 class="timer"
                 :value="data.unloadingDelay - confirmButtonTimer"
@@ -190,7 +189,7 @@
 
           <template #buttons>
             <BngButton v-bng-focus-if="rewardAnimationIndex == 0" :disabled="rewardAnimationIndex < 0 && !confirmButtonEnabled" @click="confirm">
-              <BngBinding deviceMask="xinput" /><span>{{rewardAnimationIndex < 0 ? "Continue" : "Skip"}}</span>
+              <BngBinding deviceMask="xinput" /><span>{{rewardAnimationIndex < 0 ? $translate.instant("ui.common.continue") : $translate.instant("ui.career.cargoDropOff.skip")}}</span>
             </BngButton>
           </template>
         </BngCard>
@@ -217,6 +216,7 @@ import { addPopup } from "@/services/popup"
 import CargoCard from "../components/cargoOverview/CargoCard.vue"
 import { useCargoOverviewStore } from "../stores/cargoOverviewStore"
 import CardGroup from "../components/cargoOverview/CardGroup.vue"
+import { $translate } from "@/services/translation"
 const ANIMATION_START_DELAY = 400
 const ANIMATION_DURATION = 3000
 const ANIMATION_UPDATE_RATE = 30
@@ -293,7 +293,7 @@ const getDeliveryList = () => {
   return summary.value.detailledList.map(delivery => delivery.label).join(', ')
 }
 
-const getNiceTime = () => (confirmButtonTimer.value > 0 ? confirmButtonTimer.value.toFixed(1) + "s remaining..." : "Done!")
+const getNiceTime = () => (confirmButtonTimer.value > 0 ? $translate.instant("ui.career.cargoDropOff.secondsRemaining", { seconds: confirmButtonTimer.value.toFixed(1) }) : $translate.instant("ui.career.cargoDropOff.done"))
 
 const exit = () => {
   window.bngVue.gotoGameState("play")
@@ -534,7 +534,7 @@ const calculateSummary = () => {
   summary.value = {
     detailledList: [],
     total: {
-      label: "Total",
+      label: $translate.instant("ui.career.cargoDropOff.total"),
       rewards: {},
     },
   }
@@ -548,7 +548,7 @@ const calculateSummary = () => {
       totalCount = totalCount + 1
     }
     let sum = {
-      label: first.name,
+      label: $translate.instant(first.name),
       rewards: rewardMapToRewardList(first.originalRewards),
       breakdown: [],
     }
@@ -795,7 +795,7 @@ export default {
 
   :deep(.layout-content) {
     display: flex;
-    flex-flow: column;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
   }
@@ -855,7 +855,8 @@ export default {
   min-width: 42em;
   .rewards-breakdown-container {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
     align-content: baseline;
 
@@ -925,7 +926,7 @@ export default {
 
 .cargo-wrapper {
   display: flex;
-  flex-flow:column;
+  flex-direction: column;
   background-color:rgba(var(--bng-ter-blue-gray-700-rgb),1);
   border-radius: var(--bng-corners-2);
   .header {

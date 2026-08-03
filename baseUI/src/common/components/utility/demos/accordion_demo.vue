@@ -12,7 +12,7 @@
     <div>
       <h3>Example</h3>
       <Accordion :singular="singular" :animated="animated" :expanded="expanded" :disabled="disabled" :selected="true">
-        <AccordionItem v-for="(item, idx) of items" :static="item.static" :expanded="item.expanded" :disabled="item.disabled">
+        <AccordionItem v-for="(item, idx) of items" :key="idx" :static="item.static" :expanded="item.expanded" :disabled="item.disabled">
           <template #caption>
             {{ item.caption }}
           </template>
@@ -26,36 +26,36 @@
     <div>
       <h3>Basic tree-like structure</h3>
       <Accordion :singular="singular" :animated="animated" :expanded="expanded" :disabled="disabled">
-        <AccordionItem v-for="(item, idx) of items" :static="item.static" :expanded="item.expanded" :disabled="item.disabled">
+        <AccordionItem v-for="(item, idx1) of items" :key="idx1" :static="item.static" :expanded="item.expanded" :disabled="item.disabled">
           <template #caption>
             {{ item.caption }}
           </template>
           <template #controls>
-            <BngButton @click.stop="remItem(idx)">Remove</BngButton>
+            <BngButton @click.stop="remItem(idx1)">Remove</BngButton>
           </template>
           <Accordion :singular="singular" :animated="animated">
-            <AccordionItem v-for="(item, idx) of items" :static="item.static" :disabled="item.disabled">
+            <AccordionItem v-for="(item, idx2) of items" :key="idx2" :static="item.static" :disabled="item.disabled">
               <template #caption>
                 {{ item.caption }}
               </template>
               <template #controls>
-                <BngButton @click.stop="remItem(idx)">Remove</BngButton>
+                <BngButton @click.stop="remItem(idx2)">Remove</BngButton>
               </template>
               <Accordion :singular="singular" :animated="animated">
-                <AccordionItem v-for="(item, idx) of items" :static="item.static" :disabled="item.disabled">
+                <AccordionItem v-for="(item, idx3) of items" :key="idx3" :static="item.static" :disabled="item.disabled">
                   <template #caption>
                     {{ item.caption }}
                   </template>
                   <template #controls>
-                    <BngButton @click.stop="remItem(idx)">Remove</BngButton>
+                    <BngButton @click.stop="remItem(idx3)">Remove</BngButton>
                   </template>
                   <Accordion :singular="singular" :animated="animated">
-                    <AccordionItem v-for="(item, idx) of items" :static="item.static" :disabled="item.disabled">
+                    <AccordionItem v-for="(item, idx4) of items" :key="idx4" :static="item.static" :disabled="item.disabled">
                       <template #caption>
                         {{ item.caption }}
                       </template>
                       <template #controls>
-                        <BngButton @click.stop="remItem(idx)">Remove</BngButton>
+                        <BngButton @click.stop="remItem(idx4)">Remove</BngButton>
                       </template>
                       {{ item.content }}
                     </AccordionItem>
@@ -110,7 +110,8 @@ function remItem(idx = -1) {
 .accrow {
   // font-size: 1rem;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: space-between;
   > * {
     flex: 0 0 49.5%;

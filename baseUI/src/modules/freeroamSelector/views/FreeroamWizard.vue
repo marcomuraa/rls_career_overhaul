@@ -1,171 +1,34 @@
 <template>
-  <LayoutSingle class="freeroam-configurator">
+  <LayoutMenu
+    class="freeroam-configurator"
+    :nav-scope="WIZARD_SCOPE_ID"
+    :nav-active="false"
+    :nav-options="wizardNavOptions"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    @breadcrumb-click="onBreadcrumbClick"
+    @breadcrumb-back="goBack"
+  >
     <div
       class="configurator-content"
-      :class="{ 'options-step': step === 'options' }"
-      v-bng-scoped-nav="{
-        scopeId: WIZARD_SCOPE_ID,
-        canDeactivate: () => false,
-        activateOnMount: true,
-        bubbleBlacklistEvents: ['back', 'menu']
+      v-bng-click.controller="{
+        holdCallback: () => onStartButtonClick(button?.meta?.buttonId),
+        holdDelay: 1200,
+        repeatInterval: 0,
       }"
-      v-bng-click.controller="{ holdCallback: () => onStartButtonClick(button?.meta?.buttonId), holdDelay: 2000, repeatInterval: 0 }"
-      v-bng-on-ui-nav:ok.asMouse
+      v-bng-on-ui-nav:action_2.asMouse
+      v-bng-ui-nav-label:action_2="button?.meta?.label"
+      v-bng-on-ui-nav:menu="onMenuUiNav"
     >
-      <div class="configurator-heading">
-        <BngBreadcrumbs
-          v-bng-blur
-          class="configurator-breadcrumbs"
-          simple
-          show-back-button
-          disable-last-item
-          @back="goBack"
-          @click="gotoHeaderItem"
-          limit="15"
-          :items="breadcrumbItems"/>
-      </div>
-
       <div class="configurator-body">
-
-        <div class="grid-section" v-if="step !== 'options' && gridSelectorProps">
-          <GridSelector
-            ref="gridSelectorRef"
-            :key="`grid-selector-${step}`"
-            :backend-name="gridSelectorProps.backendName"
-            :route-path="gridSelectorProps.routePath"
-            :default-path="gridSelectorProps.defaultPath"
-            :default-details-mode="gridSelectorProps.defaultDetailsMode"
-            :hidden-tabs="gridSelectorProps.hiddenTabs"
-            no-breadcrumbs
-            :select-callback="onSelectCallback"
-            :double-click-override="doubleClickOverride"
-            :override-back-from-grid="goBack"
-            inline-header-container
-            :bubble-events="['ok']"
-          >
-            <template #item-details="{ activeItem, activeItemDetails, executeButton, toggleFavourite, exploreFolder, goToMod }">
-              <GameplayDetails
-                v-if="step === 'level'"
-                :activeItem="activeItem"
-                :activeItemDetails="activeItemDetails"
-                :toggleFavourite="toggleFavourite"
-                :exploreFolder="exploreFolder"
-                :goToMod="goToMod"
-                :buttonOverride="{icon: 'fastTravel', label: 'Next Step', click: (...args) => overrideSelectItem('level', ...args)}"
-                :showHeaderTitle="true"
-              />
-              <VehicleDetails
-                v-if="step === 'vehicle'"
-                :activeItem="activeItem"
-                :activeItemDetails="activeItemDetails"
-                :toggleFavourite="toggleFavourite"
-                :exploreFolder="exploreFolder"
-                :goToMod="goToMod"
-                :buttonOverride="{icon: 'fastTravel', label: 'Next Step', click: (...args) => overrideSelectItem('vehicle', ...args)}"
-                :showHeaderTitle="true"
-              />
-            </template>
-          </GridSelector>
-        </div>
-
-        <!-- Options Panel (replaces grid when step === 'options') -->
-        <div class="option-summary-panel" v-if="step === 'options' && configData">
-          <!-- Left Column - Location -->
-          <div class="config-section selectable-component" v-bng-blur @click="onSpawnPointTileClick">
-            <BlurBackground />
-            <div class="section-header">
-              <BngCardHeading type="ribbon" class="section-title">
-                <span class="section-title-label">Location:</span>
-                <span class="section-title-value">
-                  {{ configData?.currentSpawnPoint?.headerTitle || 'Select location...' }}
-                </span>
-              </BngCardHeading>
-            </div>
-            <div class="section-content">
-              <!-- Spawn Point Details -->
-              <div>
-                <div v-if="configData?.currentSpawnPoint" class="clickable">
-                  <GameplayDetails
-                    :active-item="{levelName: configData.currentSpawnPoint.levelName, spawnPointObjectName: configData.currentSpawnPoint.spawnPointObjectName}"
-                    :active-item-details="configData.currentSpawnPoint"
-                    inline
-                    :show-header-title="false"
-                  />
-                </div>
-                <div v-else class="placeholder-content">
-                  <BngIcon type="road" class="placeholder-icon" />
-                  <p class="placeholder-text">Click to select location</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Middle Column - Vehicle -->
-          <div class="config-section selectable-component" v-bng-blur @click="onVehicleTileClick">
-            <BlurBackground />
-            <div class="section-header">
-              <BngCardHeading type="ribbon" class="section-title">
-                <span class="section-title-label">Vehicle:</span>
-                <span class="section-title-value">
-                  {{ configData?.currentVehicle?.headerTitle || 'Select vehicle...' }}
-                </span>
-              </BngCardHeading>
-            </div>
-            <div class="section-content">
-              <!-- Vehicle Details -->
-              <div>
-                <div v-if="configData?.currentVehicle" class="clickable">
-                  <VehicleDetails
-                    :active-item="{model: configData.currentVehicle.model, config: configData.currentVehicle.config}"
-                    :active-item-details="configData.currentVehicle"
-                    hide-details-and-buttons
-                    inline
-                    :show-header-title="false"
-                  />
-                </div>
-                <div v-else class="placeholder-content">
-                  <BngIcon type="car" class="placeholder-icon" />
-                  <p class="placeholder-text">Click to select vehicle</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <OptionsPanel
-            v-bng-on-ui-nav:back="goBack"
-            v-bng-on-ui-nav:menu="goBack"
-            class="config-section"
-            :options="configData?.options || []"
-            :has-options="hasOptions"
-            :can-configure-options="canConfigureOptions"
-          >
-            <!--
-            <template #buttons>
-            <div class="action-button-container" v-bng-blur>
-              <BlurBackground />
-              <BngButton
-                v-if="button"
-                class="action-button"
-                :accent="ACCENTS.custom"
-                @click="() => handleButtonClick(button.meta.buttonId)"
-                bng-scoped-nav-autofocus
-              >
-                <div class="button-content">
-                  {{ button.meta.label }}
-                </div>
-              </BngButton>
-              <div v-else class="placeholder-content row">
-                <p class="placeholder-text">Select location and vehicle to start</p>
-              </div>
-            </div>
-            </template>
-          -->
-          </OptionsPanel>
-        </div>
+        <component
+          :is="activePanelComponent"
+          :ref="activePanelRef"
+          v-bind="activePanelProps"
+          v-on="activePanelListeners"
+        />
       </div>
-
       <div class="configurator-heading">
-
         <!-- Error State -->
         <div v-if="error" class="error-state">
           <BlurBackground />
@@ -175,219 +38,465 @@
             <BngButton @click="initialize" :accent="ACCENTS.secondary">Retry</BngButton>
           </div>
         </div>
-
         <!-- Main Content - Always show layout -->
-        <div v-else class="configurator-sections">
-          <!-- Back Button -->
-          <!-- <BngButton class="configurator-button" v-bng-blur @click="goBack" :accent="ACCENTS.custom">
-            <span class="back">
-              <BngIcon :type="'arrowLargeLeft'" class="back-icon" />
-              <span class="back-text">
-                Back
-              </span>
-            </span>
-          </BngButton> -->
-          <div class="steps-container" v-bng-blur>
-            <div class="background-bar">
-              <BlurBackground />
-            </div>
-            <!-- Location -->
-            <WizardStepButton
-              first
-              :active="step === 'level'"
-              :completed="stepCompleted.level"
-              title="Location"
-              :tooltip="configData?.currentSpawnPoint?.headerTitle"
-              :preview="configData?.currentSpawnPoint?.preview"
-              icon="road"
-              @activate="onSpawnPointTileClick"
-            />
-
-            <!-- Vehicle -->
-            <WizardStepButton
-              :active="step === 'vehicle'"
-              :completed="stepCompleted.vehicle"
-              title="Vehicle"
-              :tooltip="configData?.currentVehicle?.headerTitle"
-              :preview="configData?.currentVehicle?.preview"
-              icon="car"
-              :show-paint-tile="!!vehiclePaintData"
-              :paint-id="`${configData?.currentVehicle?.key || 'vehicle'}:${vehiclePaintData?.paint}`"
-              :paints="vehiclePaintData?.paints || []"
-              :paint-name="vehiclePaintData ? vehiclePaintData.paintNames.join(', ') : ''"
-              @activate="onVehicleTileClick"
-            />
-
-            <!-- Options -->
-            <WizardStepButton
-              :active="step === 'options'"
-              :completed="stepCompleted.options"
-              title="Options"
-              tooltip="Options"
-              icon="adjust"
-              @activate="onOptionsTileClick"
-            />
-          </div>
-
-          <!-- Wizard Play Button -->
-          <div
-            class="play-button"
-            @click="onStartButtonClick(button?.meta?.buttonId)"
-            v-bng-on-ui-nav:ok.asMouse
-            bng-nav-item tabindex="1"
-            v-bng-sound-class="'bng_click_hover_generic'"
-          >
-            <div class="background"></div>
-            <div class="label">
-              <div v-show="holdBindingRef?.displayed" class="hold-binding">
-                <BngBinding ref="holdBindingRef" class="binding" ui-event="ok" controller />
-                <svg class="hold-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 12" preserveAspectRatio="xMidYMid">
-                  <path d="M1,1 L8,2 L16,1 L8,11 z" />
-                </svg>
-              </div>
-              {{ button?.meta?.label || 'Start' }}
-            </div>
-          </div>
-
-        </div>
-
+        <FreeroamConfigurator
+          v-else
+          :step="step"
+          :step-completed="stepCompleted"
+          :config-data="configData"
+          :vehicle-paint-data="vehiclePaintData"
+          :is-multiplayer-enabled="isMultiplayerEnabled"
+          :is-multiplayer-available="isMultiplayerAvailable"
+          :button="button"
+          @spawn-point-click="onSpawnPointTileClick"
+          @vehicle-click="onVehicleTileClick"
+          @options-click="onOptionsTileClick"
+          @multiplayer-click="onMultiplayerTileClick"
+          @start-button-click="onStartButtonClick"
+        />
       </div>
-
     </div>
-  </LayoutSingle>
+  </LayoutMenu>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, onBeforeMount } from "vue"
+import { ref, computed, watch, onMounted, nextTick, inject, unref } from "vue"
+import { useRoute } from "vue-router"
 import { storeToRefs } from "pinia"
-import { LayoutSingle } from "@/common/layouts"
-import { BngButton, BngSelect, BngSwitch, BngScreenHeadingV2, BngIcon, BngInput, BngBreadcrumbs, BngSmartSelect, BngPaintTile, BngCardHeading, BngBinding, ACCENTS } from "@/common/components/base"
-import { vBngBlur, vBngOnUiNav, vBngScopedNav, vBngUiNavLabel, vBngTooltip, vBngClick, vBngSoundClass } from "@/common/directives"
-import { SCOPED_NAV_TYPES } from "@/services/scopedNav"
+import { LayoutMenu } from "@/common/layouts"
+import { BngButton, BngIcon, ACCENTS, icons } from "@/common/components/base"
+import { vBngOnUiNav, vBngUiNavLabel, vBngClick } from "@/common/directives"
 import { useBridge } from "@/bridge"
 import BlurBackground from "@/common/modules/main-bg/components/BlurBackground.vue"
 import useFreeroamConfigurator from "../composables/useFreeroamConfigurator"
 import Paint from "@/utils/paint"
-import GridSelector from "@/common/modules/gridSelector/GridSelector.vue"
-import GameplayDetails from "@/modules/gameplaySelector/components/GameplayDetails.vue"
-import VehicleDetails from "@/modules/vehicleselect/components/VehicleDetails.vue"
-import OptionsPanel from "../components/OptionsPanel.vue"
-import WizardStepButton from "../components/wizardStepButton.vue"
-import { AspectRatio } from "@/common/components/utility"
-import { useRouter } from "vue-router"
-import { useScopedNav } from "@/services/scopedNav"
+import FreeroamConfigurator from "../components/FreeroamConfigurator.vue"
+import FreeroamLevelGridSelector from "../components/FreeroamLevelGridSelector.vue"
+import FreeroamVehicleGridSelector from "../components/FreeroamVehicleGridSelector.vue"
+import FreeroamOptionsSummaryPanel from "../components/FreeroamOptionsSummaryPanel.vue"
+import FreeroamMultiplayerSummaryPanel from "../components/FreeroamMultiplayerSummaryPanel.vue"
+import { useScopedNav } from "@/services/scopedNav/api"
+import useControls from "@/services/controls"
 import { startLoading } from "@/services"
 import { waitForLoadingScreenFadeIn } from "@/services/screenCover"
+import { useRouteDataStore } from "@/services/routeData"
 import logger from "@/services/logger"
+import { tasklist } from "@/modules/apps"
+import { useTasksStore } from "@/services/tasklistStore"
+import { SCOPE_TRAP_POLICIES } from "@/services/scopedNav"
 
 const { lua, events } = useBridge()
-const router = useRouter()
 const scopedNav = useScopedNav()
+const controlsStore = useControls()
+const { isControllerUsed } = storeToRefs(controlsStore)
+const route = useRoute()
+const routeDataStore = useRouteDataStore()
+const tasklistStore = useTasksStore()
+const { breadcrumbs: routeBreadcrumbs } = storeToRefs(routeDataStore)
 
-const WIZARD_SCOPE_ID = 'freeroam-wizard'
+const $simplemenu = inject("$simplemenu", ref(false))
+const isSimpleMenu = computed(() => unref($simplemenu))
 
-const steps = {
-  level: {
-    title: "Location",
-    backendName: "freeroamSelector",
-    path: "/freeroam-wizard/level",
-    defaultPath: { keys: ["allFreeroam"] },
-    defaultDetailsMode: "detail",
-    hiddenTabs: ["filter", "advanced"]
-  },
-  vehicle: {
-    title: "Vehicle",
-    backendName: "vehicleSelector",
-    path: "/freeroam-wizard/vehicle",
-    defaultPath: { keys: ["allModels"] },
-    defaultDetailsMode: "detail",
-    hiddenTabs: ["advanced"]
-  },
-  options: {
-    title: "Options",
-    path: "/freeroam-wizard/options"
+const WIZARD_SCOPE_ID = "root"
+const wizardNavOptions = Object.freeze({
+  canDeactivate: () => false,
+  bubbleBlacklistEvents: ["back", "menu"],
+  // we want to always trap events so that triggering 'menu' event in keyboard
+  // will not bypass this scope but let the wizard handle what to do with menu/escape
+  trapPolicy: SCOPE_TRAP_POLICIES.ALWAYS,
+})
+
+const WIZARD_ROUTE_FAMILY_DEFAULT = "menu"
+const WIZARD_ROUTE_FAMILIES = Object.freeze(["menu", "pause"])
+const WIZARD_ROUTE_SCREEN_PREFIX = "freeroamLevels"
+const MINOR_ROUTE_DIVIDER_TYPE = icons.arrowSmallRight
+
+const WIZARD_STEP_CONFIG_BY_STATE = Object.freeze({
+  locations: Object.freeze({
+    step: "level",
+    stepNavigatePriority: 1,
+    routeName: "freeroamLevels",
+    routeSuffixes: Object.freeze([".freeroamLevels"]),
+    previousState: null,
+  }),
+  location: Object.freeze({
+    step: "level",
+    stepNavigatePriority: 0,
+    routeName: "freeroamLevels.level",
+    routeSuffixes: Object.freeze([".freeroamLevels.level"]),
+    previousState: "locations",
+  }),
+  vehicles: Object.freeze({
+    step: "vehicle",
+    stepNavigatePriority: 1,
+    routeName: "freeroamLevels.vehicles",
+    routeSuffixes: Object.freeze([".freeroamLevels.vehicles"]),
+    previousState: "locations",
+  }),
+  vehicle: Object.freeze({
+    step: "vehicle",
+    stepNavigatePriority: 0,
+    routeName: "freeroamLevels.vehicles.vehicle",
+    routeSuffixes: Object.freeze([".freeroamLevels.vehicles.vehicle"]),
+    previousState: "vehicles",
+  }),
+  options: Object.freeze({
+    step: "options",
+    stepNavigatePriority: 0,
+    routeName: "freeroamLevels.vehicles.options",
+    routeSuffixes: Object.freeze([".freeroamLevels.vehicles.options"]),
+    previousState: "vehicles",
+  }),
+  multiplayer: Object.freeze({
+    step: "multiplayer",
+    stepNavigatePriority: 0,
+    routeName: "freeroamLevels.vehicles.options.multiplayer",
+    routeSuffixes: Object.freeze([".freeroamLevels.vehicles.options.multiplayer"]),
+    previousState: "options",
+  }),
+})
+
+const hasRouteParamValue = value => value !== undefined && value !== null && value !== ""
+const getWizardRouteData = () => routeDataStore.data?.freeroamWizard || {}
+const getWizardSelectionContext = () => getWizardRouteData().selection || {}
+const getWizardUiState = () => getWizardRouteData().uiState || {}
+const getWizardPathByStepContext = () => getWizardUiState().pathByStep || {}
+const getWizardSearchByStepContext = () => getWizardUiState().searchByStep || {}
+const getWizardFiltersByStepContext = () => getWizardUiState().filtersByStep || {}
+const getWizardNavigationContext = () => ({
+  selection: getWizardSelectionContext(),
+})
+
+const normalizeWizardPathSegment = segment => {
+  if (segment === undefined || segment === null || segment === "undefined") {
+    return null
   }
+  if (typeof segment === "string") {
+    return segment
+  }
+  if (typeof segment === "number" || typeof segment === "boolean") {
+    return String(segment)
+  }
+  return null
+}
+
+const normalizeWizardPath = (pathValue, fallbackPath = { keys: [] }) => {
+  const fallbackKeys = Array.isArray(fallbackPath?.keys) ? [...fallbackPath.keys] : []
+  if (!pathValue || typeof pathValue !== "object") {
+    return { keys: fallbackKeys }
+  }
+
+  const sourceKeys = Array.isArray(pathValue.keys)
+    ? pathValue.keys
+    : (Array.isArray(pathValue) ? pathValue : null)
+  if (!sourceKeys) {
+    return { keys: fallbackKeys }
+  }
+
+  const normalizedKeys = sourceKeys
+    .map(normalizeWizardPathSegment)
+    .filter(segment => segment !== null)
+  return normalizedKeys.length > 0 ? { keys: normalizedKeys } : { keys: fallbackKeys }
+}
+
+const normalizeWizardSearchText = searchText => {
+  if (searchText === null || searchText === undefined || searchText === "undefined") {
+    return ""
+  }
+  if (typeof searchText === "string") {
+    return searchText
+  }
+  if (typeof searchText === "number" || typeof searchText === "boolean") {
+    return String(searchText)
+  }
+  return ""
+}
+
+const normalizeWizardFilterValue = (value, depth = 0) => {
+  if (depth > 12) {
+    return null
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value
+  }
+  if (!value || typeof value !== "object") {
+    return null
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map(childValue => normalizeWizardFilterValue(childValue, depth + 1))
+      .filter(childValue => childValue !== null)
+  }
+
+  const normalizedObject = {}
+  for (const [key, childValue] of Object.entries(value)) {
+    const normalizedChild = normalizeWizardFilterValue(childValue, depth + 1)
+    if (normalizedChild !== null) {
+      normalizedObject[key] = normalizedChild
+    }
+  }
+  return normalizedObject
+}
+
+const normalizeWizardFiltersPayload = filtersPayload => {
+  if (!filtersPayload || typeof filtersPayload !== "object") {
+    return {}
+  }
+  const normalized = normalizeWizardFilterValue(filtersPayload)
+  return normalized && typeof normalized === "object" ? normalized : {}
+}
+
+const getWizardSearchForStep = stepName => {
+  return normalizeWizardSearchText(getWizardSearchByStepContext()[stepName])
+}
+
+const getWizardFiltersForStep = stepName => {
+  return normalizeWizardFiltersPayload(getWizardFiltersByStepContext()[stepName])
+}
+
+const getSelectionPathSegment = value => normalizeWizardPathSegment(value)
+
+const buildWizardPathForActiveRouteStep = stepName => {
+  const fallbackPath = { keys: [] }
+  const routeName = getCurrentWizardRouteName()
+  const routePathByStep = getWizardPathByStepContext()
+  const selectionContext = getWizardSelectionContext()
+  const restoredPath = normalizeWizardPath(routePathByStep[stepName], fallbackPath)
+
+  // logger.debug("FreeroamWizard.restore.routeDataPath", {
+  //   routeName,
+  //   step: stepName,
+  //   restoredPath,
+  //   pathSource: "routeData.freeroamWizard.uiState.pathByStep",
+  //   selection: {
+  //     levelName: selectionContext.levelName || null,
+  //     vehicleModel: selectionContext?.vehicle?.model || null,
+  //   },
+  //   activeSearchText: getWizardSearchForStep(stepName),
+  //   activeFilters: getWizardFiltersForStep(stepName),
+  // })
+
+  return restoredPath
+}
+
+const hasWizardLevelContext = () => {
+  const selectionContext = getWizardSelectionContext()
+  return hasRouteParamValue(selectionContext.levelName)
+}
+
+const hasWizardVehicleSelectionContext = () => {
+  const selectionContext = getWizardSelectionContext()
+  return hasRouteParamValue(selectionContext?.vehicle?.model)
+}
+
+const getWizardFallbackSelectorState = selectorState => {
+  if (selectorState === "location" && !hasWizardLevelContext()) {
+    return "locations"
+  }
+  if (selectorState === "vehicle" && !hasWizardVehicleSelectionContext()) {
+    return "vehicles"
+  }
+  return null
+}
+
+const hasRequiredWizardContextForSelectorState = selectorState => {
+  return !getWizardFallbackSelectorState(selectorState)
+}
+
+const getWizardStepConfig = selectorState => WIZARD_STEP_CONFIG_BY_STATE[selectorState] || null
+
+const getCandidateSelectorStatesForWizardStep = targetStep => {
+  return Object.entries(WIZARD_STEP_CONFIG_BY_STATE)
+    .filter(([, config]) => config.step === targetStep)
+    .sort((a, b) => (a[1].stepNavigatePriority ?? 0) - (b[1].stepNavigatePriority ?? 0))
+    .map(([selectorState]) => selectorState)
+}
+
+const getWizardSelectorStateByRouteSuffix = routeName => {
+  if (typeof routeName !== "string" || routeName.length === 0) return null
+
+  let bestMatchState = null
+  let bestMatchLength = -1
+
+  for (const [selectorState, selectorConfig] of Object.entries(WIZARD_STEP_CONFIG_BY_STATE)) {
+    for (const suffix of selectorConfig.routeSuffixes || []) {
+      if (routeName.endsWith(suffix) && suffix.length > bestMatchLength) {
+        bestMatchState = selectorState
+        bestMatchLength = suffix.length
+      }
+    }
+  }
+
+  return bestMatchState
+}
+const resolvePreviousWizardSelectorState = (selectorState, navigationContext = getWizardNavigationContext()) => {
+  const previousStateResolver = getWizardStepConfig(selectorState)?.previousState
+  if (typeof previousStateResolver === "function") {
+    return previousStateResolver(navigationContext)
+  }
+  return previousStateResolver || null
+}
+
+function isRecentConcreteVehicleTile(item) {
+  const hasRecentGotoPath = Array.isArray(item?.gotoPath)
+    && item.gotoPath.some(pathSegment => typeof pathSegment === "string" && pathSegment.includes("Recent"))
+
+  if (!hasRecentGotoPath) {
+    return false
+  }
+
+  const details = item?.doubleClickDetails
+  return Boolean(details?.model && details?.config)
+}
+
+const getCurrentWizardRouteName = () => {
+  const routeNameFromStore = routeDataStore.routeName
+  return typeof routeNameFromStore === "string" ? routeNameFromStore : ""
+}
+
+const getWizardRouteFamilyFromRouteName = routeName => {
+  if (typeof routeName !== "string" || routeName.length === 0) {
+    return WIZARD_ROUTE_FAMILY_DEFAULT
+  }
+  for (const family of WIZARD_ROUTE_FAMILIES) {
+    const familyRootRouteName = `${family}.${WIZARD_ROUTE_SCREEN_PREFIX}`
+    if (routeName === familyRootRouteName || routeName.startsWith(`${familyRootRouteName}.`)) {
+      return family
+    }
+  }
+  return WIZARD_ROUTE_FAMILY_DEFAULT
+}
+
+const getCurrentWizardRouteFamily = () => getWizardRouteFamilyFromRouteName(getCurrentWizardRouteName())
+
+const resolveWizardSelectorState = routeName => {
+  const normalizedRouteName = typeof routeName === "string" ? routeName : ""
+  return getWizardSelectorStateByRouteSuffix(normalizedRouteName)
+}
+
+const currentWizardRouteName = computed(() => getCurrentWizardRouteName())
+const wizardSelectorState = computed(() => resolveWizardSelectorState(currentWizardRouteName.value))
+const wizardStepConfig = computed(() => getWizardStepConfig(wizardSelectorState.value))
+const step = computed(() => wizardStepConfig.value?.step || "level")
+
+const getWizardRouteNameForState = selectorState => {
+  const baseRouteName = getWizardStepConfig(selectorState)?.routeName
+  if (!baseRouteName) return null
+  const family = getCurrentWizardRouteFamily()
+  return `${family}.${baseRouteName}`
+}
+
+const getPreferredSelectorStateForStep = targetStep => {
+  const candidateSelectorStates = getCandidateSelectorStatesForWizardStep(targetStep)
+  for (const selectorState of candidateSelectorStates) {
+    if (hasRequiredWizardContextForSelectorState(selectorState)) {
+      return selectorState
+    }
+  }
+
+  return candidateSelectorStates[candidateSelectorStates.length - 1] ?? null
+}
+
+const navigateToWizardSelectorState = async (selectorState, navigateOptions = null, routeParams = null) => {
+  const routeName = getWizardRouteNameForState(selectorState)
+  if (!routeName) {
+    logger.warn(`navigateToWizardSelectorState: Unknown selector state "${selectorState}"`)
+    return
+  }
+
+  await lua.extensions.ui_router.navigate(routeName, routeParams, navigateOptions)
+}
+
+const navigateToWizardStep = async targetStep => {
+  if (targetStep === "multiplayer" && (isSimpleMenu.value || !isMultiplayerAvailable.value)) {
+    await navigateToWizardSelectorState("options")
+    return
+  }
+
+  const selectorState = getPreferredSelectorStateForStep(targetStep)
+  const selectionContext = getWizardSelectionContext()
+  // logger.debug("FreeroamWizard.navigation.step", {
+  //   routeName: getCurrentWizardRouteName(),
+  //   step: targetStep,
+  //   selectorState,
+  //   selection: {
+  //     levelName: selectionContext.levelName || null,
+  //     vehicleModel: selectionContext?.vehicle?.model || null,
+  //   },
+  //   activeSearchText: getWizardSearchForStep(targetStep),
+  //   activeFilters: getWizardFiltersForStep(targetStep),
+  // })
+  await navigateToWizardSelectorState(selectorState)
 }
 
 const stepCompleted = computed(() => {
   return {
-    level: props.step === "vehicle" || props.step === "options" ,
-    vehicle: props.step === "options",
-    options: false,
-  }
-})
-const gridSelectorProps = computed(() => {
-  const stepConfig = steps[props.step]
-  if (stepConfig && stepConfig.backendName && stepConfig.path) {
-    return {
-      backendName: stepConfig.backendName,
-      routePath: stepConfig.path,
-      defaultPath: stepConfig.defaultPath || { keys: [] },
-      defaultDetailsMode: stepConfig.defaultDetailsMode || "detail",
-      hiddenTabs: stepConfig.hiddenTabs || []
-    }
-  }
-  return null
-})
-
-const props = defineProps({
-  step: {
-    type: String,
-    default: ""
-  },
-  pathMatch: {
-    type: [String, Array],
-    default: ""
-  },
-  itemDetails: {
-    type: [String, Array],
-    default: ""
+    level: ["vehicle", "options", "multiplayer"].includes(step.value),
+    vehicle: ["options", "multiplayer"].includes(step.value),
+    options: !isSimpleMenu.value && step.value === "multiplayer",
+    multiplayer: false,
   }
 })
 
-const gridSelectorRef = ref(null)
-const holdBindingRef = ref(null)
+const wizardRouteContextSignature = computed(() => {
+  const selectionContext = getWizardSelectionContext()
+  const selectedVehicleModel = getSelectionPathSegment(selectionContext?.vehicle?.model) || ""
+  return [
+    selectionContext.levelName || "",
+    selectedVehicleModel,
+  ].join("|")
+})
+
+watch([currentWizardRouteName, wizardRouteContextSignature], ([routeName]) => {
+  const selectorState = resolveWizardSelectorState(routeName)
+  if ((selectorState === "location" || selectorState === "vehicle") && !routeDataStore.data?.freeroamWizard) {
+    return
+  }
+  const fallbackSelectorState = getWizardFallbackSelectorState(selectorState)
+  if (fallbackSelectorState && fallbackSelectorState !== selectorState) {
+    navigateToWizardSelectorState(fallbackSelectorState)
+  }
+}, { immediate: true })
+
+const vehicleGridSelectorRef = ref(null)
+const levelGridSelectorRef = ref(null)
 const isLoading = ref(false)
-
-// Breadcrumb items based on current step
-const breadcrumbItems = computed(() => {
-
-  // Fallback to default breadcrumb items
-  const items = [
-    { label: "Menu", gotoAngularState: "menu.mainmenu" },
-    { label: "Freeroam Configurator", dividerType: "arrowSmallRight" }
-  ]
-
-  // Add current step
-  if (props.step === "level") {
-    items.push({ label: "Location", click: () => {
-      onSpawnPointTileClick(true)
-    }})
-  } else if (props.step === "vehicle") {
-    items.push({ label: "Vehicle", click: () => {
-      onVehicleTileClick(true)
-    }})
-  } else if (props.step === "options") {
-    items.push({ label: "Options", click: onOptionsTileClick })
-  }
-  // If GridSelector is available and has screenHeaderPath, append item 3 to the current items
-  const screenHeaderPath = gridSelectorRef.value?.screenHeaderPath
-  const pathValue = screenHeaderPath?.value || screenHeaderPath
-  if (pathValue && Array.isArray(pathValue) && pathValue.length > 2) {
-    if (pathValue.length > 3) {
-      // if theres 3 items, item 2 is the filter/seach item
-      items.push({label: pathValue[2].label, click: () => {
-        gridSelectorRef.value.setCurrentPath({ keys: pathValue[2].gotoPath })
-        onSpawnPointTileClick()
-      }})
-      items.push(pathValue[3])
-    } else {
-      items.push(pathValue[2])
-    }
-  }
-
-  return items
+const PANEL_COMPONENTS_BY_STEP = Object.freeze({
+  level: FreeroamLevelGridSelector,
+  vehicle: FreeroamVehicleGridSelector,
+  options: FreeroamOptionsSummaryPanel,
+  multiplayer: FreeroamMultiplayerSummaryPanel,
 })
+const EMPTY_PANEL_PROPS = Object.freeze({})
+const EMPTY_PANEL_LISTENERS = Object.freeze({})
+const multiplayerOptionGroup = computed(() => {
+  return configData.value?.options?.find(group => group.enable_step === "multiplayer") || null
+})
+const isMultiplayerEnabled = computed(() => !!multiplayerOptionGroup.value?.value)
+const isMultiplayerAvailable = computed(() => !!multiplayerOptionGroup.value)
+
+const breadcrumbItems = computed(() => {
+  const items = Array.isArray(routeBreadcrumbs.value) ? routeBreadcrumbs.value : []
+  return items.map((item, index) => ({
+    ...item,
+    dividerType: items[index + 1]?.isMinorRoute ? MINOR_ROUTE_DIVIDER_TYPE : item.dividerType,
+  }))
+})
+
+const isNavigableRouteBreadcrumb = item => {
+  return typeof item?.routeName === "string"
+    && item.routeName.length > 0
+    && !item.decorator
+    && !item.abstract
+}
+
+const onBreadcrumbClick = async item => {
+  if (!item) return
+
+  if (!isNavigableRouteBreadcrumb(item)) return
+  await lua.extensions.ui_router.navigate(item.routeName, null, null)
+}
 
 // Use the composable
 const {
@@ -395,121 +504,413 @@ const {
   button,
   error,
   hasOptions,
-  hasSpawnPoint,
-  hasVehicle,
   canConfigureOptions,
   initialize,
   handleButtonClick,
   selectSpawnPoint,
   selectVehicle,
-  gotoHeaderItem,
   loadConfiguration,
 } = useFreeroamConfigurator()
 
-watch(() => props.step, step => {
+// Redirect away from the multiplayer route when multiplayer is unavailable
+// (simple menu, or the multiplayer option group is not present at all).
+watch(
+  [isSimpleMenu, currentWizardRouteName, isMultiplayerAvailable],
+  ([simpleMenuEnabled, routeName, multiplayerAvailable]) => {
+    const selectorState = resolveWizardSelectorState(routeName)
+    if (selectorState !== "multiplayer") return
+    if (!simpleMenuEnabled && multiplayerAvailable) return
+
+    void navigateToWizardSelectorState("options")
+  },
+  { immediate: true }
+)
+
+const isLevelGridActive = computed(() => step.value === "level")
+const isVehicleGridActive = computed(() => step.value === "vehicle")
+
+// True on the concrete spawn-point route (selectorState "location" ->
+// "menu.freeroamLevels.level"). The level grid uses this to hide
+// the Advanced details panel/tab while spawn points are displayed.
+const isDisplayingSpawnPoint = computed(() => wizardSelectorState.value === "location")
+
+// True on the concrete vehicle config route (selectorState "vehicle" ->
+// "menu.freeroamLevels.vehicles.vehicle"). The vehicle grid uses this to
+// preselect VehicleDetails on focus, matching the VehicleSelectorPause
+// focus-to-details behavior.
+const isDisplayingVehicleConfig = computed(() => wizardSelectorState.value === "vehicle")
+
+const buildVehicleGridPanelProps = () => {
+  return {
+    enabled: isVehicleGridActive.value,
+    showTasklistPanel: tasklistStore.hasItems && tasklistStore.visibleIn.gridSelector,
+    tasklistComponent: tasklist,
+    initialSnapshot: initialActiveStepSnapshot.value,
+    onOverrideSelectItem: (...args) => overrideSelectItem("vehicle", ...args),
+    onPreviewSelectItem: item => previewSelectItem("vehicle", item),
+    requestNavigation: onGridNavigateRequest,
+    requestBackFromGrid: onBackFromGrid,
+    requestItemDoubleClick: onGridItemDoubleClick,
+    isDisplayingVehicleConfig: isDisplayingVehicleConfig.value,
+  }
+}
+const buildLevelGridPanelProps = () => {
+  return {
+    enabled: isLevelGridActive.value,
+    showTasklistPanel: tasklistStore.hasItems && tasklistStore.visibleIn.gridSelector,
+    tasklistComponent: tasklist,
+    initialSnapshot: initialActiveStepSnapshot.value,
+    onOverrideSelectItem: (...args) => overrideSelectItem("level", ...args),
+    onPreviewSelectItem: item => previewSelectItem("level", item),
+    requestNavigation: onGridNavigateRequest,
+    requestBackFromGrid: onBackFromGrid,
+    requestItemDoubleClick: onGridItemDoubleClick,
+    isDisplayingSpawnPoint: isDisplayingSpawnPoint.value,
+  }
+}
+const activePanelComponent = computed(() => {
+  if (step.value === "options" && !configData.value) {
+    return null
+  }
+  return PANEL_COMPONENTS_BY_STEP[step.value] || null
+})
+const activePanelRef = computed(() => {
+  if (step.value === "vehicle") {
+    return vehicleGridSelectorRef
+  }
+  if (step.value === "level") {
+    return levelGridSelectorRef
+  }
+  return null
+})
+const activePanelProps = computed(() => {
+  if (step.value === "level") {
+    return buildLevelGridPanelProps()
+  }
+  if (step.value === "vehicle") {
+    return buildVehicleGridPanelProps()
+  }
+  if (step.value === "options") {
+    return {
+      configData: configData.value,
+      hasOptions: hasOptions.value,
+      canConfigureOptions: canConfigureOptions.value,
+      onBack: goBack,
+    }
+  }
+  if (step.value === "multiplayer") {
+    return {
+      multiplayerGroup: multiplayerOptionGroup.value,
+      onBack: goBack,
+    }
+  }
+  return EMPTY_PANEL_PROPS
+})
+const activePanelListeners = computed(() => {
+  if (step.value === "options") {
+    return {
+      "spawn-point-click": onSpawnPointTileClick,
+      "vehicle-click": onVehicleTileClick,
+      "navigate-step": onOptionsStepNavigate,
+    }
+  }
+  return EMPTY_PANEL_LISTENERS
+})
+
+watch(step, currentStep => {
   // this helps to update the options depending on the selected level/vehicle
-  if (step === "options") {
+  if (["options", "multiplayer"].includes(currentStep)) {
     loadConfiguration()
     // Reactivate the wizard scope when showing options panel
     scopedNav.resumeScope(WIZARD_SCOPE_ID)
   }
 })
 
-const canBubbleOptionsEvent = event => {
-  if (["back", "menu"].includes(event.detail.name)) return false
-  // if (event.detail.name === "ok") return true
+const selectVehicleAndNavigateToOptions = async ({ model, config, additionalData = {}, key } = {}) => {
+  if (!model || !config) {
+    logger.error("selectVehicleAndNavigateToOptions: Missing vehicle model/config")
+    return false
+  }
+
+  const success = await selectVehicle(model, config, additionalData, key)
+  if (!success) {
+    return false
+  }
+
+  await navigateToWizardStep("options")
   return true
 }
 
-const overrideSelectItem = async (step, ...args) => {
-  if (props.step === "level") {
+// Resolves the leaf details payload from a wizard selection item. Tiles in the
+// grid expose details via `showDetails` (focused tile) or `doubleClickDetails`
+// (e.g. Recent vehicle tile). Controller paths may already pass the flat
+// details payload (e.g. `{ levelName, spawnPointObjectName, key }`).
+const getSelectionDetails = (item) => {
+  if (!item || typeof item !== "object") return null
+  if (item.showDetails && typeof item.showDetails === "object") return item.showDetails
+  if (item.doubleClickDetails && typeof item.doubleClickDetails === "object") return item.doubleClickDetails
+  return item
+}
+
+// Discriminates between a pre-built paint additionalData payload (flat
+// `{ paint, paint2, paint3 }`) and a selectedPaint tile object (which carries
+// extra metadata like `baseColor`/`paintString`).
+const isPaintAdditionalData = (value) => {
+  if (!value || typeof value !== "object") return false
+  if (value.baseColor || value.paintString || value.paintNames) return false
+  return "paint" in value || "paint2" in value || "paint3" in value
+}
+
+const previewSelectItem = async (selectedStep, item) => {
+  const details = getSelectionDetails(item)
+  if (selectedStep === "level") {
+    if (!details?.levelName) return false
+    const success = await selectSpawnPoint(
+      details.levelName,
+      details.spawnPointObjectName,
+      item?.key ?? details.key
+    )
+    if (success) {
+      levelGridSelectorRef.value?.markCurrentSelection?.(details)
+    }
+    return success
+  }
+
+  if (selectedStep === "vehicle") {
+    if (!details?.model || !details?.config) return false
+    const success = await selectVehicle(details.model, details.config, {}, item?.key ?? details.key)
+    if (success) {
+      vehicleGridSelectorRef.value?.markCurrentSelection?.(details)
+    }
+    return success
+  }
+
+  return false
+}
+
+const overrideSelectItem = async (_selectedStep, ...args) => {
+  if (step.value === "level") {
     const item = args[0]
-    if (!item?.showDetails?.levelName) {
+    const details = getSelectionDetails(item)
+
+    if (!details?.levelName) {
       logger.error("overrideSelectItem: Invalid item data for level selection")
       return null
     }
 
     const success = await selectSpawnPoint(
-      item.showDetails.levelName,
-      item.showDetails.spawnPointObjectName,
-      item.key
+      details.levelName,
+      details.spawnPointObjectName,
+      item?.key ?? details.key
     )
 
     if (success) {
-      router.push(steps.vehicle.path)
+      await navigateToWizardSelectorState("vehicles")
     }
-  } else if (props.step === "vehicle") {
+  } else if (step.value === "vehicle") {
     const item = args[0]
-    if (!item?.showDetails?.model || !item?.showDetails?.config) {
+    const details = getSelectionDetails(item)
+    if (!details?.model || !details?.config) {
       logger.error("overrideSelectItem: Invalid item data for vehicle selection")
       return null
     }
 
-    const selectedPaint = args[1]
-    const selectedMultiPaint = args[2]
-
-    const additionalData = {}
-    if (selectedMultiPaint?.paintNames) {
-      additionalData.paint = selectedMultiPaint.paintNames[0]
-      additionalData.paint2 = selectedMultiPaint.paintNames[1]
-      additionalData.paint3 = selectedMultiPaint.paintNames[2]
-    } else if (selectedPaint?.name) {
-      additionalData.paint = selectedPaint.name
-    }
-
-    const success = await selectVehicle(
-      item.showDetails.model,
-      item.showDetails.config,
-      additionalData,
-      item.key
-    )
-
-    if (success) {
-      router.push(steps.options.path)
-    }
-  }
-  return null
-}
-
-const onSelectCallback = async (item, doNavigation) => {
-  if(doNavigation) {
-    if(props.step === "level") {
-      if (!item?.doubleClickDetails?.levelName) {
-      logger.error("overrideSelectItem: Invalid item data for level selection")
-      return null
-    }
-
-    const success = await selectSpawnPoint(
-      item.doubleClickDetails.levelName,
-      item.doubleClickDetails.spawnPointObjectName,
-      item.key
-    )
-      //return true
-    } else if(props.step === "vehicle") {
-      if (!item?.doubleClickDetails?.model || !item?.doubleClickDetails?.config) {
-        logger.error("overrideSelectItem: Invalid item data for vehicle selection")
-        return null
+    // Paint commits arrive in two shapes:
+    //   - Next Step button: (item, selectedPaint, selectedMultiPaint)
+    //   - Controller paint tile commit: (item, additionalData)
+    let additionalData = {}
+    const secondArg = args[1]
+    if (isPaintAdditionalData(secondArg)) {
+      additionalData = { ...secondArg }
+    } else {
+      const selectedPaint = secondArg
+      const selectedMultiPaint = args[2]
+      if (selectedMultiPaint?.paintNames) {
+        additionalData.paint = selectedMultiPaint.paintNames[0]
+        additionalData.paint2 = selectedMultiPaint.paintNames[1]
+        additionalData.paint3 = selectedMultiPaint.paintNames[2]
+      } else if (selectedPaint?.name) {
+        additionalData.paint = selectedPaint.name
       }
+    }
 
-      const success = await selectVehicle(
-        item.doubleClickDetails.model,
-        item.doubleClickDetails.config,
-        {},
-        item.key
-      )
-      //return true
+    await selectVehicleAndNavigateToOptions({
+      model: details.model,
+      config: details.config,
+      additionalData,
+      key: item?.key ?? details.key,
+    })
+  }
+  return null
+}
+
+const getLevelMetaFilterFromGotoPath = gotoPath => {
+  if (!Array.isArray(gotoPath)) return null
+  for (let index = gotoPath.length - 1; index >= 0; index -= 1) {
+    const segment = gotoPath[index]
+    if (segment === "Recent" || segment === "Favourites") {
+      return segment
     }
   }
   return null
 }
 
-const doubleClickOverride = async (item) => {
-  if (!item?.doubleClickDetails) {
-    logger.error("doubleClickOverride: Invalid item data")
+const buildLevelDetailRoutePath = (gotoPath, itemDetails) => {
+  const levelName = itemDetails?.levelName
+  if (!hasRouteParamValue(levelName)) return null
+
+  const metaMode = getLevelMetaFilterFromGotoPath(gotoPath)
+  const keys = metaMode
+    ? ["spawnPointsForLevel", levelName, metaMode]
+    : ["spawnPointsForLevel", levelName]
+  return { keys }
+}
+
+const buildVehicleDetailRoutePath = gotoPath => {
+  if (!Array.isArray(gotoPath) || gotoPath.length === 0) return null
+  const [pathType, modelKey] = gotoPath
+  if (pathType !== "configsForBrandSubModelOrModel" && pathType !== "configsForModel") return null
+  if (!hasRouteParamValue(modelKey)) return null
+  const keys = gotoPath
+    .map(normalizeWizardPathSegment)
+    .filter(segment => segment !== null)
+  return keys.length > 0 ? { keys } : null
+}
+
+const getWizardNavigationTargetFromGridRequest = navigationRequest => {
+  const gotoPath = Array.isArray(navigationRequest?.gotoPath)
+    ? navigationRequest.gotoPath
+    : (Array.isArray(navigationRequest?.item?.gotoPath) ? navigationRequest.item.gotoPath : null)
+  if (!Array.isArray(gotoPath) || gotoPath.length === 0) {
+    return null
+  }
+
+  const item = navigationRequest?.item || null
+  const itemDetails = getSelectionDetails(item) || {}
+  const [pathType, firstArg, secondArg, thirdArg, fourthArg] = gotoPath
+  if (pathType === "allFreeroam" || pathType === "allGameplay") {
+    return {
+      item,
+      selectorState: "locations",
+      selectionAction: "none",
+    }
+  }
+  if (
+    pathType === "detailGameplay"
+    && firstArg === "automatic"
+    && secondArg === "freeroam"
+    && (
+      (thirdArg === "level" && hasRouteParamValue(fourthArg))
+      || hasRouteParamValue(itemDetails.levelName)
+    )
+  ) {
+    return {
+      item,
+      selectorState: "location",
+      selectionAction: "setLevel",
+      routePath: buildLevelDetailRoutePath(gotoPath, itemDetails),
+    }
+  }
+  if (pathType === "spawnPointsForLevel" && hasRouteParamValue(firstArg)) {
+    return {
+      item,
+      selectorState: "location",
+      selectionAction: "setLevel",
+      routePath: buildLevelDetailRoutePath(gotoPath, itemDetails),
+    }
+  }
+  if (pathType === "allModels") {
+    return {
+      item,
+      selectorState: "vehicles",
+      selectionAction: "setVehicle",
+    }
+  }
+  if (["configsForBrandSubModelOrModel", "configsForModel"].includes(pathType) && hasRouteParamValue(firstArg)) {
+    return {
+      item,
+      selectorState: "vehicle",
+      selectionAction: "setVehicle",
+      routePath: buildVehicleDetailRoutePath(gotoPath),
+    }
+  }
+
+  return null
+}
+
+const syncCurrentConfigurationForGridNavigation = async navigationTarget => {
+  const item = navigationTarget?.item
+  const details = getSelectionDetails(item) || {}
+  if (navigationTarget?.selectionAction === "setLevel") {
+    if (!hasRouteParamValue(details.levelName)) {
+      logger.warn("syncCurrentConfigurationForGridNavigation: Missing level metadata on selected tile", item)
+      return
+    }
+    const spawnPointObjectName = hasRouteParamValue(details.spawnPointObjectName) ? details.spawnPointObjectName : undefined
+    const success = await selectSpawnPoint(details.levelName, spawnPointObjectName, item?.key)
+    if (!success) {
+      logger.warn("syncCurrentConfigurationForGridNavigation: Failed to sync current level selection", details)
+    }
     return
   }
 
-  const details = item.doubleClickDetails
+  if (navigationTarget?.selectionAction === "setVehicle") {
+    if (!hasRouteParamValue(details.model)) {
+      logger.warn("syncCurrentConfigurationForGridNavigation: Missing vehicle model metadata on selected tile", item)
+      return
+    }
+    const success = await selectVehicle(details.model, details.config, {}, item?.key)
+    if (!success) {
+      logger.warn("syncCurrentConfigurationForGridNavigation: Failed to sync current vehicle selection", details)
+    }
+  }
+}
+
+async function onGridNavigateRequest(navigationRequest) {
+  if (typeof navigationRequest?.preventDefault === "function") {
+    navigationRequest.preventDefault()
+  }
+
+  const navigationTarget = getWizardNavigationTargetFromGridRequest(navigationRequest)
+  if (!navigationTarget) {
+    logger.warn("onGridNavigateRequest: Unsupported wizard grid navigation request", navigationRequest)
+    return
+  }
+
+  try {
+    const selectionContext = getWizardSelectionContext()
+    // logger.debug("FreeroamWizard.navigation.gridRequest", {
+    //   routeName: getCurrentWizardRouteName(),
+    //   step: step.value,
+    //   restoredPath: buildWizardPathForActiveRouteStep(step.value),
+    //   selection: {
+    //     levelName: selectionContext.levelName || null,
+    //     vehicleModel: selectionContext?.vehicle?.model || null,
+    //   },
+    //   activeSearchText: getWizardSearchForStep(step.value),
+    //   activeFilters: getWizardFiltersForStep(step.value),
+    //   targetSelectorState: navigationTarget.selectorState,
+    //   selectionAction: navigationTarget.selectionAction || null,
+    // })
+    await syncCurrentConfigurationForGridNavigation(navigationTarget)
+    const routeParams = navigationTarget.routePath ? { path: navigationTarget.routePath } : null
+    await navigateToWizardSelectorState(navigationTarget.selectorState, null, routeParams)
+  } catch (error) {
+    logger.error("onGridNavigateRequest: Failed to navigate from grid request", error)
+  }
+}
+
+async function onGridItemDoubleClick(payload) {
+  if (typeof payload?.preventDefault === "function") {
+    payload.preventDefault()
+  }
+
+  const item = payload?.item
+  const details = payload?.details
+  if (!item || !details) {
+    logger.error("onGridItemDoubleClick: Invalid item data", payload)
+    return
+  }
 
   if (details.levelName) {
     const success = await selectSpawnPoint(
@@ -519,80 +920,75 @@ const doubleClickOverride = async (item) => {
     )
 
     if (success) {
-      router.push(steps.vehicle.path)
+      await navigateToWizardSelectorState("vehicles")
     }
-  } else if (details.model && details.config) {
-    const success = await selectVehicle(
-      details.model,
-      details.config,
-      {},
-      item.key
-    )
-
-    if (success) {
-      router.push(steps.options.path)
-    }
+  } else if (isRecentConcreteVehicleTile(item) || (details.model && details.config)) {
+    await selectVehicleAndNavigateToOptions({
+      model: details.model,
+      config: details.config,
+      additionalData: {},
+      key: item.key,
+    })
   }
+}
+
+function onBackFromGrid(backEvent) {
+  if (typeof backEvent?.preventDefault === "function") {
+    backEvent.preventDefault()
+  }
+  return goBack()
+}
+
+// At the wizard root route, let `menu` bubble to the global UINav handler so it
+// can exit the menu. On any nested wizard step, consume it and navigate back.
+function onMenuUiNav() {
+  if (currentWizardRouteName.value === "pause.freeroamLevels") {
+    return true
+  }
+  return goBack()
+}
+
+const navigateToPreviousWizardSelectorState = async (_currentSelectorState, previousSelectorState, backOptions = null) => {
+  await navigateToWizardSelectorState(previousSelectorState, backOptions)
 }
 
 const goBack = () => {
-  logger.debug("goBack called")
-  let gridSelectorPath = gridSelectorRef.value?.screenHeaderPath
-  if(props.step === "level") {
-    // if grid selector path is available, go back to the previous step
-    if (gridSelectorPath && gridSelectorPath.length > 2) {
-      onSpawnPointTileClick()
-    } else {
-      // back to menu
-      window.bngVue.gotoAngularState("menu.mainmenu")
-    }
-  } else if(props.step === "vehicle") {
-    if (gridSelectorPath && gridSelectorPath.length > 2) {
-      onVehicleTileClick()
-    } else {
-      // back to level step
-      onSpawnPointTileClick()
-    }
-  } else if(props.step === "options") {
-      // back to vehicle step
-      onVehicleTileClick()
+  const currentSelectorState = wizardSelectorState.value
+  const previousSelectorState = resolvePreviousWizardSelectorState(currentSelectorState)
+  if (previousSelectorState) {
+    const backOptions = getWizardStepConfig(currentSelectorState)?.backOptions || null
+    navigateToPreviousWizardSelectorState(currentSelectorState, previousSelectorState, backOptions)
+    return false
   }
-}
-/**
-const goBackFromWizard = () => {
-  if(props.step === "level") {
-    goBack()
-  } else if(props.step === "options") {
-    router.replace(steps.vehicle.path)
-  }
+
+  // Root-level fallback keeps route exit behavior delegated to Lua.
+  lua.extensions.ui_router.back()
   return false
 }
 
-const overrideBackFromGrid = () => {
-  if(props.step === "level") {
-    goBack()
-  } else if(props.step === "vehicle") {
-    router.replace(steps.level.path)
-  } else if(props.step === "options") {
-
-  }
-}
-  **/
-
 const onSpawnPointTileClick = async () => {
-  router.replace(steps.level.path)
+  await navigateToWizardSelectorState("locations")
 }
 
 const onVehicleTileClick = async (clearSearch = false) => {
-  if (clearSearch && gridSelectorRef.value) {
-    gridSelectorRef.value.clearSearch()
-    gridSelectorRef.value.clearFilters()
+  if (clearSearch && typeof vehicleGridSelectorRef.value?.clearSearchAndFilters === "function") {
+    await vehicleGridSelectorRef.value.clearSearchAndFilters()
   }
-  router.replace(steps.vehicle.path)
+  await navigateToWizardSelectorState("vehicles")
 }
 
 const onOptionsTileClick = async () => {
-  router.replace(steps.options.path)
+  await navigateToWizardStep("options")
+}
+
+const onMultiplayerTileClick = async () => {
+  if (isSimpleMenu.value || !isMultiplayerAvailable.value) return
+
+  await navigateToWizardStep("multiplayer")
+}
+
+const onOptionsStepNavigate = async (targetStep) => {
+  await navigateToWizardStep(targetStep)
 }
 
 const onStartButtonClick = async (buttonId) => {
@@ -656,18 +1052,76 @@ const vehiclePaintData = computed(() => {
   }
 })
 
-onBeforeMount(() => {
-  lua.simTimeAuthority.pushPauseRequest("freeroamConfigurator")
+const initialStepSnapshotByStep = ref({ level: null, vehicle: null })
+const lastHydratedRouteFullPath = ref("")
+
+const initialActiveStepSnapshot = computed(() => {
+  const stepName = step.value
+  if (stepName !== "level" && stepName !== "vehicle") return null
+  return initialStepSnapshotByStep.value[stepName] || null
 })
+
+// Reset cached snapshots when fullPath changes so a stale snapshot from a
+// previous route does not bleed into the next mount.
+watch(
+  () => route.fullPath,
+  () => {
+    initialStepSnapshotByStep.value = { level: null, vehicle: null }
+    lastHydratedRouteFullPath.value = ""
+  },
+)
+
+watch(
+  () => [routeDataStore.status, routeDataStore.routeName],
+  async ([status, routeName]) => {
+    if (status !== "mounted-ready") return
+    if (!routeName || !route.name || !routeName.endsWith(route.name)) return
+    if (lastHydratedRouteFullPath.value === route.fullPath) return
+
+    lastHydratedRouteFullPath.value = route.fullPath
+    await nextTick()
+
+    const wizardData = routeDataStore.data?.freeroamWizard || {}
+    const gridSnapshots = wizardData.gridSnapshots || {}
+    initialStepSnapshotByStep.value = {
+      level: gridSnapshots.level || null,
+      vehicle: gridSnapshots.vehicle || null,
+    }
+    // logger.debug("FreeroamWizard.hydration.mountedReady", {
+    //   routeName,
+    //   routeFullPath: route.fullPath,
+    //   step: step.value,
+    //   hasLevelSnapshot: !!gridSnapshots.level,
+    //   hasVehicleSnapshot: !!gridSnapshots.vehicle,
+    // })
+
+    const activeGridSelectorRef = step.value === "vehicle"
+      ? vehicleGridSelectorRef
+      : (step.value === "level" ? levelGridSelectorRef : null)
+    if (activeGridSelectorRef) {
+      const gridSelector = activeGridSelectorRef.value
+      if (gridSelector) {
+        await nextTick()
+        // if controller i used, scroll to the autofocus tile
+        // otherwise, scroll to the top
+        if (isControllerUsed.value) {
+          const focusKey = gridSelector.autoFocusKey?.value ?? gridSelector.autoFocusKey ?? null
+          if (focusKey) {
+            await gridSelector.scrollToAutoFocusTile?.()
+            scopedNav.requestScopeFocus("grid", { reason: `freeroam-${step.value}-grid-route-hydrated` })
+          }
+        } else {
+          gridSelector.scrollToTop?.()
+        }
+      }
+    }
+  },
+  { immediate: true },
+)
 
 // Initialize on mount
 onMounted(() => {
   initialize()
-})
-
-// Clean up on unmount
-onUnmounted(() => {
-  lua.simTimeAuthority.popPauseRequest("freeroamConfigurator")
 })
 </script>
 
@@ -676,15 +1130,12 @@ onUnmounted(() => {
 
 // ROOT COMPONENT
 .freeroam-configurator {
-  --safezone-top: 1rem;
-  --safezone-bottom: 4.75em;
   pointer-events: none;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   overflow: visible;
   width: 100%;
-  height: calc(100% - 1rem - 4.75em);
   justify-content: center;
   > * {
     pointer-events: auto;
@@ -702,11 +1153,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   gap: 0.5rem;
-  &.options-step {
-    max-width: calc(3*30rem + 1rem);
-    align-items: stretch;
-    justify-self: center;
-  }
 }
 
 // HEADER SECTION
@@ -715,12 +1161,6 @@ onUnmounted(() => {
   margin-top: 0;
   flex-direction: row;
   display: flex;
-  .configurator-breadcrumbs {
-    --background-color: var(--bng-black-o6);
-    --bng-breadcrumbs-enabled-opacity: 0.01;
-    align-self: flex-start;
-    align-items: center;
-  }
 }
 
 .configurator-body {
@@ -729,41 +1169,8 @@ onUnmounted(() => {
   flex-direction: column;
   flex: 1;
   overflow: visible;
+  min-height: 0;
 }
-
-.grid-section {
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  flex: 1;
-  overflow: visible;
-
-  :deep(.grid-selector) {
-    padding: 0;
-    --safezone-top: 0;
-    --safezone-bottom: 0;
-    --content-flow: column nowrap;
-    --content-max-width: unset;
-    //margin-top: -2.9rem;
-    .layout-content {
-      gap: 0;
-    }
-  }
-}
-
-.option-summary-panel {
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  flex: 1 1 auto;
-  width: 100%;
-  overflow: visible;
-  align-self: center;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
 
 // ERROR STATE
 .error-state {
@@ -790,472 +1197,35 @@ onUnmounted(() => {
   color: var(--bng-add-red-400);
 }
 
-// MAIN CONFIGURATION SECTIONS
-.configurator-sections {
-  z-index: 2;
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  flex: 1 1 auto;
-  overflow: visible;
-  gap: 0;
-  min-width: 100%;
-
-  .steps-container {
-    display: flex;
-    flex: 1;
-    flex-direction: row;
-    overflow: visible;
-    justify-content: flex-start;
-    position: relative;
-    .background-bar {
-      --bar-bg: var(--bng-off-black);
-      --bar-bg-rgb: var(--bng-off-black-rgb);
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      inset: 0;
-      border-radius: var(--bng-corners-2) 0 0 var(--bng-corners-2);
-      clip-path: polygon(
-        0% 0%,
-        calc(100% - 0.5em) 0%,
-        100% 50%,
-        calc(100% - 0.5em) 100%,
-        0% 100%
-      );
-      overflow: hidden;
-      pointer-events: none;
-      z-index: 0;
-      &::before {
-        content: "";
-        display: block;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--bng-off-black);
-        opacity: 0.8;
-      }
-    }
-  }
-
-  .play-button {
-    $hold-grad: #fffd 50%, transparent 50%;
-    $hold-fill: #ddd3 0%, #eee7 45%, #fffa 50%, transparent 50%;
-
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    width: auto;
-    min-width: 28em;
-    margin-left: 0.1em;
-    font-family: "Overpass", var(--fnt-defs);
-    font-weight: 800;
-    font-style: italic;
-    isolation: isolate;
-    pointer-events: auto;
-    cursor: pointer;
-
-    --play-color: var(--bng-orange-700);
-    --play-bg: var(--bng-orange-500);
-    --play-bg-opacity: 1;
-
-    &:hover {
-      --play-color: var(--bng-orange-600);
-      --play-bg: var(--bng-orange-400);
-      --play-bg-opacity: 1;
-    }
-
-    .label {
-      font-size: 1.75em;
-      color: var(--bng-off-white);
-      z-index: 1;
-    }
-    .hold-binding {
-      position: relative;
-      display: inline-block;
-      font-size: 0.8em;
-      .hold-arrow {
-        position: absolute;
-        top: -0.3em;
-        left: 0;
-        width: 100%;
-        height: 0.6em;
-        transition: top 150ms;
-        pointer-events: none;
-        z-index: 1;
-        path {
-          fill: var(--bng-orange-100);
-          stroke: var(--play-bg);
-          stroke-width: 1px;
-        }
-      }
-    }
-
-    .background {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      opacity: var(--play-bg-opacity, 1);
-      pointer-events: none;
-      z-index: 0;
-      &::before { /* dark bg block */
-        content: "";
-        position: absolute;
-        display: block;
-        top: 0.5em;
-        left: calc(100% - 2.5em);
-        right: 0.5em;
-        bottom: 0.5em;
-        background-color: var(--bng-orange-900);
-        opacity: 0.65;
-      }
-      &::after { /* button shape */
-        content: "";
-        position: absolute;
-        display: block;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--play-bg);
-        background-image: linear-gradient(90deg, $hold-fill);
-        clip-path: polygon(
-          /* first shape top (CW) */
-          0.5em 50%,
-          0% 0%,
-          calc(100% - 2.5em) 0%,
-          calc(100% - 2em) 50%,
-
-          /* second shape top */
-          calc(100% - 1.25em) 50%,
-          calc(100% - 1.75em) 0%,
-          calc(100% - 1.25em) 0%,
-          calc(100% - 0.75em) 50%,
-
-          /* third shape top */
-          calc(100% - 0.5em) 50%,
-          calc(100% - 1.0em) 0%,
-          calc(100% - 0.5em) 0%,
-
-          /* mirror point, switching to CCW */
-          100% 50%,
-
-          /* third shape bottom */
-          calc(100% - 0.5em) 100%,
-          calc(100% - 1.0em) 100%,
-          calc(100% - 0.5em) 50%,
-
-          /* second shape bottom */
-          calc(100% - 0.75em) 50%,
-          calc(100% - 1.25em) 100%,
-          calc(100% - 1.75em) 100%,
-          calc(100% - 1.25em) 50%,
-
-          /* first shape bottom */
-          calc(100% - 2em) 50%,
-          calc(100% - 2.5em) 100%,
-          0% 100%
-        );
-      }
-    }
-
-    &.focus-visible::before { /* focus-frame override */
-      $off: 4px;
-      $size: 2px;
-      top: -$off !important;
-      bottom: -$off !important;
-      left: -$off !important;
-      right: -$off !important;
-      border: none !important;
-      border-radius: 0 !important;
-      background-color: var(--bng-orange-b400);
-      background-image: linear-gradient(90deg, $hold-grad);
-      background-repeat: no-repeat;
-      clip-path: polygon(
-        /* outer (CW) */
-        0.5em 50%,
-        0% 0%,
-        calc(100% - 0.5em) 0%,
-        100% 50%,
-        calc(100% - 0.5em) 100%,
-        0% 100%,
-        0.5em 50%,
-
-        /* inner (CCW) */
-        calc(0.5em + $size) 50%,
-        $size calc(100% - $size),
-        calc(100% - 0.5em - $size) calc(100% - $size),
-        calc(100% - $size) 50%,
-        calc(100% - 0.5em - $size) $size,
-        $size $size,
-        calc(0.5em + $size) 50%
-      );
-    }
-
-    .background::before {
-      transition: background-color 300ms;
-    }
-
-    .background::after,
-    &.focus-visible::before {
-      background-size: 200% 100%;
-      background-position: 100% 50%;
-      transition: background-position-x 300ms;
-    }
-  }
-}
 .configurator-content {
-  &.hold-start .play-button {
-    .background::after,
-    &.focus-visible::before {
-      background-position-x: 90%; // comment this out to disable pre-roll position
-      transition-duration: 0s;
-    }
-    .hold-arrow {
-      top: -0.15em;
-    }
-  }
+  &.hold-start {
+    :deep(.play-button) {
+      .background::after,
+      &.focus-visible::before {
+        background-position-x: 90%;
+        transition-duration: 0s;
+      }
 
-  &.hold-active .play-button {
-    .background::before {
-      background-color: var(--bng-orange-200);
-      transition-delay: calc(var(--hold-time, 1s) * 0.65);
-    }
-    .background::after,
-    &.focus-visible::before {
-      background-position-x: 0%;
-      transition: background-position-x var(--hold-time, 1s);
+      .hold-arrow {
+        top: -0.15em;
+      }
     }
   }
-}
 
-.configurator-button {
-  position: relative;
-  padding: 0;
-  background-color: var(--bng-black-o6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12rem;
-  margin: 0 !important;
-  border-radius: var(--bng-corners-2);
-  --bng-button-custom-hover: var(--bng-orange-400);
-  --bng-button-custom-hover-opacity: 0.5;
-  .back {
-    font-size: 1.5rem;
-    color: rgba(255, 255, 255, 0.8);
-    gap: 0.0rem;
-    margin-left: -0.5rem;
-    align-items: center;
-    display: flex;
-    .back-icon {
-      font-size: 2.5rem;
-      color: rgba(255, 255, 255, 0.8);
-      margin-right: 0.5rem;
+  &.hold-active {
+    :deep(.play-button) {
+      .background::before {
+        background-color: var(--bng-orange-200);
+        transition-delay: calc(var(--hold-time, 1s) * 0.65);
+      }
+
+      .background::after,
+      &.focus-visible::before {
+        background-position-x: 0%;
+        transition: background-position-x var(--hold-time, 1s);
+      }
     }
   }
-  .center-icon {
-    font-size: 3.5rem;
-    color: rgba(255, 255, 255, 0.8);
-    gap: 0.0rem;
-    margin-left: -0.5rem;
-  }
-  &.start-button {
-    //--bng-button-custom-border-enabled: var(--bng-orange-500);
-    --bng-button-custom-border-hover: var(--bng-orange-200);
-    --bng-button-custom-border-radius: var(--bng-corners-2);
-    box-shadow: inset 0 0 1rem rgba(var(--bng-orange-300-rgb), 1);
-    width: auto;
-    min-width: 30rem;
-    padding-right: 1rem;
-    gap: 1rem;
-    text-shadow: 0 0 1rem rgba(var(--bng-orange-300-rgb), 0.5);
-    .label {
-      font-size: 1.5rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.1rem;
-      color: rgba(255, 255, 255, 0.8);
-      gap: 0.0rem;
-      margin-left: -0.5rem;
-      align-items: center;
-      display: flex;
-    }
-  }
-}
-
-.step-tab-separator {
-  flex: 1;
-  content: "";
-}
-
-.thumbnail-icon {
-  width: 9em;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bng-cool-gray-800);
-
-  .options-icon {
-    font-size: 3.5rem;
-    color: rgba(255, 255, 255, 0.8);
-  }
-}
-
-
-// ACTION BUTTON
-.action-button-container {
-  position: relative;
-  background-color: var(--bng-black-o4);
-  border-radius: var(--bng-corners-2);
-}
-
-.action-button {
-  margin: 0 !important;
-  padding: 1.5rem 2rem;
-  height: 5.5rem;
-  font-size: 1.5rem;
-  font-weight: bold;
-  align-items: center;
-  text-transform: uppercase;
-  width: 100% !important;
-  max-width: 100% !important;
-  border-radius: var(--bng-corners-2);
-  --bng-button-custom-hover: var(--bng-orange-400);
-  --bng-button-custom-hover-opacity: 0.5;
-  text-shadow: 0 0 1rem rgba(var(--bng-orange-700-rgb), 0.5);
-  transition: font-size 0.1s ease-in-out;
-
-  &:hover, &:focus {
-    text-shadow: 0 0 1.5rem rgba(var(--bng-orange-600-rgb), 2);
-    font-size: 1.6rem;
-  }
-
-  &:focus-within {
-    box-shadow: inset 0 0 5rem rgba(var(--bng-orange-400-rgb), 0.33);
-  }
-
-  .button-content {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    letter-spacing: 0.05rem;
-  }
-
-}
-
-.placeholder-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-  gap: 1rem;
-
-  &.row {
-    flex-direction: row;
-  }
-}
-
-.placeholder-text {
-  font-size: 1rem;
-  font-style: italic;
-  margin: 0;
-}
-
-// UTILITY CLASSES
-.loading-placeholder {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 10rem;
-  color: rgba(255, 255, 255, 0.6);
-  font-style: italic;
-  background-color: var(--bng-black-o4);
-  border-radius: var(--bng-corners-2);
-}
-
-
-// CONFIGURATION SECTIONS (Location, Vehicle, Options)
-.config-section {
-  position: relative;
-  background-color: var(--bng-black-o4);
-  border-radius: var(--bng-corners-2);
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  color: white;
-  flex: 1 1 30em;
-  min-width: 25em;
-  --font-size: 1rem;
-  @include modify-focus(0.5rem, 0.25rem);
-
-  // &:focus-within,
-  &.selectable-component:hover {
-    box-shadow: inset 0 0 5rem rgba(var(--bng-orange-400-rgb), 0.33);
-  }
-
-  &.selectable-component {
-    cursor: pointer;
-  }
-}
-
-.section-header {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  overflow: hidden;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: var(--bng-black-o2);
-
-  .section-title {
-    color: white;
-    margin-bottom: 0;
-    padding-bottom: 0.5rem;
-    margin-top: 0.5rem;
-    margin-left: -0.5rem;
-    margin-right: -0.5rem;
-    width: 100%;
-    overflow: visible;
-
-    .section-title-label {
-      margin-right: 0.5rem;
-    }
-
-    .section-title-value {
-      font-weight: 600;
-    }
-  }
-}
-
-.section-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  height: 100%;
-
-  &.disabled {
-    opacity: 0.5;
-    pointer-events: none;
-  }
-
 }
 
 </style>

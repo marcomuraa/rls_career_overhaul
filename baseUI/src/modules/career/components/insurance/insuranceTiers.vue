@@ -3,7 +3,7 @@
     <div class="tier" v-for="tier in props.tiers" :key="tier.id">
       <div class="tier-discount" :class="{'isCurrent':tier.isCurrent}">
         <div v-if="props.showTier">
-          Tier {{ tier.id }}
+          {{ $ctx_t({ txt: "ui.career.insurance.tier", context: { id: tier.id } }) }}
         </div>
         <div>
           {{ tier.discount * 100 }}%
@@ -14,6 +14,7 @@
 </template>
 
 <script setup>
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const props = defineProps({
   tiers: {
@@ -27,10 +28,6 @@ const props = defineProps({
 })
 
 </script>
-
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
 
 <style scoped lang="scss">
 

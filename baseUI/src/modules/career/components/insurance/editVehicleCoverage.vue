@@ -1,5 +1,5 @@
 <template>
-  <div class="popup-content">
+  <div class="popup-content" v-bng-scoped-nav="popupScopeBinding" v-bng-on-ui-nav:back,menu="closePopup">
     <div class="top-info">
       <div class="top-info-title">
         Select Deductible: <span class="top-info-veh-name">{{ props.vehicleData.name }}</span>
@@ -68,10 +68,10 @@
     </div>
 
     <div class="buttons">
-      <BngButton class="gray-button bigger-button" accent="custom" @click="closePopup">
+      <BngButton class="gray-button bigger-button" :accent="ACCENTS.custom_old" @click="closePopup">
         Cancel
       </BngButton>
-      <BngButton class="save-button bigger-button" accent="custom" @click="onSaveClick" :disabled="!props.insuranceData.canPayPaperworkFees || !hasChangedCoverageOptions">
+      <BngButton class="save-button bigger-button" :accent="ACCENTS.custom_old" @click="onSaveClick" :disabled="!props.insuranceData.canPayPaperworkFees || !hasChangedCoverageOptions">
         <template v-if="!props.insuranceData.canPayPaperworkFees">
           Insufficient funds
         </template>
@@ -79,7 +79,7 @@
           Apply for <BngUnit :money="props.insuranceData.paperworkFees" />
         </template>
       </BngButton>
-      <BngButton class="gray-button bigger-button" accent="custom" @click="openSwitchProvider">
+      <BngButton class="gray-button bigger-button" :accent="ACCENTS.custom_old" @click="openSwitchProvider">
         Switch Provider
       </BngButton>
     </div>
@@ -87,11 +87,13 @@
 </template>
 
 <script setup>
-import { BngButton, BngUnit } from "@/common/components/base"
+import { BngButton, BngUnit, ACCENTS } from "@/common/components/base"
 import { InsuranceIdentity, CoverageOption, ChooseInsuranceMain, InsuranceVehTile } from "@/modules/career/components"
-import { ref, onMounted, computed } from "vue"
+import { ref, onMounted, computed, useAttrs } from "vue"
 import { lua } from "@/bridge"
 import { addPopup } from "@/services/popup"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const props = defineProps({
   insuranceData: {
@@ -102,7 +104,18 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  popupActive: Boolean,
 })
+
+const attrs = useAttrs()
+const popupScopeBinding = computed(() => ({
+  scopeId: `_editVehicleCoverage__${attrs.__id}`,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 const newPremiumPrice = ref(0)
 const newInsurancePremiumDetails = ref({
   totalPriceWithDriverScore: 0
@@ -187,10 +200,6 @@ onMounted(() => {
   updatePremiumPrice()
 })
 </script>
-
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
 
 <style scoped lang="scss">
 .popup-content {

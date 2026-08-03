@@ -4,7 +4,14 @@
     v-if="span || mask"
     class="bng-image-asset"
     :style="{
-      [mask ? 'maskImage' : 'backgroundImage']: `url(${assetURL})`,
+      ...(mask
+        ? {
+            maskImage: `url(${assetURL})`,
+            WebkitMaskImage: `url(${assetURL})`,
+          }
+        : {
+            backgroundImage: `url(${assetURL})`,
+          }),
     }"
   ><slot></slot></span>
   <img v-else class="bng-image-asset" :src="assetURL" alt="" @error="emit('error', $event)" @load="emit('load', $event)" />
@@ -40,7 +47,6 @@ const assetURL = computed(() => props.src ? getAssetURL(props.src) : props.exter
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: contain;
   display: inline-block;
-  background-color: v-bind(bgColor);
-  background-color: var(--mask-image-bg-color, transparent);
+  background-color: var(--mask-image-bg-color, v-bind(bgColor));
 }
 </style>

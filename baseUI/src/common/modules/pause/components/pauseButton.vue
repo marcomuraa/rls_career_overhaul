@@ -1,17 +1,17 @@
 <template>
-  <div class="pause-button-wrapper">
+  <div class="pause-button-wrapper" :class="{ 'pause-button-wrapper-inline': inline }">
     <Teleport :disabled="!teleportTo" :to="teleportTo">
       <BngButton
         v-show="showPauseButton"
         class="pause-button"
         :class="buttonState"
-        :accent="ACCENTS.custom"
+        :accent="ACCENTS.custom_old"
         no-sound
         @click="togglePause"
         bng-no-nav
         v-bng-tooltip.bottom="$tt('ui.inputActions.general.pause.title')"
       >
-        <BngBinding class="pause-button-binding-bg" :action="'pause'" />
+        <BngBinding v-if="!simplemenu" class="pause-button-binding-bg" :action="'pause'" />
         <BngIcon class="pause-button-icon" :type="isPaused ? icons.pause : icons.play" />
       </BngButton>
     </Teleport>
@@ -19,30 +19,44 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue"
-import { useRoute } from "vue-router"
+import { ref, computed, onMounted } from "vue"
 import { BngBinding, BngButton, ACCENTS, BngIcon, icons } from "@/common/components/base"
 import { useEvents } from "@/services/events"
 import { lua } from "@/bridge"
 import { useGameContextStore } from "@/services/gameContextStore"
+import { useRouteDataStore } from "@/services/routeData"
 import SysInfo from "@/services/sysInfo"
 import { vBngTooltip } from "@/common/directives"
 
 defineProps({
   teleportTo: [String, Object],
+  inline: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const route = useRoute()
 const events = useEvents()
 const gameContext = useGameContextStore()
+const routeDataStore = useRouteDataStore()
 const isGamePaused = ref(false)
 const physicsMaybePaused = ref(false)
 const replayActive = ref(false)
 const replayPaused = ref(false)
+const simplemenu = !!window.beamng?.simplemenu
+
+const routeName = computed(() => String(routeDataStore.routeName || ""))
+const isPauseRoute = computed(() =>
+  routeName.value === "pause" ||
+  routeName.value.startsWith("pause.") ||
+  routeName.value.startsWith("menu.pause")
+)
 
 // Listen for physics state changes
 events.on("physicsStateChanged", (state) => {
-  physicsMaybePaused.value = !state
+  const paused = !state
+  physicsMaybePaused.value = paused
+  isGamePaused.value = paused
 })
 
 // Listen for replay state changes
@@ -57,23 +71,25 @@ events.on("simTimeAuthority.pauseStateChanged", (data) => {
 })
 
 const isInMenu = computed(() =>
-  route.name?.startsWith("menu") &&
-  !gameContext.activities?.length &&
   typeof SysInfo.gameState.value !== "undefined" &&
-  SysInfo.gameState.value !== "loading"
+  SysInfo.gameState.value !== "loading" &&
+  (isPauseRoute.value || (
+    routeName.value.startsWith("menu") &&
+    !gameContext.activities?.length
+  ))
 )
 
-const isPhysicsPaused = computed(() => physicsMaybePaused.value)
+const isSimulationPaused = computed(() => !replayActive.value && (isGamePaused.value || physicsMaybePaused.value))
 
 const isReplayPaused = computed(() => replayActive.value && replayPaused.value)
 
 // Computed property to determine if pause button should be shown
 const showPauseButton = computed(() =>
-  isInMenu.value || isPhysicsPaused.value || isReplayPaused.value
+  isInMenu.value || isSimulationPaused.value || isReplayPaused.value
 )
 
 const isPaused = computed(() =>
-  isGamePaused.value || isPhysicsPaused.value || isReplayPaused.value
+  isSimulationPaused.value || isReplayPaused.value
 )
 
 const buttonState = computed(() => {
@@ -86,6 +102,16 @@ const buttonState = computed(() => {
 const togglePause = () => {
   lua.simTimeAuthority.togglePause()
 }
+
+onMounted(async () => {
+  try {
+    const paused = await lua.simTimeAuthority.getPause()
+    isGamePaused.value = paused === true
+    physicsMaybePaused.value = paused === true
+  } catch {
+    // Keep event-driven updates as the fallback when Lua is not available.
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -105,6 +131,12 @@ const togglePause = () => {
   z-index: var(--zorder_index_waiting_screen_icon);
 }
 
+.pause-button-wrapper-inline {
+  position: static !important;
+  display: inline-flex;
+  align-self: stretch;
+}
+
 .pause-button {
   // Default state (not in menu, not paused)
   --bng-button-custom-enabled: var(--bng-orange-500);
@@ -119,11 +151,13 @@ const togglePause = () => {
   --bng-button-custom-hover-opacity: 1;
   --bng-button-custom-active-opacity: 1;
   --bng-button-custom-disabled-opacity: 1;
+  --bng-button-margin: 0;
 
   align-items: center !important;
   color: var(--bng-off-white);
 
   .pause-button-icon {
+    font-size: 1.5em;
     padding: 0.0625em;
     border-radius: 0.25em;
     box-shadow: inset 0 0 0 0.0625em var(--pause-icon-color, var(--bng-off-white));
@@ -155,7 +189,7 @@ const togglePause = () => {
       // background-color: var(--bng-cool-gray-600);
     }
     .pause-button-icon {
-      font-size: 2em;
+      font-size: 1.5em;
       color: var(--pause-icon-color, var(--bng-off-white));
       animation: pulseColor 2s infinite;
     }

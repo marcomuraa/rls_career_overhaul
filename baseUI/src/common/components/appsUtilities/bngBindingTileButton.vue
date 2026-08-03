@@ -1,7 +1,7 @@
 <template>
   <BngButton
     class="bng-binding-tile-button"
-    :accent="ACCENTS.custom"
+    :accent="ACCENTS.custom_old"
     :disabled="disabled"
     @click="$emit('click')"
   >
@@ -157,7 +157,8 @@ const resolvedImagePath = computed(() => {
       gap: 0.25em;
       .indicators {
         display: flex;
-        flex-flow: column nowrap;
+        flex-direction: column;
+        flex-wrap: nowrap;
         gap: 0.25rem;
         justify-content: center;
         align-items: stretch;
@@ -231,7 +232,8 @@ const resolvedImagePath = computed(() => {
     &.layout-vertical {
       flex-direction: row;
       & > .bindings-wrapper {
-        flex-flow: column nowrap;
+        flex-direction: column;
+        flex-wrap: nowrap;
         padding-right: 0.125em;
       }
     }
@@ -241,7 +243,8 @@ const resolvedImagePath = computed(() => {
       .action {
         flex-direction: column;
         .indicators {
-          flex-flow: row nowrap;
+          flex-direction: row;
+          flex-wrap: nowrap;
           width: auto;
           height: 0.25em;
           padding-block: 0;
@@ -254,7 +257,8 @@ const resolvedImagePath = computed(() => {
         }
       }
       .bindings-wrapper {
-        flex-flow: row wrap;
+        flex-direction: row;
+        flex-wrap: wrap;
         align-items: flex-start;
         justify-content: space-around;
         padding-bottom: 0.125em;

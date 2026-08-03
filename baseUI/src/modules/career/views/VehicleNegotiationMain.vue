@@ -3,9 +3,9 @@
     <BngCard bng-ui-scope="vehicleNegotiation" class="negotiation-screen" v-bng-blur="1">
       <div class="header-row">
         <BngCardHeading type="ribbon">
-          Negotiation with {{ state.opponentName || opponent }}
+          {{ $translate.instant("ui.career.negotiation.with", { name: state.opponentName || opponent }) }}
           <div v-if="state.opponentQuote" class="header-seller-info">
-            "{{ state.opponentQuote }}"
+            "{{ $translate.instant(state.opponentQuote) }}"
           </div>
         </BngCardHeading>
         <BngButton class="close-button" @click="goBack" :accent="ACCENTS.attention" bng-no-nav="true" tabindex="-1">
@@ -32,12 +32,12 @@
           -->
             <div class="purchase-row">
               <div class="label">
-                <div>{{ state.vehicleNiceName || 'Vehicle' }}</div>
+                <div>{{ state.vehicleNiceName || $translate.instant("ui.career.negotiation.vehicleFallback") }}</div>
                 <div class="sub-info">{{ units.buildString("length", state.vehicleMileage, 0) }}</div>
               </div>
               <div class="price">
                 <!--<BngUnit class="money" :money="state.startingPrice || 0" />-->
-                Est. Market:
+                {{ $translate.instant("ui.career.negotiation.estMarket") }}
                 <div>
                   <BngUnit class="money" :money="state.actualVehicleValue || 0" />
                 </div>
@@ -87,7 +87,7 @@
             <div class="fill" :class="patienceClass" :style="{ width: Math.max(0, Math.min(1, state.patience || 0)) * 100 + '%' }"></div>
           </div>
           <div class="label-row">
-            <span>{{ opponent }}'s Patience</span>
+            <span>{{ $translate.instant("ui.career.negotiation.patience", { opponent }) }}</span>
           </div>
         </div>
 
@@ -114,16 +114,16 @@
 
           <div class="price-column" >
             <div class="price" v-if="noDeal">
-              NO DEAL
+              {{ $translate.instant("ui.career.negotiation.noDeal") }}
             </div>
             <div v-else class="price">
               {{ units.beamBucks(offerPreview || 0) }}
             </div>
             <div v-if="diffOfferPreviewToStarting !== null" class="diff-percent-offer-preview-to-starting" :class="{ positive: isDiffOfferPreviewToStartingGood && diffOfferPreviewToStarting !== 0, negative: !isDiffOfferPreviewToStartingGood && diffOfferPreviewToStarting !== 0, zero: diffOfferPreviewToStarting === 0, 'hidden': noDeal }">
-              <BngUnit v-if="diffOfferPreviewToStarting !== 0" class="money" :money="Math.abs(diffOfferPreviewToStarting)" /> {{ diffOfferPreviewToStarting < 0 ? 'under' : diffOfferPreviewToStarting > 0 ? 'over' : 'Same as' }} starting price
+              <BngUnit v-if="diffOfferPreviewToStarting !== 0" class="money" :money="Math.abs(diffOfferPreviewToStarting)" /> {{ diffOfferPreviewToStarting < 0 ? $translate.instant("ui.career.negotiation.underStartingPrice") : diffOfferPreviewToStarting > 0 ? $translate.instant("ui.career.negotiation.overStartingPrice") : $translate.instant("ui.career.negotiation.sameAsStartingPrice") }}
             </div>
             <div v-if="diffPercentOfferPreviewToMarket !== null" class="diff-percent-offer-preview-to-market" :class="{ positive: isDiffPercentOfferPreviewToMarketGood, negative: !isDiffPercentOfferPreviewToMarketGood, 'hidden': noDeal }">
-              {{ Math.abs(diffPercentOfferPreviewToMarket) }}% {{ diffPercentOfferPreviewToMarket < 0 ? 'under' : 'over' }} Est. Market value
+              {{ Math.abs(diffPercentOfferPreviewToMarket) }}% {{ diffPercentOfferPreviewToMarket < 0 ? $translate.instant("ui.career.negotiation.underEstMarket") : $translate.instant("ui.career.negotiation.overEstMarket") }}
             </div>
           </div>
         </div>
@@ -155,7 +155,7 @@
             @click="submitOffer()"
             :accent="ACCENTS.secondary"
           >
-            Submit This Offer
+            {{ $translate.instant("ui.career.negotiation.submitThisOffer") }}
           </BngButton>
           <BngButton
             v-if="state.negotiationStatus !== 'accepted' && state.negotiationStatus !== 'failed'"
@@ -164,11 +164,11 @@
             show-hold
             v-bng-click="{ holdCallback: takeOffer, holdDelay: 1000, repeatInterval: 0 }"
           >
-            Agree to their Price
+            {{ $translate.instant("ui.career.negotiation.agreeToTheirPrice") }}
           </BngButton>
 
           <BngButton v-if="state.negotiationStatus === 'failed' || state.negotiationStatus === 'accepted'" class="go-back" :accent="ACCENTS.primary" @click="goBack">
-            {{ state.amISelling ? 'Continue' : 'Go to Purchase Screen' }}
+            {{ state.amISelling ? $translate.instant("ui.common.continue") : $translate.instant("ui.career.negotiation.goToPurchaseScreen") }}
           </BngButton>
         </div>
       </template>
@@ -187,6 +187,7 @@ import { useUINavScope } from "@/services/uiNav"
 import { useEvents } from '@/services/events'
 import NegotiationChat from "@/modules/career/components/vehicleShopping/NegotiationChat.vue"
 import PriceFinder from "@/modules/career/components/vehicleShopping/PriceFinder.vue"
+import { $translate } from "@/services/translation"
 useUINavScope("vehicleNegotiation")
 
 const { units } = useBridge()
@@ -208,7 +209,7 @@ const state = ref({
   amISelling: false
 })
 
-const opponent = computed(() => state.value.amISelling ? "Buyer" : "Seller")
+const opponent = computed(() => state.value.amISelling ? $translate.instant("ui.career.negotiation.buyer") : $translate.instant("ui.career.negotiation.seller"))
 const biggerIsBetter = computed(() => state.value.amISelling ? true : false)
 
 const increaseOfferDisabled = computed(() => {
@@ -312,21 +313,21 @@ const isRejected = computed(() => state.value.negotiationStatus === 'failed')
 const statusText = computed(() => {
   switch (String(state.value.negotiationStatus || '')) {
     case 'counterOffer':
-      return 'Counter offer'
+      return $translate.instant("ui.career.negotiation.status.counterOffer")
     case 'counterOfferLastChance':
-      return 'Last chance counter offer'
+      return $translate.instant("ui.career.negotiation.status.counterOfferLastChance")
     case 'accepted':
-      return 'Accepted'
+      return $translate.instant("ui.career.negotiation.status.accepted")
     case 'failed':
-      return 'Negotiation failed'
+      return $translate.instant("ui.career.negotiation.status.failed")
     case 'refused':
-      return 'Offer refused'
+      return $translate.instant("ui.career.negotiation.status.refused")
     case 'initial':
-      return 'Initial offer'
+      return $translate.instant("ui.career.negotiation.status.initial")
     case 'thinking':
-      return 'Thinking'
+      return $translate.instant("ui.career.negotiation.status.thinking")
     case 'typing':
-      return 'Typing...'
+      return $translate.instant("ui.career.negotiation.status.typing")
     default:
       return ''
   }
@@ -335,12 +336,12 @@ const statusText = computed(() => {
 const resolvedStatusText = computed(() => {
   if (state.value.negotiationStatus === 'failed') {
     if (state.value.amISelling) {
-      return 'The other party ran out of patience and does not want to buy this vehicle.'
+      return $translate.instant("ui.career.negotiation.resolved.failedSelling")
     } else {
-      return 'The other party ran out of patience. You can still buy the vehicle at the starting price: '
+      return $translate.instant("ui.career.negotiation.resolved.failedBuying")
     }
   } else if (state.value.negotiationStatus === 'accepted') {
-    return 'Congratulations! You\'ve successfully negotiatied a deal with ' + state.value.opponentName +'.'
+    return $translate.instant("ui.career.negotiation.resolved.accepted", { name: state.value.opponentName })
   }
   return ''
 })
@@ -350,11 +351,7 @@ const negotiationChat = ref(null)
 
 const refresh = async () => {
   const s = await lua.career_modules_marketplace.getNegotiationState()
-  if (!s) {
-    lua.career_career.closeAllMenus()
-    return
-  }
-  state.value = s
+  state.value = s || state.value
   const base = state.value.myOffer != null ? state.value.myOffer : state.value.startingPrice
   if (!Number.isNaN(Number(base))) offerPreview.value = Number(base)
 

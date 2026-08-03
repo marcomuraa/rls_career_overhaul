@@ -9,55 +9,67 @@ const elems = new WeakMap()
 let curHorizontal = 0,
   curVertical = 0
 
-function updateGE(horizontal = 0, vertical = 0) {
+let smoothingFrame = null,
+  smoothingToken = 0
+
+function setGE(horizontal = 0, vertical = 0) {
   curHorizontal = horizontal
   curVertical = vertical
   bngApi.engineLua(`scenetree.OnlyGui:setFrustumCameraCenterOffset(Point2F(${horizontal}, ${vertical}))`)
 }
 
-const moveSpeed = 1.0
-let smoothingUpdate
+function cancelSmoothUpdate() {
+  smoothingToken += 1
+  if (!smoothingFrame) return
+  window.cancelAnimationFrame(smoothingFrame)
+  smoothingFrame = null
+}
+
+function updateGE(horizontal = 0, vertical = 0) {
+  cancelSmoothUpdate()
+  setGE(horizontal, vertical)
+}
+
+const smoothDuration = 180
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3)
+}
 
 function updateGEsmooth(horizontal = 0, vertical = 0) {
-  // do not use
-  if (smoothingUpdate) {
-    smoothingUpdate(horizontal, vertical)
-    return
+  if (curHorizontal === horizontal && curVertical === vertical) return
+
+  if (smoothingFrame) window.cancelAnimationFrame(smoothingFrame)
+
+  const token = ++smoothingToken
+  const startHorizontal = curHorizontal
+  const startVertical = curVertical
+  const horizontalDistance = horizontal - startHorizontal
+  const verticalDistance = vertical - startVertical
+  let startTime = null
+
+  function step(ms) {
+    if (token !== smoothingToken) return
+    if (startTime === null) startTime = ms
+
+    const progress = Math.min((ms - startTime) / smoothDuration, 1)
+    const easedProgress = easeOutCubic(progress)
+
+    setGE(
+      startHorizontal + horizontalDistance * easedProgress,
+      startVertical + verticalDistance * easedProgress
+    )
+
+    if (progress < 1) {
+      smoothingFrame = window.requestAnimationFrame(step)
+      return
+    }
+
+    smoothingFrame = null
+    setGE(horizontal, vertical)
   }
-  let dirH = 1,
-    dirV = 1
-  function setDir() {
-    dirH = horizontal >= curHorizontal ? 1 : -1
-    dirV = vertical >= curVertical ? 1 : -1
-  }
-  setDir()
-  smoothingUpdate = (h = 0, v = 0) => {
-    horizontal = h
-    vertical = v
-    setDir()
-  }
-  window.requestAnimationFrame(function (ms) {
-    const speed = moveSpeed / 1000 // per ms
-    let movH = curHorizontal,
-      movV = curVertical,
-      lastTime = ms,
-      smoother = 0
-    window.requestAnimationFrame(function step(ms) {
-      if (curHorizontal === horizontal && curVertical === vertical) {
-        smoothingUpdate = null
-        return
-      }
-      smoother += (ms - lastTime - smoother) * 0.02
-      lastTime = ms
-      const moveDelta = smoother * speed
-      movH += moveDelta * dirH
-      movV += moveDelta * dirV
-      if ((dirH > 0 && movH > horizontal) || (dirH < 0 && movH < horizontal)) movH = horizontal
-      if ((dirV > 0 && movV > vertical) || (dirV < 0 && movV < vertical)) movV = vertical
-      updateGE(movH, movV)
-      window.requestAnimationFrame(step)
-    })
-  })
+
+  smoothingFrame = window.requestAnimationFrame(step)
 }
 
 // multiplier for the resulting offset
@@ -76,7 +88,8 @@ export default {
         resizeObserver.disconnect()
         window.removeEventListener("resize", updateWrapper)
         elems.delete(el)
-        updateDebounce(0, 0)
+        updateDebounce.cancel?.()
+        updateFrustum(curDirection, false, curSmooth)
       },
     })
 
@@ -119,6 +132,8 @@ export default {
       // console.log(`Adjusting frustum side offset to ${direction} side: ${screenSize}, ${elSize}, ${movePower}`);
       updater(direction === "left" || direction === "right" ? movePower : 0, direction === "up" || direction === "down" ? movePower : 0)
     }
+
+    updateFrustum(curDirection, curState, curSmooth)
   },
 
   updated: (el, binding) => {
@@ -126,7 +141,7 @@ export default {
     itm && itm.updateFrustum(binding.arg, !!binding.value, !!binding.modifiers.smooth)
   },
 
-  unmounted: (el, binding) => {
+  unmounted: el => {
     const itm = elems.get(el)
     itm && itm.destroy()
   },

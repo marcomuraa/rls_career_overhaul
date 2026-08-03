@@ -2,7 +2,12 @@
   <div
     v-if="selectedActivity"
     class="activity-start"
-    bng-ui-scope="activityStart"
+    v-bng-scoped-nav="{
+      scopeId: 'activityStart',
+      type: 'nonav',
+      activateOnMount: true,
+      trapPolicy: 'always'
+    }"
     v-bng-on-ui-nav:tab_l.up="goPrev"
     v-bng-on-ui-nav:tab_r.up="goNext"
     v-bng-on-ui-nav:menu="openPauseMenu"
@@ -46,19 +51,20 @@
       <BngButton
         :accent="ACCENTS.main"
         v-bng-on-ui-nav:gameplay_interact.asMouse
+        bng-no-nav
         @click="invokeActivityAction"
+        :sound-class="selectedActivity.buttonSoundClass"
       >
       <span class="binding-spacer">
         <BngBinding action="gameplay_interact"/>
       </span>
-       <template v-if="selectedActivity.startable"> {{ $ctx_t(selectedActivity.buttonLabel) }} </template>
-       <template v-else>
-         {{ $tt("ui.mission.action.locked") }}
-       </template>
+      {{ selectedActivity.startable ? $ctx_t(selectedActivity.buttonLabel) : $tt("ui.mission.action.locked") }}
       </BngButton>
       <BngButton
         :accent="ACCENTS.secondary"
-        v-bng-on-ui-nav:back.asMouse @click="onCancel"
+        v-bng-on-ui-nav:back.asMouse
+        bng-no-nav
+        @click="onCancel"
       >
         <BngBinding ui-event="back" controller />
         {{ $tt("ui.common.close") }}
@@ -68,22 +74,25 @@
 </template>
 
 <script setup>
-import { computed, onBeforeMount, ref, onUnmounted, onMounted, watch } from "vue"
+import { computed, onBeforeMount, onMounted, ref, onUnmounted, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { BngButton, ACCENTS, BngScreenHeading, BngPropVal, BngMainStars, BngBinding, icons } from "@/common/components/base"
+import { vBngScopedNav } from "@/common/directives"
 import { $translate, useGameContextStore } from "@/services"
-// import { useUINavScope } from "@/services/uiNav"
-// import { default as UINavEvents, UI_EVENT_GROUPS, UI_EVENTS } from "@/bridge/libs/UINavEvents"
-import { getUINavServiceInstance, useUINavScope, UI_EVENTS } from "@/services/uiNav"
-import { vBngOnUiNav, vBngOcclusionWatcher } from "@/common/directives"
+import { vBngOnUiNav } from "@/common/directives"
 import { lua } from "@/bridge"
+import { getUINavServiceInstance, UI_EVENT_GROUPS } from "@/services/uiNav"
 import ActivitySelector from "../components/ActivitySelector.vue"
 
-useUINavScope("activityStart")
+getUINavServiceInstance().setFilteredEvents(UI_EVENT_GROUPS.focusMoveScalar)
 
 const activitySelector = ref(null)
-const goNext = () => activitySelector.value && activitySelector.value.goNext()
-const goPrev = () => activitySelector.value && activitySelector.value.goPrev()
+const goNext = () => {
+  activitySelector.value && activitySelector.value.goNext()
+}
+const goPrev = () => {
+  activitySelector.value && activitySelector.value.goPrev()
+}
 
 const gameContextStore = useGameContextStore()
 
@@ -93,9 +102,7 @@ const { closeActivitiesPrompt } = gameContextStore
 const selectedActivityIndex = ref(0)
 const availableActivities = ref([])
 const activityOptions = computed(() => {
-  const result = availableActivities.value ? availableActivities.value.map((x, index) => ({ id: index, value: index, icon: x.icon })) : []
-  doFiltering && filterEvents(result.length > 1)
-  return result
+  return availableActivities.value ? availableActivities.value.map((x, index) => ({ id: index, value: index, icon: x.icon })) : []
 })
 
 const BNG_MAIN_STARS_TYPE = "BngMainStars"
@@ -116,6 +123,7 @@ const selectedActivity = computed(() => {
     buttonLabel: activity.buttonLabel,
     action: activity.action,
     missionInfoPerformActionIndex: activity.missionInfoPerformActionIndex,
+    buttonSoundClass: activity.buttonSoundClass,
   }
 })
 
@@ -149,27 +157,15 @@ onBeforeMount(() => {
 })
 
 onMounted(() => {
-  // UINavEvents.activate()
-  getUINavServiceInstance().activate()
+  if (availableActivities.value?.length > 0) {
+    lua.Engine.Audio.playOnce("AudioGui", "event:>UI>Missions>Info_Open")
+  }
 })
 
 onUnmounted(() => {
-  doFiltering = false
-  getUINavServiceInstance().setFilteredEventsAllExcept(UI_EVENTS.menu, UI_EVENTS.pause, UI_EVENTS.center_cam)
-  // UINavEvents.setFilteredEvents.allExcept(UI_EVENTS.menu, UI_EVENTS.pause, UI_EVENTS.center_cam)
+  getUINavServiceInstance().clearFilteredEvents()
   lua.ui_missionInfo.setActivityIndexVisible(-1)
 })
-
-let doFiltering = true
-const filterEvents = withTabs =>
-  // UINavEvents.setFilteredEvents.allExcept(
-  getUINavServiceInstance().setFilteredEventsAllExcept(
-    UI_EVENTS.back,
-    UI_EVENTS.menu,
-    UI_EVENTS.pause,
-    UI_EVENTS.center_cam,
-    ...(withTabs ? [UI_EVENTS.tab_l, UI_EVENTS.tab_r] : [])
-  )
 </script>
 
 <style lang="scss" scoped>
@@ -183,7 +179,8 @@ $bgcolor: rgba(black, 0.6);
 
 .activity-start {
   display: flex;
-  flex-flow: column nowrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   align-items: flex-start;
   justify-content: flex-start;
   padding-left: 5rem;
@@ -195,7 +192,8 @@ $bgcolor: rgba(black, 0.6);
 
   > .activity-props {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     margin: -0.25rem;
 
     --paddings: 0.25em 0.5em;
@@ -219,7 +217,8 @@ $bgcolor: rgba(black, 0.6);
       --star-color: var(--bng-ter-yellow-50);
       padding: 0.25rem 0.5rem;
       display: flex;
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
       align-items: center;
       justify-content: center;
     }
@@ -228,7 +227,8 @@ $bgcolor: rgba(black, 0.6);
       --star-color: var(--bng-add-blue-400);
       padding: 0.25rem 0.5rem;
       display: flex;
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
       align-items: center;
       justify-content: center;
     }

@@ -86,14 +86,14 @@ const requestClose = () => {
 }
 
 const deleteProfile = () => {
-  lua.career_saveSystem.removeSaveSlot(props.profileId)
-  lua.career_career.sendAllCareerSaveSlotsData()
+  lua.career_saveSystem.removeProfile(props.profileId)
+  lua.career_career.sendAllCareerProfilesData()
 }
 
 const updateProfileName = async () => {
-  await lua.career_saveSystem.renameSaveSlot(props.profileId, saveName.value)
+  await lua.career_saveSystem.renameProfile(props.profileId, saveName.value)
   changeMenu(null, false, true)
-  await lua.career_career.sendAllCareerSaveSlotsData()
+  await lua.career_career.sendAllCareerProfilesData()
 }
 
 const menuContextActionItems = {

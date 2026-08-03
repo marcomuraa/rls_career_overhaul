@@ -1,8 +1,8 @@
 <template>
   <BngCard bng-ui-scope="deliveryConfigurator" class="md-content" v-bng-on-ui-nav:back="close">
-    <p>Hallo Felix Es Funktioniert!</p>
-        <BngCardHeading style="text-align:left;">Delivery Configurator</BngCardHeading>
-    <BngButton  @click="testButton()">Test Button</BngButton>
+    <p>{{ $translate.instant("ui.career.deliveryConfigurator.testMessage") }}</p>
+        <BngCardHeading style="text-align:left;">{{ $translate.instant("ui.career.deliveryConfigurator.title") }}</BngCardHeading>
+    <BngButton  @click="testButton()">{{ $translate.instant("ui.career.deliveryConfigurator.testButton") }}</BngButton>
 
   </BngCard>
 </template>
@@ -16,6 +16,7 @@
   import { vBngOnUiNav } from "@/common/directives"
 
   import { useUINavScope } from "@/services/uiNav"
+  import { $translate } from "@/services/translation"
   useUINavScope('deliveryConfigurator')
 
   //setup data coming from outside when the screen is opened/started
@@ -51,7 +52,7 @@
 <style scoped lang="scss">
 .md-content {
   display: block;
-  flex-flow: column;
+  flex-direction: column;
   position: relative;
   overflow: hidden;
   width:20%;

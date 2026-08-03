@@ -12,6 +12,7 @@
         <DynamicComponent :template="descriptionParsed" />
       </template>
     </div>
+    <TaskActionItems :action-items="actionItems" />
   </div>
 </template>
 
@@ -19,10 +20,15 @@
 import { computed, useSlots } from "vue"
 import { $content, $translate } from "@/services"
 import { DynamicComponent } from "@/common/components/utility"
+import TaskActionItems from "./TaskActionItems.vue"
 
 const props = defineProps({
   label: String,
   description: String,
+  actionItems: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const slots = useSlots()
@@ -67,12 +73,16 @@ const descriptionParsed = computed(() => $content.bbcode.parse($translate.contex
   }
 
   > .description {
-    font-family: "Noto Sans";
+    font-family: "Noto Sans", var(--fnt-defs);
     font-size: 1em;
     font-weight: 400;
     line-height: 1.5em;
     /* identical to box height, or 150% */
     letter-spacing: 0.01em;
+  }
+
+  > .action-items-row {
+    padding-bottom: 0.125rem;
   }
 }
 </style>

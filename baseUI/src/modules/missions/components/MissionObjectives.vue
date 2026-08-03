@@ -3,7 +3,7 @@
     <template #content>
       <!-- Main Objectives Header -->
       <BngCardHeading v-if="visibleMainStars.length" :type="cardHeadingType" class="header bonus-header">
-        Main Objectives
+        {{ $tt("ui.missions.objectives.main") }}
       </BngCardHeading>
       <div v-if="visibleMainStars.length" class="tasks">
         <template v-for="star in visibleMainStars" :key="star.key">
@@ -13,7 +13,7 @@
 
       <!-- Bonus Objectives Header -->
       <BngCardHeading v-if="visibleBonusStars.length" :type="cardHeadingType" class="bonus-header">
-        Bonus Objectives
+        {{ $tt("ui.missions.objectives.bonus") }}
       </BngCardHeading>
       <div v-if="visibleBonusStars.length" class="tasks">
         <template v-for="star in visibleBonusStars" :key="star.key">
@@ -23,7 +23,7 @@
 
       <!-- Message -->
       <div v-if="message && showMessage" class="progress-message">
-        Main Objectives are only available with default settings.
+        {{ $tt(message) }}
       </div>
     </template>
   </InfoCard>

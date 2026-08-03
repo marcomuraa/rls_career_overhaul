@@ -52,12 +52,13 @@ $text-color: white;
   transition: background-color ease-in 75ms;
   color: $text-color;
   user-select: none;
+  margin: var(--bng-tile-margins, 0);
 
   // Modify the focus frame radius and offset based on tile corner radius
   @include modify-focus($rad, $f-offset);
 
   &:not(:last-child) {
-    margin-right: 0.2em;
+    margin: var(--bng-tile-margins, 0 0.2em 0 0);
   }
 
   &:focus,

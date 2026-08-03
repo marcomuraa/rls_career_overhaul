@@ -1,2 +1,2 @@
 export { default as TaskList } from './components/TaskList.vue'
-export { useTasksStore } from './tasksStore'
+export { useTasksStore } from "@/services/tasklistStore"

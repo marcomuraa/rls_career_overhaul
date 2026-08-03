@@ -10,11 +10,11 @@
     }"
     :style="{ '--fancy-bg-img': `url('${bgImgUrl}')` }"
     bng-nav-item
-    v-bng-sound-class="!(disabled || appearDisabled) && 'bng_click_hover_generic'"
+    v-bng-sound-class="!disabled && (soundClass || 'bng_click_hover_generic')"
     v-bng-disabled="disabled"
     v-bng-blur="!noBlur"
   >
-    <BlurBackground v-if="!noBlur" :class="`corners-${size}`" />
+    <BlurBackground v-if="!noBlur" :class="`corners-${size}`" :transition="5" />
 
     <div class="button-background" :class="{
       stack: size === 'big-stacked',
@@ -75,6 +75,7 @@ const props = defineProps({
   bgImgAbs: String,
   tag: String,
   noBlur: Boolean,
+  soundClass: String,
 })
 
 const btnRef = ref(null)
@@ -234,7 +235,7 @@ $trans-func: ease-in-out;
     flex: 0 0 auto;
     overflow: hidden;
     /* display: inline-block; */
-    max-height: 3.3em;
+    max-height: 4em;
     text-overflow: ellipsis;
     white-space: normal;
     display: -webkit-box;
@@ -245,7 +246,7 @@ $trans-func: ease-in-out;
   }
   .label-container {
     display: flex;
-    flex-flow: column;
+    flex-direction: column;
     justify-content: flex-end;
     font-size: calc-ui-rem(2);
     padding: 0 0.5em 0.75em 0.5em;

@@ -113,7 +113,10 @@ export const formatTime = (seconds, length=2, useRelativeDescription=false, futu
     }
   })
   if (useRelativeDescription) {
-    res += ' ' + $t(future ? 'future' : 'past')
+    res = $translate.contextTranslate({
+      txt: TIMESPAN_TRANSLATE_ID_PREFIX + (future ? 'relative.future' : 'relative.past'),
+      context: { duration: res },
+    })
   }
 
   return res

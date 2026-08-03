@@ -39,8 +39,8 @@ const dblCapture = ref(false)
 const dblMode = computed(() => dblCapture.value ? "capture" : "")
 const sglCount = ref(0)
 const dblCount = ref(0)
-const onClick = () => sglCount.value++ && console.log("single click")
-const onDblClick = () => dblCount.value++ && console.log("double click")
+const onClick = () => ++sglCount.value && console.log("single click")
+const onDblClick = () => ++dblCount.value && console.log("double click")
 </script>
 
 <script>

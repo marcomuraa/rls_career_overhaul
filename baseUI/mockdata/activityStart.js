@@ -253,7 +253,7 @@ export default {
           branchTags: {
             specialized: true,
           },
-          maxBranchlevel: 1,
+          maxBranchLevel: 1,
           startableDetails: {
             met: true,
             condition: {
@@ -575,7 +575,7 @@ export default {
           branchTags: {
             specialized: true,
           },
-          maxBranchlevel: 1,
+          maxBranchLevel: 1,
           startableDetails: {
             met: true,
             condition: {

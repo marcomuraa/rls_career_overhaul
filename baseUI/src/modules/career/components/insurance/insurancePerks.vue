@@ -22,7 +22,7 @@
       </div>
       <div v-if="perk.isSignaturePerk" class="signature-perk-wrapper">
         <div class="signature-perk">
-          SIGNATURE PERK
+          {{ $t("ui.career.insurance.signaturePerk") }}
         </div>
       </div>
     </div>
@@ -32,6 +32,7 @@
 <script setup>
 import { computed } from "vue"
 import InsurancePerkIcon from "@/modules/career/components/insurance/insurancePerkIcon.vue"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const props = defineProps({
   insuranceData: Object,
@@ -50,10 +51,6 @@ const sortedPerks = computed(() => {
 })
 
 </script>
-
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
 
 <style scoped lang="scss">
 

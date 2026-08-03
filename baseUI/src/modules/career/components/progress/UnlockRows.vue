@@ -312,7 +312,7 @@ const progressStyle = computed(() => {
 
     .unlock-condition {
       display: flex;
-      flex-flow: column;
+      flex-direction: column;
       background: linear-gradient(
             to right,
             rgba(var(--progress-fill-color), 0.1),
@@ -322,7 +322,7 @@ const progressStyle = computed(() => {
       .info {
         flex: 1 1 auto;
         display: flex;
-        flex-flow: row;
+        flex-direction: row;
         align-items: center;
         gap: 0.5rem;
         padding: 0.2rem;

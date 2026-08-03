@@ -20,6 +20,7 @@ export const useVehiclePurchaseStore = defineStore("vehiclePurchase", () => {
   const customLicensePlateText = ref("")
   const prices = ref({})
   const insuranceOptions = ref({})
+  const discountPercentage = ref(0)
 
   const finalPackagePrice = computed(() => {
     let price = prices.value.finalPrice
@@ -44,6 +45,7 @@ export const useVehiclePurchaseStore = defineStore("vehiclePurchase", () => {
     locationSelectionEnabled.value = data.locationSelectionEnabled
     forceNoDelivery.value = data.forceNoDelivery
     prices.value = data.prices
+    discountPercentage.value = data.discountPercentage
     makeDelivery.value = false
     buyCustomLicensePlate.value = false
     customLicensePlateText.value = ""
@@ -129,5 +131,6 @@ export const useVehiclePurchaseStore = defineStore("vehiclePurchase", () => {
     customLicensePlateText,
     alreadyDidTestDrive,
     insuranceOptions,
+    discountPercentage,
   }
 })

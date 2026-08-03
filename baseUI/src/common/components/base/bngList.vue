@@ -20,6 +20,8 @@
     </div>
     <div
       ref="elCont"
+      v-bng-ui-nav-scroll.force="navScrollEnabled"
+      :bng-nav-scroll="navScrollEnabled ? '' : null"
       :class="{
         'list-content': true,
         'list-with-background': !noBackground,
@@ -63,8 +65,8 @@
       </div>
       <div class="list-items" :style="listItemsStyle">
         <component
-          v-for="vnode in itemsView"
-          :key="vnode.key"
+          v-for="(vnode, vnodeIndex) in safeItemsView"
+          :key="vnode.key ?? `bng-list-item-${vnodeIndex}`"
           :is="vnode"
           :style="vnode.keepAliveStyle"
         />
@@ -85,7 +87,7 @@ export const LIST_LAYOUTS = {
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, useSlots, reactive } from "vue"
-import { vBngBlur } from "@/common/directives"
+import { vBngBlur, vBngUiNavScroll } from "@/common/directives"
 import { BngButton, BngBreadcrumbs, ACCENTS, icons } from "@/common/components/base"
 import { sleep } from "@/utils"
 import logger from "@/services/logger"
@@ -146,6 +148,7 @@ const props = defineProps({
 
   /// other options
   noBackground: Boolean,
+  navScrollEnabled: Boolean,
 })
 
 const elPath = ref()
@@ -324,6 +327,7 @@ const layoutCache = reactive({
 const items = ref([])
 const itemsView = ref([])
 const itemsShown = ref(new Set()) // indexes for keepAlive
+const safeItemsView = computed(() => itemsView.value.filter(Boolean))
 
 watch(() => props.immediate, val => {
   if (val) {
@@ -1046,14 +1050,23 @@ async function calcBig(pos = undefined, index = undefined) {
       }
     }
     const indexes = Array.from(itemsShown.value).sort((a, b) => a - b)
-    big.items = indexes.map(idx => {
+    const nextItems = []
+    for (const idx of indexes) {
       const item = items.value[idx]
-      if (idx >= big.first && idx <= big.last) return item
-      return {
+      if (!item) {
+        itemsShown.value.delete(idx)
+        continue
+      }
+      if (idx >= big.first && idx <= big.last) {
+        nextItems.push(item)
+        continue
+      }
+      nextItems.push({
         ...item,
         keepAliveStyle: "display: none !important;"
-      }
-    })
+      })
+    }
+    big.items = nextItems
   } else if (itemsShown.value.size > 0) {
     itemsShown.value.clear()
   }
@@ -1218,7 +1231,7 @@ $skeleton-color: var(--list-skeleton-color, #0008);
 
 .list-container {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   justify-content: stretch;
   width: 100%;
   max-height: 100%;
@@ -1242,7 +1255,8 @@ $skeleton-color: var(--list-skeleton-color, #0008);
 
 .list-toolbar {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: center;
   pointer-events: none;
@@ -1285,7 +1299,8 @@ $skeleton-color: var(--list-skeleton-color, #0008);
   > .list-items {
     position: relative;
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     justify-content: flex-start;
     align-content: flex-start;
     width: 100%;
@@ -1309,7 +1324,8 @@ $skeleton-color: var(--list-skeleton-color, #0008);
       left: 0;
       width: 100%;
       display: flex;
-      flex-flow: row wrap;
+      flex-direction: row;
+      flex-wrap: wrap;
       justify-content: flex-start;
       align-content: flex-start;
       overflow: hidden;

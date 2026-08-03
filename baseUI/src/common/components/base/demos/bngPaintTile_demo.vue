@@ -519,7 +519,8 @@ function clearCache() {
 <style lang="scss" scoped>
 .paint-tile-demo {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
@@ -628,7 +629,7 @@ pre {
   padding: 0.8rem;
   border-radius: 4px;
   overflow-x: auto;
-  font-family: var(--font-mono);
+  font-family: var(--fnt-mono);
   font-size: 0.8em;
   margin: 0;
 }

@@ -1,7 +1,20 @@
 <template>
-  <div class="details" v-bng-ui-nav-scroll.force bng-nav-scroll>
+  <div class="details" v-bng-ui-nav-scroll.force="isAuxillaryScopeActive" bng-nav-scroll>
     <div class="preview" v-if="activeItemDetails?.preview">
       <AspectRatio class="preview-image" :ratio="'16:8'" :external-image="activeItemDetails.preview">
+        <div class="favourite-icon-container">
+          <BngBinding
+            :ui-event="'action_4'"
+            controller
+            class="favourite-icon-binding"
+          />
+          <BngIcon
+            class="favourite-icon"
+            :type="activeItemDetails?.isFavourite ? 'star' : 'starSecondary'"
+            @click="toggleFavourite"
+            :color="activeItemDetails?.isFavourite ? 'var(--bng-ter-yellow-50)' : 'var(--bng-cool-gray-100)'"
+          />
+        </div>
       </AspectRatio>
     </div>
 
@@ -30,14 +43,14 @@
       </div>
     </template>
 
-    <div class="buttons-section" v-if="activeItemDetails?.buttonInfo?.length > 0">
+    <div class="buttons-section" v-if="!hideButtonsSection && activeItemDetails?.buttonInfo?.length > 0">
       <template v-for="button in activeItemDetails.buttonInfo" :key="button.buttonId">
         <BngButton
           :bng-scoped-nav-autofocus="button.primary"
           :accent="button.primary ? 'main' : 'secondary'"
           :label="button.label"
           :icon="button.icon"
-          @click="handleButtonClick(button.buttonId)" />
+          @click="handleButtonClick(button)" />
       </template>
     </div>
 
@@ -46,6 +59,7 @@
 
 <script setup>
 import { BngButton, BngIcon } from "@/common/components/base"
+import BngBinding from "@/common/components/base/bngBinding.vue"
 import { AspectRatio } from "@/common/components/utility"
 import { vBngUiNavScroll } from "@/common/directives"
 
@@ -58,18 +72,30 @@ const props = defineProps({
     type: Object,
     default: null,
   },
-  executeButton: {
-    type: Function,
-    required: true,
-  },
   toggleFavourite: {
     type: Function,
     required: true,
   },
+  hideButtonsSection: {
+    type: Boolean,
+    default: false,
+  },
+  isAuxillaryScopeActive: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const handleButtonClick = (buttonId) => {
-  props.executeButton(buttonId)
+const emit = defineEmits(["execute-button"])
+
+const handleButtonClick = (button) => {
+  emit("execute-button", button?.buttonId, button)
+}
+
+const toggleFavourite = () => {
+  if (props.activeItem) {
+    props.toggleFavourite(props.activeItem)
+  }
 }
 
 </script>
@@ -107,17 +133,27 @@ const handleButtonClick = (buttonId) => {
   position: relative;
 }
 
-.favourite-icon {
+.favourite-icon-container {
   position: absolute;
-  top: 0.5rem;
+  bottom: 0.5rem;
   left: 0.5rem;
-  font-size: 2.5rem;
-  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
   z-index: 2;
-  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.66);
+  border-radius: 0.5rem;
+  padding: 0.125rem 0.25rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   &:hover {
-    scale: 1.33;
+    scale: 1.15;
   }
+}
+.favourite-icon {
+  font-size: 1.5rem;
+}
+.favourite-icon-binding {
+  font-size: 0.75rem;
 }
 
 .content-header {

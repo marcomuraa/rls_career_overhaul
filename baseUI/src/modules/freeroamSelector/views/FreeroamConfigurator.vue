@@ -11,7 +11,7 @@
           class="configurator-breadcrumbs"
           @back="goBack"
           @click="gotoHeaderItem"
-          :items="[{ label: 'Menu', gotoAngularState: 'menu.mainmenu' }, { label: 'Freeroam Configurator'}]"
+          :items="[{ label: 'ui.common.menu', gotoAngularState: 'menu' }, { label: 'Freeroam Configurator'}]"
           />
         </template>
       </BngScreenHeadingV2>
@@ -140,6 +140,18 @@
                           labelBefore
                         />
 
+                        <!-- Date picker for date options -->
+                        <BngDatePicker
+                          v-else-if="option.type === 'date'"
+                          v-model="option.value"
+                          :min="option.min"
+                          :max="option.max"
+                          :reset-value="option.resetValue"
+                          :reset-label="option.resetLabel"
+                          :today-label="option.todayLabel"
+                          @change="(newValue) => handleOptionChange(option.key, newValue)"
+                        />
+
                         <!-- String input for text options -->
                         <BngInput
                           v-else-if="option.type === 'string'"
@@ -178,7 +190,7 @@
           <BngButton
             v-if="button"
             class="action-button"
-            :accent="ACCENTS.custom"
+            :accent="ACCENTS.custom_old"
             @click="() => handleButtonClick(button.meta.buttonId)"
             v-bng-blur
             bng-scoped-nav-autofocus
@@ -202,7 +214,7 @@
 <script setup>
 import { onMounted, onUnmounted, onBeforeMount } from "vue"
 import { LayoutSingle } from "@/common/layouts"
-import { BngButton, BngSelect, BngSwitch, BngCardHeading, BngScreenHeadingV2, BngIcon, BngInput, BngBreadcrumbs, BngSmartSelect, ACCENTS } from "@/common/components/base"
+import { BngButton, BngSelect, BngSwitch, BngCardHeading, BngScreenHeadingV2, BngIcon, BngInput, BngBreadcrumbs, BngSmartSelect, BngDatePicker, ACCENTS } from "@/common/components/base"
 import { vBngBlur, vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 import { SCOPED_NAV_TYPES } from "@/services/scopedNav"
 import { useBridge } from "@/bridge"
@@ -253,9 +265,7 @@ onUnmounted(() => {
 
 // ROOT COMPONENT
 .freeroam-configurator {
-  --safezone-top: 1rem;
-  --safezone-bottom: 4.75em;
-  --content-flow: column nowrap;
+  --content-flow: column;
   --content-max-width: unset;
   pointer-events: none;
   background-size: cover;

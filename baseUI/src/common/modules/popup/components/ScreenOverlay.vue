@@ -3,7 +3,7 @@
 </template>
 
 <script>
-import { popupPosition } from "@/services/popup"
+import { popupPosition } from "../options.js"
 
 export default {
   position: popupPosition.left,

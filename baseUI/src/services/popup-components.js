@@ -5,4 +5,5 @@ export { default as FormDialog } from "@/common/modules/popup/components/FormDia
 export { default as Progress } from "@/common/modules/popup/components/Progress.vue"
 export { default as Prompt } from "@/common/modules/popup/components/Prompt.vue"
 export { default as ScreenOverlay } from "@/common/modules/popup/components/ScreenOverlay.vue"
+export { default as ScreenOverlayRight } from "@/common/modules/popup/components/ScreenOverlayRight.vue"
 

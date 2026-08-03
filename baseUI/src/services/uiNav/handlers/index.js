@@ -4,12 +4,11 @@
  */
 
 import { DOM_UI_NAVIGATION_EVENT, UI_SCOPE_ATTR } from "../constants.js"
-import { ScopeRegistry } from "./scopeRegistry.js"
 import { HandlerFactory } from "./handlerFactory.js"
 
 export class UINavHandlers {
-  constructor() {
-    this.scopeRegistry = new ScopeRegistry()
+  constructor(scopeRegistry) {
+    this.scopeRegistry = scopeRegistry
   }
 
   /**
@@ -73,6 +72,7 @@ export class UINavHandlers {
       eventDescriptor: HandlerFactory.normalizeEventDescriptor(uiNavHandlerOrDescriptor),
       handler: wrapperHandler,
       disabled: false,
+      eventNames: uiNavHandlerOrDescriptor.eventNames || [],
     }
 
     return this.scopeRegistry.register(scopeElement, handlerDescriptor)
@@ -98,6 +98,3 @@ export class UINavHandlers {
     domElement.removeEventListener(DOM_UI_NAVIGATION_EVENT, uiNavHandler)
   }
 }
-
-// Export singleton instance
-export default new UINavHandlers()

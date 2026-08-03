@@ -26,6 +26,7 @@
 import { ref, watch, computed } from "vue"
 import { BngImage, BngIcon, icons } from "@/common/components/base"
 import { getURL, getFile } from "@/utils"
+import "./insuranceStyle.css"
 
 const props = defineProps({
   insuranceData: {
@@ -65,10 +66,6 @@ watch(
   { immediate: true }
 )
 </script>
-
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
 
 <style scoped lang="scss">
 

@@ -40,7 +40,7 @@ $corners: var(--bng-corners-2);
   flex-direction: column;
   height: 100%;
   width: 100%;
-  font-family: Overpass, var(--fnt-defs);
+  font-family: "Overpass", var(--fnt-defs);
 
   > .header-wrapper {
     width: fit-content;

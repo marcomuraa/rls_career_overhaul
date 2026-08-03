@@ -14,7 +14,8 @@
       <!-- constant actions -->
       <BngButton
         v-for="action in constantActions"
-        :accent="ACCENTS.custom"
+        v-show="isActionVisibleForCurrentDevice(action)"
+        :accent="ACCENTS.custom_old"
         @mousedown="onActionClickDown(action)"
         tabindex="-1"
         :class="getActionClass(action, true)"
@@ -42,8 +43,9 @@
         <!-- normal actions -->
         <BngButton
           v-for="(action, index) in actions"
+          v-show="isActionVisibleForCurrentDevice(action)"
           :key="action.action || action.label"
-          :accent="ACCENTS.custom"
+          :accent="ACCENTS.custom_old"
           @mousedown="onActionClickDown(action)"
           tabindex="-1"
           :ref="index === 0 ? 'actionButton' : undefined"
@@ -73,6 +75,7 @@
         <div v-if="tileActions.length > 0" class="tile-flex">
           <BngBindingTileButton
             v-for="(action, i) in tileActions"
+            v-show="isActionVisibleForCurrentDevice(action)"
             class="tile-grid-item"
             :class="{ 'highlighted': action.highlighted }"
             :action="action"
@@ -115,6 +118,7 @@
         bng-no-nav
         tabindex="-1"
       >
+
         <BngIcon
           :type="icons.car"
         />
@@ -144,6 +148,8 @@ import { lua } from '@/bridge'
 import { BngBinding, BngButton, BngIcon, ACCENTS, icons } from '@/common/components/base'
 import { runRaw } from "@/bridge/libs/Lua.js"
 import { setFocus } from '@/services/uiNavFocus'
+import { storeToRefs } from "pinia"
+import useControls from "@/services/controls"
 import BngModifierTiles from './bngModifierTiles.vue'
 import { vBngTooltip } from '@/common/directives'
 
@@ -161,6 +167,13 @@ const actionOpacity = ref(1)
 let fadeOutTimeout = null
 const isFadingOut = ref(false)
 const showApp = ref(true)
+const controls = useControls()
+const { isControllerUsed } = storeToRefs(controls)
+
+function isActionVisibleForCurrentDevice(action) {
+  if (action?.showIfController === undefined || action?.showIfController === null) return true
+  return !!action.showIfController === !!isControllerUsed.value
+}
 
 // Grid packing state (tile span via CSS vars)
 const tileRefs = ref([])          // element refs for tiles
@@ -168,10 +181,12 @@ const isWide = ref([])            // per-tile: has combo-binding
 const narrowSpan = ref(4)         // 3|4|6 columns for narrow tiles
 
 const setActions = data => {
-  const newActions = Array.isArray(data.actions) ? data.actions : []
+  const incomingActions = Array.isArray(data.actions) ? data.actions : []
+  const newActions = incomingActions
   showApp.value = data.showApp
   // Always update constantActions and additionalData immediately
-  constantActions.value = Array.isArray(data.constantActions) ? data.constantActions : []
+  const incomingConstantActions = Array.isArray(data.constantActions) ? data.constantActions : []
+  constantActions.value = incomingConstantActions
   modifierActionInfos.value = data.modifierActionInfos ? { ...data.modifierActionInfos } : {}
   additionalData.value = data.additionalData ? { ...data.additionalData } : {}
 
@@ -280,7 +295,7 @@ onBeforeUnmount(() => {
 function listenFilteredInputEvents(listen) {
   const method = listen ? "on" : "off"
   events[method]("FilteredInputChanged", onFilteredInputChanged)
-  lua.WinInput.setForwardFilteredEvents(listen)
+  lua.Input.setForwardFilteredEvents(listen)
 }
 
 function onFilteredInputChanged(data) {
@@ -359,6 +374,8 @@ onMounted(async () => {
   height: 100%;
   align-items: flex-start;
   justify-content: right;
+  gap: 0.25em;
+  padding: 0.25em;
 
   &.is-faded {
     opacity: 0.2;
@@ -372,30 +389,30 @@ onMounted(async () => {
     justify-content: flex-start;
     overflow-x: hidden;
     overflow-y: auto;
+    gap: 0.125em;
 
     &::-webkit-scrollbar { // Chromium/CEF
       width: 0.125em;
       height: 0.125em;
     }
 
-    padding: 0.125em;
 
     .flexible-area {
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
       overflow: hidden auto;
-      margin-top: 0.125em;
       &::-webkit-scrollbar { // Chromium/CEF
         width: 4px;
         height: 4px;
       }
       background: rgba(var(--bng-cool-gray-700-rgb), 0.8);
-      border-radius: var(--bng-corners-2);
+      border-radius: var(--bng-corners-1);
 
       .tile-flex {
         display: flex;
-        flex-flow: row wrap;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 0.25em;
         padding: 0.25em;
         align-items: flex-start;
@@ -449,6 +466,7 @@ onMounted(async () => {
       padding: 0.125em 0.25em 0.125em 0.25em;
       gap: 0.5em;
       margin: 0;
+      margin-right: 0.5em;
       display: flex;
       border-radius: 0;
       align-items: flex-start;
@@ -534,7 +552,8 @@ onMounted(async () => {
 
       .binding-column {
         display: flex;
-        flex-flow: row wrap;
+        flex-direction: row;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: flex-start;
         min-height: 1.75em;
@@ -585,7 +604,7 @@ onMounted(async () => {
       align-items: stretch;
       justify-content: stretch;
       gap: 0;
-      border-radius: var(--bng-corners-2);
+      border-radius: var(--bng-corners-1);
       overflow: hidden;
       min-height: 2em;
       min-width: 20em;
@@ -599,11 +618,14 @@ onMounted(async () => {
     width: 1.5em;
     min-width: 1.5em;
     padding: 0;
+
     display: flex;
     flex-direction: column;
     align-items: center;
     min-height: 1.5em;
     height: auto;
+    --bng-button-margin: 0;
+
   }
 
   .bottom-left-lock {

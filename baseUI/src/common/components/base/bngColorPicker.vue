@@ -8,19 +8,19 @@
     }"
   >
     <div v-if="opts.compact" class="colour-picker-switch">
-      <span>Custom color</span>
+      <span>{{ $t("ui.color.customColor") }}</span>
       <BngButton
         v-if="!$simplemenu && opts.picker"
         :accent="ACCENTS.text"
         :icon="icons.materialTransparency01"
-        v-bng-tooltip:top="`Toggle vertical axis mode to ${pickerMode === 'luminosity' ? 'saturation' : 'brightness'}`"
+        v-bng-tooltip:top="pickerModeTooltip"
         @click="togglePickerMode"
       />
       <BngButton
         v-if="!$simplemenu"
         :accent="opts.picker ? ACCENTS.outlined : ACCENTS.text"
         :icon="opts.picker ? icons.materialGlossy : icons.listSmall"
-        v-bng-tooltip:top="'Toggle picker/slider mode'"
+        v-bng-tooltip:top="$t('ui.color.picker.togglePickerSliderMode')"
         @click="toggleCompactMode"
       />
     </div>
@@ -99,6 +99,7 @@ const valuesDef = { hue: 0.5, saturation: 1, luminosity: 0.5 }
 import { ref, reactive, computed, watch, nextTick, onMounted, inject } from "vue"
 import { BngColorSlider, BngButton, ACCENTS, icons } from "@/common/components/base"
 import { vBngDisabled, vBngTooltip } from "@/common/directives"
+import { $translate } from "@/services"
 
 const $simplemenu = inject("$simplemenu")
 
@@ -128,6 +129,15 @@ const props = defineProps({
 const sliderIndicator = "popout" // inner / popout
 
 const pickerMode = ref("luminosity")
+
+const pickerModeTooltip = computed(() =>
+  $translate.instant("ui.color.picker.toggleVerticalAxis", {
+    mode:
+      pickerMode.value === "luminosity"
+        ? $translate.instant("ui.color.saturation")
+        : $translate.instant("ui.color.brightness"),
+  }),
+)
 
 const opts = ref({})
 const values = reactive({ ...valuesDef })
@@ -377,7 +387,8 @@ onMounted(() => {
 .colour-picker-switch {
   flex: 0 0 100%;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: baseline;
   > * {

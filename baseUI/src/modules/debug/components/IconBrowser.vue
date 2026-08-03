@@ -179,14 +179,14 @@ const markerHtml = computed(() => {
 
 <style lang="scss" scoped>
 .source :deep(input) {
-  font-family: monospace;
+  font-family: var(--fnt-mono);
   font-size: 80% !important;
   font-weight: bold;
 }
 
 
 .tt {
-  font-family: monospace;
+  font-family: var(--fnt-mono);
   background-color: #aaa3;
   padding: 0 0.3em;
   font-size: 80% !important;
@@ -195,7 +195,8 @@ const markerHtml = computed(() => {
 
 .layout {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   height: 100%;
   > * {
     flex: 0 0 50%;
@@ -206,7 +207,8 @@ const markerHtml = computed(() => {
 
 .row {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: space-between;
   > * {
     flex: 0 0 48%;

@@ -7,16 +7,16 @@ Overpass Mono is a variable font with this axis:
   wght
 
 This means all the styles are contained in a single file:
-  OverpassMono-VariableFont_wght.ttf
+  Overpass_Mono/OverpassMono-VariableFont_wght.ttf
 
 If your app fully supports variable fonts, you can now pick intermediate styles
 that aren’t available as static fonts. Not all apps support variable fonts, and
 in those cases you can use the static font files for Overpass Mono:
-  static/OverpassMono-Light.ttf
-  static/OverpassMono-Regular.ttf
-  static/OverpassMono-Medium.ttf
-  static/OverpassMono-SemiBold.ttf
-  static/OverpassMono-Bold.ttf
+  Overpass_Mono/static/OverpassMono-Light.ttf
+  Overpass_Mono/static/OverpassMono-Regular.ttf
+  Overpass_Mono/static/OverpassMono-Medium.ttf
+  Overpass_Mono/static/OverpassMono-SemiBold.ttf
+  Overpass_Mono/static/OverpassMono-Bold.ttf
 
 Get started
 -----------

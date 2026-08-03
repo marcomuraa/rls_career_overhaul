@@ -13,7 +13,7 @@
       :class="{ selected: detailsMode === 'detail' }"
       :accent="ACCENTS.text"
       @click="$emit('switch-details-mode', 'detail')"
-      v-bng-tooltip:top="'Details'"
+      v-bng-tooltip:top="$t('ui.menu.gridSelector.details')"
     >
       <BngIcon v-if="slim" :type="icons.info" />
       <span v-else>Details</span>
@@ -24,7 +24,7 @@
       :class="{ selected: detailsMode === 'advanced' }"
       :accent="ACCENTS.text"
       @click="$emit('switch-details-mode', 'advanced')"
-      v-bng-tooltip:top="'Advanced'"
+      v-bng-tooltip:top="$t('ui.menu.gridSelector.advanced')"
     >
       <BngIcon v-if="slim" :type="icons.laneProperties" />
       <span v-else>Advanced</span>
@@ -35,7 +35,7 @@
       :class="{ selected: detailsMode === 'filter' }"
       :accent="ACCENTS.text"
       @click="$emit('switch-details-mode', 'filter')"
-      v-bng-tooltip:top="'Filters'"
+      v-bng-tooltip:top="$t('ui.menu.gridSelector.filters')"
     >
       <BngIcon v-if="slim" :type="icons.filter" />
       <span v-else>Filters</span>
@@ -46,7 +46,7 @@
       :class="{ selected: detailsMode === 'displayControls' }"
       :accent="ACCENTS.text"
       @click="$emit('switch-details-mode', 'displayControls')"
-      v-bng-tooltip:top="'Display'"
+      v-bng-tooltip:top="$t('ui.menu.gridSelector.display')"
     >
       <BngIcon v-if="slim" :type="icons.adjust" />
       <span v-else>Display</span>
@@ -84,7 +84,8 @@ defineEmits(['switch-details-mode'])
   align-self: flex-end;
   position: relative;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   background-color: var(--background-color);
   border-radius: var(--bng-corners-2);
   width: 100%;

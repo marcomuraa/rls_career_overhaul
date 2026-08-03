@@ -31,6 +31,10 @@ const props = defineProps({
     type: Number,
     default: 1.0, // seconds
   },
+  minCycleTime: {
+    type: Number,
+    default: 1, // seconds - minimum duration for the scroll travel
+  },
   fadeDuration: {
     type: Number,
     default: 0.2, // seconds
@@ -38,6 +42,10 @@ const props = defineProps({
   watchContent: {
     type: Boolean,
     default: false, // enable reactive content watching (expensive, use only when needed)
+  },
+  alwaysScroll: {
+    type: Boolean,
+    default: false, // always scroll the text, even if no focus/hover or other command to trigger it was fired
   },
 })
 
@@ -55,6 +63,7 @@ const translateX = ref(0)
 const opacity = ref(1)
 const isActive = ref(false)
 const isScrolling = ref(false)
+const locked = ref(false)
 
 // incompatible element selectors for style overrides
 const styleOverrides = {
@@ -67,6 +76,10 @@ const overrideClasses = ref([])
 let parentElement = null
 const fontSize = ref(16)
 const scrollSpeed = computed(() => props.scrollSpeed * fontSize.value)
+// travel time, clamped so a full cycle never scrolls faster than minCycleTime
+const scrollDuration = computed(() => Math.max(scrollDistance.value / scrollSpeed.value, props.minCycleTime))
+
+let tmrAutoStart = null
 
 let animTimer = null
 const animTimeout = (func, ms) => {
@@ -86,7 +99,7 @@ const scrollStyles = computed(() => ({
   transform: `translateX(${translateX.value}px)`,
   opacity: opacity.value,
   transition: `opacity ${props.fadeDuration}s linear` +
-    (isScrolling.value && opacity.value > 0 ? `, transform ${scrollDistance.value / scrollSpeed.value}s linear` : ""),
+    (isScrolling.value && opacity.value > 0 ? `, transform ${scrollDuration.value}s linear` : ""),
 }))
 
 function animLoop() {
@@ -95,11 +108,16 @@ function animLoop() {
   scrollDistance.value = getSize()
   if (scrollDistance.value <= 0) return
 
+  // check if travel time is clamped to minCycleTime (short text)
+  // this is needed to avoid annoying flickering of text just barely fitting the container
+  const clamped = scrollDistance.value / scrollSpeed.value < props.minCycleTime
+
   /// sequence:
   // fade in - immediate
   // initial pause - initialPause or fadeDuration
   // scroll - calculated by size + endingPause
-  // fade out - fadeDuration
+  // when clamped: animate back to start (no fade)
+  // otherwise: fade out - fadeDuration
   // and then restart
 
   // fade in
@@ -110,18 +128,23 @@ function animLoop() {
     // scroll
     translateX.value = -scrollDistance.value
 
-    // end pause + fade out
+    // end pause
     animTimeout(() => {
-      // fade out
-      opacity.value = 0
+      if (clamped) {
+        // animate back without fade
+        translateX.value = 0
+        animTimeout(animLoop, scrollDuration.value * 1000)
+      } else {
+        // fade out
+        opacity.value = 0
+        // wait for fade out
+        animTimeout(() => {
+          translateX.value = 0 // reset position
+          nextTick(animLoop) // start next cycle
+        }, props.fadeDuration * 1000)
+      }
 
-      // wait for fade out
-      animTimeout(() => {
-        translateX.value = 0 // reset position
-        nextTick(animLoop) // start next cycle
-      }, props.fadeDuration * 1000)
-
-    }, (scrollDistance.value / scrollSpeed.value) * 1000 + props.endingPause * 1000)
+    }, scrollDuration.value * 1000 + props.endingPause * 1000)
 
   }, Math.max(props.initialPause, props.fadeDuration) * 1000)
 }
@@ -141,6 +164,7 @@ function getSize() {
 }
 
 function animStart() {
+  if (isScrolling.value) return
   isActive.value = true
   if (!isScrollable()) return
   isScrolling.value = true
@@ -150,6 +174,7 @@ function animStart() {
 }
 
 function animStop(restartAnim = false) {
+  if (locked.value) return
   isActive.value = false
   isScrolling.value = false
   animTimeout() // will clear the timer
@@ -176,6 +201,7 @@ watch(
     () => scrollSpeed.value,
     () => props.initialPause,
     () => props.endingPause,
+    () => props.minCycleTime,
     () => props.fadeDuration,
   ],
   () => animStop(isActive.value)
@@ -183,6 +209,18 @@ watch(
 
 watch(() => elContainer.value, () => {
   if (!elContainer.value) return
+
+  const fSize = window.getComputedStyle(elContainer.value, null).fontSize
+  fontSize.value = +fSize.substring(0, fSize.length - 2)
+
+  // this prop makes text scroller to always be active
+  if (props.alwaysScroll) {
+    locked.value = true
+    tmrAutoStart = setTimeout(() => {
+      tmrAutoStart = null
+      animStart()
+    }, 500)
+  }
 
   // find closest navigable parent element
   parentElement = elContainer.value.parentElement
@@ -205,13 +243,36 @@ watch(() => elContainer.value, () => {
     }
   }
 
-  // find font size
-  const fSize = window.getComputedStyle(elContainer.value, null).fontSize
-  fontSize.value = +fSize.substring(0, fSize.length - 2)
-
   events.start.forEach(event => parentElement.addEventListener(event, animStart))
   events.stop.forEach(event => parentElement.addEventListener(event, animStop))
 }, { immediate: true })
+
+watch(() => props.alwaysScroll, () => {
+  if (props.alwaysScroll) {
+    locked.value = true
+    nextTick(animStart)
+  } else {
+    if (tmrAutoStart) {
+      clearTimeout(tmrAutoStart)
+      tmrAutoStart = null
+    }
+    locked.value = false
+    animStop()
+  }
+})
+
+defineExpose({
+  start() {
+    if (props.alwaysScroll) return
+    locked.value = true
+    animStart()
+  },
+  stop() {
+    if (props.alwaysScroll) return
+    locked.value = false
+    animStop()
+  },
+})
 
 onUnmounted(() => {
   animTimeout() // will clear the timer
@@ -231,6 +292,7 @@ onUnmounted(() => {
   max-width: 100%;
   height: auto;
   overflow: hidden;
+  flex: 0 1 auto; // for better inline support
 
   .scroller-text {
     display: inline-block;

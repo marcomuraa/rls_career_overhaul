@@ -11,8 +11,7 @@
 </template>
 
 <script setup>
-import { BngButton, ACCENTS, BngPillFilters, BngBinding } from "@/common/components/base"
-import { icons } from "@/common/components/base/bngIcon.vue"
+import { BngButton, ACCENTS, BngPillFilters, BngBinding, icons } from "@/common/components/base"
 
 defineProps({
   fuelOptions: {

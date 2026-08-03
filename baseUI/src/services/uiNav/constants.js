@@ -26,8 +26,8 @@ export const ACTIONS_BY_UI_EVENT = {
   modifier: "cui_modifier",
   // 'zoom_out': 'cui_zoom_out', // FIXME: does not exist
   // 'zoom_in': 'cui_zoom_in', // FIXME: does not exist
-  // 'subtab_l': 'cui_subtab_l', // FIXME: does not exist
-  // 'subtab_r': 'cui_subtab_r', // FIXME: does not exist
+  subtab_l: "cui_subtab_l",
+  subtab_r: "cui_subtab_r",
   // 'center_cam': 'center_camera', // FIXME: does not exist
   action_4: "cui_action_4",
   // 'move_ud': 'cui_move_ud', // FIXME: does not exist
@@ -43,7 +43,7 @@ export const ACTIONS_BY_UI_EVENT = {
   action_2: "cui_action_2",
   action_3: "cui_action_3",
   context: "cui_context",
-  gameplay_interact: "cui_gameplay_interact",
+  gameplay_interact: "gameplay_interact",
 }
 export const UI_EVENTS_BY_ACTION = Object.assign({}, ...Object.entries(ACTIONS_BY_UI_EVENT).map(([k, v]) => ({ [v]: k })))
 /**
@@ -147,9 +147,30 @@ export const UI_EVENT_GROUPS = {
 
 export const NAV_ACTIONS = ["focus_u", "focus_d", "focus_l", "focus_r"]
 
+// base navigation events owned by the v-bng-ui-nav directive
+// mirrors the crossfire monitored focus events plus "back"
+export const BASE_UI_NAV_EVENTS = [
+  "focus_u",
+  "focus_d",
+  "focus_l",
+  "focus_r",
+  "ok",
+  "focus_lr",
+  "focus_ud",
+  "back",
+]
+
 // Handler-specific constants
 export const VALUE_BASED_EVENTS = ["zoom_out", "zoom_in", "subtab_l", "subtab_r", "move_ud", "move_lr", "focus_ud", "focus_lr", "rotate_h_cam", "rotate_v_cam"]
 
 // DOM attributes
 export const UI_SCOPE_ATTR = "bng-ui-scope"
 export const UI_EVENT_ATTR = "ui-nav-event"
+
+export const BNG_ON_UINAV_PROP = "__BngOnUiNav"
+
+export const UINAVHANDLER_HOOK_RESULT = Object.freeze({
+  CONTINUE: { continue: true },
+  STOP_AND_BLOCK: { continue: false, block: true },
+  STOP: { continue: false, block: false },
+})

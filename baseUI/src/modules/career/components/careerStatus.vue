@@ -1,21 +1,23 @@
 <template>
   <div>
     <div class="career-status-progress" :class="{ 'slim': slim }">
-      <!-- <BngUnit class="career-status-value" :beamXP="careerStatusData.beamXP" />
+      <!-- <BngUnit class="career-status-value" :beamXP="displayData.beamXP" />
       <BngDivider /> -->
-      <BngUnit class="career-status-value" :insuranceScore="careerStatusData.insuranceScore" />
+      <BngUnit class="career-status-value" :insuranceScore="displayData.insuranceScore" />
       <BngDivider />
-      <BngUnit class="career-status-value" :vouchers="careerStatusData.vouchers" />
+      <BngUnit class="career-status-value" :vouchers="displayData.vouchers" />
       <BngDivider />
-      <BngUnit class="career-status-value" :money="careerStatusData.money" />
+      <BngUnit class="career-status-value" :money="displayData.money" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue"
-import { lua } from "@/bridge"
+import { onMounted, onUnmounted, ref } from "vue"
+import { lua, useBridge } from "@/bridge"
 import { BngUnit, BngDivider } from "@/common/components/base"
+
+const { events } = useBridge()
 
 const props = defineProps({
   slim: {
@@ -24,15 +26,74 @@ const props = defineProps({
   }
 })
 
-const careerStatusData = ref({})
+const LERP_DURATION_MS = 2000
+const num = v => (typeof v === "number" && !Number.isNaN(v) ? v : 0)
 
-const handleCareerStatusData = data => (careerStatusData.value = data)
+const displayData = ref({
+  insuranceScore: 0,
+  vouchers: 0,
+  money: 0
+})
+const hasReceivedFirstData = ref(false)
+let lerpStartTime = 0
+let lerpStart = null
+let lerpTarget = null
+let lerpRafId = null
 
-const updateDisplay = () => lua.career_modules_uiUtils.getCareerStatusData().then(handleCareerStatusData)
+function lerpDisplayToTarget(target) {
+  if (lerpRafId != null) cancelAnimationFrame(lerpRafId)
+  lerpStart = {
+    insuranceScore: num(displayData.value.insuranceScore),
+    vouchers: num(displayData.value.vouchers),
+    money: num(displayData.value.money)
+  }
+  lerpTarget = {
+    insuranceScore: num(target.insuranceScore),
+    vouchers: num(target.vouchers),
+    money: num(target.money)
+  }
+  lerpStartTime = performance.now()
 
-onMounted(updateDisplay)
+  function tick() {
+    const t = Math.min((performance.now() - lerpStartTime) / LERP_DURATION_MS, 1)
+    displayData.value = {
+      insuranceScore: Math.round(lerpStart.insuranceScore + (lerpTarget.insuranceScore - lerpStart.insuranceScore) * t),
+      vouchers: Math.round(lerpStart.vouchers + (lerpTarget.vouchers - lerpStart.vouchers) * t),
+      money: lerpStart.money + (lerpTarget.money - lerpStart.money) * t
+    }
+    if (t < 1) lerpRafId = requestAnimationFrame(tick)
+    else lerpRafId = null
+  }
+  lerpRafId = requestAnimationFrame(tick)
+}
 
-defineExpose({ updateDisplay })
+function handleCareerStatusData(data, fromUpdate) {
+  if (!fromUpdate || !hasReceivedFirstData.value) {
+    displayData.value = {
+      insuranceScore: num(data.insuranceScore),
+      vouchers: num(data.vouchers),
+      money: num(data.money)
+    }
+    hasReceivedFirstData.value = true
+    return
+  }
+  lerpDisplayToTarget(data)
+}
+
+const updateDisplay = (fromUpdate = false) =>
+  lua.career_modules_uiUtils.getCareerStatusData().then(data => handleCareerStatusData(data, fromUpdate))
+
+onMounted(() => {
+  updateDisplay(false)
+  events.on("careerStatusDataUpdated", () => updateDisplay(true))
+})
+
+onUnmounted(() => {
+  events.off("careerStatusDataUpdated")
+  if (lerpRafId != null) cancelAnimationFrame(lerpRafId)
+})
+
+defineExpose({ updateDisplay: () => updateDisplay(false) })
 </script>
 
 <style lang="scss" scoped>
@@ -49,7 +110,8 @@ defineExpose({ updateDisplay })
   }
   .career-status-value {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: baseline;
     & > :first-child {
       margin-right: 0.125em;

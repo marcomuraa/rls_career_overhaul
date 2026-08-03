@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { UINavService } from "@/services/uiNav"
-import Emitter from "tiny-emitter"
+import Emitter from "eventemitter3"
 
 describe("UINavService Property Getter/Setter Tests", () => {
   let eventBus

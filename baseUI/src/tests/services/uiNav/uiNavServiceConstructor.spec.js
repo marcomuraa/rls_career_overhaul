@@ -4,7 +4,7 @@ import { UINavEventProcessor } from "@/services/uiNav/eventProcessor"
 import { UINavActionHandlers } from "@/services/uiNav/actionHandlers"
 import { ScopeRegistry } from "@/services/uiNav/handlers/scopeRegistry"
 import { UINavHandlers } from "@/services/uiNav/handlers"
-import Emitter from "tiny-emitter"
+import Emitter from "eventemitter3"
 
 describe("UINavService Constructor & Initialization Tests", () => {
   let eventBus

@@ -1,1 +1,1 @@
-export * from "./index.gen.js"
+export * from "/generated/components-directives.js"

@@ -93,8 +93,6 @@ const printValueChanges = newValue => {
 // Demo Metadata
 // -------------------------------------------------------
 import source from "./bngSwitch_demo.vue?raw"
-import BngSwitchOld from "../bngSwitchOld.vue"
-// import BngSwitchNew from "../bngSwitchNew.vue"
 export default {
   source,
   title: "Simple on/off switch",

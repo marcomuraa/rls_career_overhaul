@@ -2,7 +2,7 @@
 import { ref, computed } from "vue"
 import { useBridge, lua } from "@/bridge"
 
-let events, beamNG
+let api, events, beamNG
 
 // Refs for dynamic data
 const serviceProviders = ref(),
@@ -11,7 +11,9 @@ const serviceProviders = ref(),
   modCounts = ref({ total: 0, active: 0 }),
   gameState = ref(),
   mainMenuBackgroundRequired = ref(),
-  mainMenuFirstTime = ref(true)
+  mainMenuFirstTime = ref(true),
+  workbenchFilesPresent = ref(false),
+  multiplayerAvailable = ref(false)
 
 const serviceProvidersOnline = computed(() => {
   const provs = serviceProviders.value
@@ -32,7 +34,6 @@ let version, versionSimple, buildInfo
  * Gets called automatically - should never be a need to call this yourself
  */
 const init = () => {
-  let api
   ({ api, events, beamNG } = useBridge())
 
   if (!beamNG) beamNG = FAKE_BEAMNG_OBJ // avoid problems when running outside game
@@ -62,7 +63,9 @@ const init = () => {
   events.on("ShowEntertainingBackground", state => mainMenuBackgroundRequired.value = state)
 
   // Game state
-  events.on("GameStateUpdate", state => gameState.value = state.state)
+  // e.g.: {state: 'freeroam', menuItems: 'freeroam', appLayout: 'freeroam'}
+  // in mainmenu, the whole object is {}
+  events.on("GameStateUpdate", state => gameState.value = state?.state)
 
   // store version, versionSimple, and buildInfo strings - these won't be changing (right?)
   version = beamNG.version
@@ -73,24 +76,31 @@ const init = () => {
   refresh()
 }
 
+const isInGame = async () => {
+  try {
+    const state = await lua.core_gamestate.getGameState()
+    gameState.value = state?.state
+  } catch {}
+  return !!gameState.value
+}
+
 /**
  * Refresh all dynamic data (refs)
  */
 const refresh = () => {
-  _requestServiceProviders()
-  _requestOnlineState()
-  _refreshVideoAdapter()
-  _refreshModData()
+  beamNG.requestServiceProviderInfo()
+  lua.core_online.requestState()
+  lua.Engine.Render.getAdapterType().then(adapter => (videoAdapter.value = adapter))
+  lua.core_gamestate.requestGameState()
+  lua.core_modmanager.requestState()
+  api.engineLua("MP ~= nil", res => multiplayerAvailable.value = !!res)
+  api.engineLua("FS:fileExists('/workbench/web/index.html')", present => workbenchFilesPresent.value = !!present)
 }
-
-const _refreshVideoAdapter = () => lua.Engine.Render.getAdapterType().then(adapter => (videoAdapter.value = adapter))
-const _requestServiceProviders = () => beamNG.requestServiceProviderInfo()
-const _requestOnlineState = () => lua.core_online.requestState()
-const _refreshModData = () => lua.core_modmanager.requestState()
 
 export default {
   init,
   refresh,
+  isInGame,
 
   // refs
   serviceProviders,
@@ -101,6 +111,8 @@ export default {
   gameState,
   mainMenuBackgroundRequired,
   mainMenuFirstTime,
+  multiplayerAvailable,
+  workbenchFilesPresent,
   // static data
   get version() {
     return version

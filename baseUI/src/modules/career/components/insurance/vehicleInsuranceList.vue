@@ -1,5 +1,5 @@
 <template>
-  <div class="popup-content">
+  <div class="popup-content" v-bng-scoped-nav="popupScopeBinding" v-bng-on-ui-nav:back,menu="closePopup">
     <div class="popup-header">
       <div class="top-info">
         <div class="top-info-title">
@@ -12,7 +12,7 @@
 
       <BngButton
         class="policy-coverage-button"
-        accent="custom"
+        :accent="ACCENTS.custom_old"
         @click="openEditPolicy"
       >
         Policy Coverage
@@ -28,7 +28,7 @@
         <template #rightContent>
           <BngButton
             class="edit-coverage-button bigger-button"
-            accent="custom"
+            :accent="ACCENTS.custom_old"
             :disabled="vehicle.needsRepair"
             @click="!vehicle.needsRepair && openEditVehicleCoverage(vehicle)"
           >
@@ -39,7 +39,7 @@
     </div>
 
     <div class="closeButton">
-      <BngButton class="close-button" accent="custom" @click="closePopup">
+      <BngButton class="close-button" :accent="ACCENTS.custom_old" @click="closePopup">
         Cancel
       </BngButton>
     </div>
@@ -47,9 +47,12 @@
 </template>
 
 <script setup>
-import { BngIcon, icons, BngButton, ACCENTS, BngUnit } from "@/common/components/base"
-import { InsuranceIdentity, EditVehicleCoverage, InsuranceVehTile, EditPolicy } from "@/modules/career/components"
+import { computed, useAttrs } from "vue"
+import { BngButton, BngUnit, ACCENTS } from "@/common/components/base"
+import { EditVehicleCoverage, InsuranceVehTile, EditPolicy } from "@/modules/career/components"
 import { addPopup } from "@/services/popup"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const props = defineProps({
   insuranceData: {
@@ -60,9 +63,21 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  popupActive: Boolean,
 })
 
 const emit = defineEmits(["return"])
+
+const attrs = useAttrs()
+const scopeName = `_vehicleInsuranceListPopup__${attrs.__id}`
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const closePopup = () => {
   emit("return", true)
@@ -78,10 +93,6 @@ const openEditPolicy = () => {
 }
 
 </script>
-
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
 
 <style scoped lang="scss">
 .insurance-identity {

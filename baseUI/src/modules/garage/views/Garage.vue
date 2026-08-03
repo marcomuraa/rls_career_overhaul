@@ -5,48 +5,20 @@
     v-bng-blur="blackscreen"
   ></div>
 
-  <div
-    v-if="loaded.init"
-    class="garage-view"
-    v-bng-scoped-nav="{ activateOnMount: true, bubbleWhitelistEvents: ['menu'], canDeactivate: canScopeDeactivate }"
-    @deactivate="exit"
-    v-bng-on-ui-nav:action_4="toggleSidemenu"
+  <LayoutMenu
+    class="garage-layout"
+    nav-scope="garage-layout"
+    :nav-active="false"
+    :show-topbar="breadcrumbItems.length > 0"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    :show-breadcrumb-back-button="showBreadcrumbBackButton"
+    :heading="garageHeadingText"
+    @breadcrumb-click="onBreadcrumbClick"
+    @breadcrumb-back="onBreadcrumbBack"
   >
-    <div class="garage-row-title">
-      <div class="headingContainer"><!-- TODO: this should use a component -->
-        <div class="garage-title-sup" v-bng-blur>
-          <h4>
-            {{ $t("ui.mainmenu.garage") }}
-            <template v-if="vehcomp">/ {{ vehicle.name }}</template>
-          </h4>
-        </div>
-        <h2 class="garage-title-main" v-bng-blur>
-          <BngButton
-            v-if="vehcomp"
-            class="garage-back-button"
-            :class="{ 'garage-back-binding-shown': backBinding?.displayed }"
-            :accent="backBinding?.displayed ? ACCENTS.ghost : ACCENTS.outlined"
-            :icon="icons.arrowLargeLeft"
-            bng-no-nav="true"
-            @click="exit"
-            v-bng-tooltip:top="!backBinding || backBinding?.displayed ? $t('ui.common.back') : undefined"
-          >
-            <BngBinding
-              v-show="!sidemenuActive"
-              ref="backBinding"
-              class="back-binding"
-              ui-event="back"
-              controller
-              track-ignore
-            />
-            {{ !backBinding?.displayed ? $t("ui.common.back") : "" }}
-          </BngButton>
-          <span>{{ vehcomp ? $t("ui.garage.tabs." + (vehcomp === 'tuning' ? 'tune' : vehcomp)) : vehicle.name }}</span>
-        </h2>
-      </div>
-    </div>
-
-    <div class="garage-row-main">
+    <div v-bng-on-ui-nav:back="onBack" v-bng-on-ui-nav:menu="toggleMenu" v-bng-on-ui-nav:action_4="toggleSidemenu" class="garage-view">
+      <div class="garage-row-main">
       <div class="garage-menu-container garage-menu-main">
         <!-- stand-alone garage -->
         <div v-if="!vehcomp" class="garage-menu garage-menu-primary">
@@ -54,15 +26,16 @@
             :icon="icons.engine"
             :active="vehcomp === 'parts'"
             @click="menuOpen('parts')"
+            v-bng-route-target.id="'garage.vehicle.parts'"
             v-bng-disabled="!loaded.vehicle"
             v-bng-blur
-            :bng-scoped-nav-autofocus="loaded.vehicle && !sidemenuActive && showIfController"
           >{{ $t("ui.garage.tabs.parts") }}</GarageButton>
           <!-- title: ui.garage.tabs.parts -->
           <GarageButton
             :icon="icons.wrench"
             :active="vehcomp === 'tuning'"
             @click="menuOpen('tuning')"
+            v-bng-route-target.id="'garage.vehicle.tuning'"
             v-bng-disabled="!loaded.vehicle"
             v-bng-blur
           >{{ $t("ui.garage.tabs.tune") }}</GarageButton>
@@ -71,14 +44,17 @@
             :icon="icons.sprayCan"
             :active="vehcomp === 'paint'"
             @click="menuOpen('paint')"
+            v-bng-route-target.id="'garage.vehicle.paint'"
             v-bng-disabled="!loaded.vehicle"
             v-bng-blur
           >{{ $t("ui.garage.tabs.paint") }}</GarageButton>
           <!-- title: ui.garage.tabs.paint -->
           <GarageButton
+            v-if="!$simplemenu"
             :icon="icons.star"
             :active="vehcomp === 'decals'"
             @click="launchLiveryEditor"
+            v-bng-route-target.id="'garage.vehicle.decals'"
             v-bng-disabled="!loaded.vehicle"
             v-bng-blur
           >{{ $t("ui.garage.tabs.decals") }}</GarageButton>
@@ -89,6 +65,7 @@
             :icon="icons.car"
             :active="vehcomp === 'vehicles'"
             @click="menuOpen('vehicles')"
+            v-bng-route-target.id="'garage.vehicles'"
             v-bng-disabled="!loaded.vehicle"
             v-bng-blur
           >{{ $t("ui.garage.tabs.vehicles") }}</GarageButton>
@@ -97,6 +74,7 @@
             :icon="icons.keys1"
             :active="vehcomp === 'mycars'"
             @click="menuOpen('mycars')"
+            v-bng-route-target.id="'garage.mycars'"
             v-bng-disabled="!loaded.vehicle"
             v-bng-blur
           >{{ $t("ui.garage.tabs.load") }}</GarageButton>
@@ -104,6 +82,7 @@
           <GarageButton
             :icon="icons.photo"
             @click="menuOpen('photo')"
+            v-bng-route-target.id="'garage.photomode'"
             v-bng-disabled="!loaded.vehicle"
             v-bng-blur
           >{{ $t("ui.garage.tabs.photo") }}</GarageButton>
@@ -114,19 +93,29 @@
         <div
           v-if="vehcomp && vehcompview"
           class="garage-content"
-          v-bng-on-ui-nav:menu,back="exit"
           v-bng-frustum-mover:left="true"
         >
-          <component :is="vehcompview" with-background :with-padding="false" />
+          <component
+            :is="vehcompview"
+            v-bind="vehicleConfigComponentProps"
+            with-background
+            :with-padding="false"
+          />
         </div>
       </div>
+      </div>
+    </div>
 
+    <template #buttons-side>
       <div
         class="garage-sidemenu"
-        v-bng-scoped-nav="{ activated: sidemenuActive, type: 'container', bubbleWhitelistEvents: ['menu'], canDeactivate: canSidemenuDeactivate }"
-        @activate="activateSidemenu"
-        @deactivate="deactivateSidemenu"
-        v-bng-on-ui-nav:action_4="toggleSidemenu"
+        v-bng-scoped-nav="{
+          scopeId: 'garage-sidemenu',
+          bubbleWhitelistEvents: ['menu', 'action_4'],
+          canDeactivate: () => false,
+        }"
+        bng-no-nav="true"
+        v-bng-on-ui-nav:back="sideMenuBack"
       >
         <h4 class="garage-sidemenu-title" v-bng-blur>
           <BngBinding class="back-binding" ui-event="action_4" controller />
@@ -142,39 +131,43 @@
                 :icon="icons.movieCamera"
                 :active="drawerCamera"
                 v-bng-disabled="!loaded.init"
-                :bng-scoped-nav-autofocus="sidemenuActive && showIfController"
-                @click="drawerCamera = !drawerCamera"
+                @click="toggleDrawerCamera"
               >{{ $t("ui.garage.photo.camera") }}</GarageButton>
             </div>
           </template>
           <template #expanded-content>
-            <div v-bng-on-ui-nav:menu,back="toggleSidemenu" class="garage-drawer-content" v-bng-blur>
+            <div
+              v-bng-scoped-nav="{ scopeId: sidemenuScopeIds.camera, bubbleWhitelistEvents: ['action_4']}"
+              class="garage-drawer-content"
+              v-bng-blur
+              @deactivate="toggleDrawerCamera">
               <!-- engine.editor.menu.camera.perspective ui.options.camera.defaultMode -->
               <GarageButton
                 type="drawer-button"
                 :icon="icons.camera3Fourth1"
                 @click="setCamera('default')"
-              >{{ $t("engine.editor.menu.standartCamera") }}</GarageButton>
+              >{{ $t("camera.position.standard") }}</GarageButton>
               <GarageButton
                 type="drawer-button"
                 :icon="icons.cameraFront1"
                 @click="setCamera('front')"
-              >{{ $t("engine.editor.menu.camera.front") }}</GarageButton>
+              >{{ $t("camera.position.front") }}</GarageButton>
               <GarageButton
                 type="drawer-button"
                 :icon="icons.cameraBack1"
                 @click="setCamera('back')"
-              >{{ $t("engine.editor.menu.camera.back") }}</GarageButton>
+              >{{ $t("camera.position.rear") }}</GarageButton>
               <GarageButton
                 type="drawer-button"
                 :icon="icons.cameraSideRight"
                 @click="setCamera('side')"
-              >{{ $t("engine.editor.menu.camera.right") }}</GarageButton>
+              >{{ $t("camera.position.right") }}</GarageButton>
               <GarageButton
                 type="drawer-button"
                 :icon="icons.cameraTop1"
+                bng-scoped-nav-autofocus
                 @click="setCamera('top')"
-              >{{ $t("engine.editor.menu.camera.top") }}</GarageButton>
+              >{{ $t("camera.position.top") }}</GarageButton>
             </div>
           </template>
         </Drawer>
@@ -188,12 +181,16 @@
                 :icon="icons.electronicSchemeOutline"
                 :active="drawerVehicle"
                 v-bng-disabled="!loaded.vehicle || !loaded.status"
-                @click="drawerVehicle = !drawerVehicle"
+                @click="toggleDrawerVehicle"
               >{{ $t("ui.radialmenu2.electrics") }}</GarageButton>
             </div>
           </template>
           <template #expanded-content>
-            <div v-bng-on-ui-nav:menu,back="toggleSidemenu" class="garage-drawer-content" v-bng-blur>
+            <div
+              v-bng-scoped-nav="{ scopeId: sidemenuScopeIds.vehicle, bubbleWhitelistEvents: ['action_4']}"
+              class="garage-drawer-content"
+              v-bng-blur
+              @deactivate="toggleDrawerVehicle">
               <GarageButton
                 type="drawer-button"
                 :icon="icons.lowBeam"
@@ -229,6 +226,7 @@
                 :icon="icons.wigwags"
                 :active="vehicle.electrics.lightbar"
                 v-bng-disabled="!loaded.vehicle"
+                bng-scoped-nav-autofocus
                 @click="vehSwitch('lightbar')"
               >{{ $t("ui.radialmenu2.electrics.lightbar") }}</GarageButton>
             </div>
@@ -244,12 +242,16 @@
                 :icon="icons.garage01"
                 :active="drawerGarage"
                 v-bng-disabled="!loaded.init"
-                @click="drawerGarage = !drawerGarage"
+                @click="toggleDrawerGarage"
               >{{ $t("ui.garage2.features") }}</GarageButton>
             </div>
           </template>
           <template #expanded-content>
-            <div v-bng-on-ui-nav:menu,back="toggleSidemenu" class="garage-drawer-content" v-bng-blur>
+            <div
+              v-bng-scoped-nav="{ scopeId: sidemenuScopeIds.garage, bubbleWhitelistEvents: ['action_4']}"
+              class="garage-drawer-content"
+              v-bng-blur
+              @deactivate="toggleDrawerGarage">
               <GarageButton
                 type="drawer-button"
                 :icon="icons.lightGarageG32"
@@ -266,15 +268,17 @@
                 type="drawer-button"
                 :icon="icons.lightGarageG12"
                 :active="lightState[2]"
+                bng-scoped-nav-autofocus
                 @click="lightToggle(2)"
               >{{ $t("ui.garage2.lights.east") }}</GarageButton>
             </div>
           </template>
         </Drawer>
       </div>
-    </div>
+    </template>
 
-    <div class="garage-row-bottom">
+    <template #buttons-bottom>
+      <div class="garage-row-bottom" :bng-no-child-nav="vehcomp ? 'true' : undefined">
       <!-- normal garage -->
       <GarageButton
         :active="vehcomp === 'save'"
@@ -300,19 +304,28 @@
         v-bng-blur
         v-bng-tooltip:top="$t('ui.common.test')"
       />
-    </div>
-  </div>
+      <GarageButton
+        @click="quitToMainMenu"
+        :icon="icons.exit"
+        v-bng-blur
+        v-bng-tooltip:top="$t('ui.mainmenu.exit')"
+      />
+      </div>
+    </template>
+  </LayoutMenu>
 </template>
 
 <script setup>
 // base includes
-import { ref, reactive, watch, markRaw, onBeforeMount, onUnmounted, nextTick } from "vue"
+import { ref, reactive, watch, markRaw, onBeforeMount, onUnmounted, nextTick, computed, inject } from "vue"
+import { useRoute } from "vue-router"
 import { storeToRefs } from "pinia"
 import { $translate } from "@/services/translation"
-import { BngButton, BngBinding, icons, ACCENTS } from "@/common/components/base"
+import { BngBinding, BngScreenHeadingV2, icons, ACCENTS } from "@/common/components/base"
 import { Drawer } from "@/common/components/utility"
-import { vBngBlur, vBngFrustumMover, vBngOnUiNav, vBngDisabled, vBngTooltip, vBngScopedNav, vBngFocusIf, vBngUiNavFocus } from "@/common/directives"
-import { openExperimental, openMessage } from "@/services/popup"
+import { LayoutMenu } from "@/common/layouts"
+import { vBngBlur, vBngFrustumMover, vBngOnUiNav, vBngDisabled, vBngTooltip, vBngScopedNav, vBngRouteTarget } from "@/common/directives"
+import { openExperimental, openMessage, openConfirmation } from "@/services/popup"
 import GarageButton from "../components/GarageButton.vue"
 
 // service includes
@@ -321,28 +334,39 @@ import { runRaw } from "@/bridge/libs/Lua.js"
 import { useEvents, useStreams } from "@/services/events"
 import useControls from "@/services/controls"
 import { useUINavTracker } from "@/services/uiNavTracker"
+import { useScopedNav, activateScreenRootScope, activateRouteTargetScope } from "@/services/scopedNav/api"
+import { useRouteDataStore } from "@/services/routeData"
 
 // sub includes
 import Paint from "@/modules/vehicleConfig/components/Paint.vue"
 import Parts from "@/modules/vehicleConfig/components/Parts.vue"
 import Tuning from "@/modules/vehicleConfig/components/Tuning.vue"
-import Save from "@/modules/vehicleConfig/components/Save.vue"
+import SaveWrapper from "../components/GarageSaveWrapper.vue"
 
 const components = {
   paint: Paint,
   parts: Parts,
   tuning: Tuning,
-  save: Save,
+  save: SaveWrapper,
+}
+
+const sidemenuScopeIds = {
+  camera: "garage-sidemenu-camera",
+  vehicle: "garage-sidemenu-vehicle",
+  garage: "garage-sidemenu-garage",
 }
 
 const ownerId = "garage"
+const route = useRoute()
 const uiNavTracker = useUINavTracker()
 const Controls = useControls()
 const { showIfController } = storeToRefs(Controls)
 const { lua, api } = useBridge()
 const events = useEvents()
+const scopedNav = useScopedNav()
 const bngVue = window.bngVue || { gotoGameState() {} }
-const backBinding = ref(null)
+const routeDataStore = useRouteDataStore()
+const $simplemenu = inject("$simplemenu")
 
 const streamsList = ["electrics"]
 useStreams(streamsList, onStreamsUpdate)
@@ -352,13 +376,26 @@ const drawerCamera = ref(false)
 const drawerVehicle = ref(false)
 const drawerGarage = ref(false)
 
+const showBreadcrumbBackButton = computed(() => {
+  return breadcrumbItems.value.length > 1
+})
+
 watch(
   () => showIfController,
   val => val ? uiNavTracker.addIgnore("action_4", ownerId) : uiNavTracker.removeIgnore("action_4", ownerId),
   { immediate: true }
 )
 
+const garageHeadingText = computed(() => {
+  if (breadcrumbItems.value) {
+    const lastItem = breadcrumbItems.value[breadcrumbItems.value.length - 1]
+    return lastItem ? lastItem.label : (route.meta?.menu?.label || $translate.instant("ui.mainmenu.garage"))
+  }
+  return vehicle.name
+})
+
 const launchLiveryEditor = async () => {
+  if ($simplemenu.value) return
   const dynDecalsCapable = await runRaw('extensions.core_vehicle_partmgmt.hasAvailablePart(be:getPlayerVehicle(0).JBeam .. "_skin_dynamicTextures")')
 
   if (!dynDecalsCapable) {
@@ -372,40 +409,38 @@ const launchLiveryEditor = async () => {
         { label: "Yes, I'm buckled up and ready to go!", value: true, extras: { default: true } },
       ]
     )
-    if (res) bngVue.gotoGameState("livery-manager")
+    if (res) {
+      await lua.extensions.ui_router.navigate("livery", null, null)
+      // bngVue.gotoGameState("livery-manager")
+    }
   }
 }
-
-// import { useUINavScope } from "@/services/uiNav"
-// useUINavScope("garage")
 
 const props = defineProps({
   component: String,
 })
 
-const sidemenuActive = ref(false)
-function activateSidemenu() {
-  sidemenuActive.value = true
-}
-function deactivateSidemenu() {
-  sidemenuActive.value = false
-
-  nextTick(() => {
-    // close drawers
-    drawerCamera.value = false
-    drawerVehicle.value = false
-    drawerGarage.value = false
-  })
+function toggleMenu() {
+  window.globalAngularRootScope?.$broadcast("MenuToggle")
 }
 
 function toggleSidemenu() {
-  sidemenuActive.value = !sidemenuActive.value
-  // if (sidemenuActive.value) deactivateSidemenu()
-  // else activateSidemenu()
+  const currentScope = scopedNav.currentScope()
+  if (!currentScope) {
+    return activateScreenRootScope()
+  }
+
+  const currentScopeId = currentScope.id
+  const isSidemenuScope = Object.values(sidemenuScopeIds).includes(currentScopeId)
+  if (isSidemenuScope || currentScopeId === "garage-sidemenu") {
+    return activateScreenRootScope()
+  } else {
+    scopedNav.activateScope("garage-sidemenu")
+  }
 }
 
-const canSidemenuDeactivate = () => {
-  return !drawerCamera.value && !drawerVehicle.value && !drawerGarage.value
+const sideMenuBack = () => {
+  activateScreenRootScope()
 }
 
 const lightState = ref([false, false, false])
@@ -457,38 +492,98 @@ const vehcomp = ref("")
 const vehcompview = ref(null)
 let tmrInit
 
+const vehicleConfigComponentProps = computed(() =>
+  vehcomp.value === "tuning" ? { mirrorsRoute: "garage.vehicle.tuning.mirrors" } : {}
+)
+
+// Per-route mount-ack and gated scope-activation state.
+// Activation is delayed until both the manual routeMounted ack has succeeded
+// and the vehicle data is ready (or the wait timeout has elapsed) so that
+// `bng-scoped-nav-autofocus` lands on a navigable button.
+const lastMountedAckRouteName = ref("")
+let mountedAckRequestId = 0
+const hasMountedAck = ref(false)
+const hasActivatedInitialRouteScope = ref(false)
+const vehicleWaitTimedOut = ref(false)
+
+const breadcrumbItems = computed(() => routeDataStore.breadcrumbs || [])
+
+async function onBreadcrumbClick(item) {
+  console.log("onBreadcrumbClick", item)
+  if (!item) return
+  if (item.routeName && !item.abstract) await lua.extensions.ui_router.navigate(item.routeName, item.params)
+  if (item.routeName === "garage") {
+    if (vehcomp.value) {
+      vehcomp.value = ""
+      vehcompview.value = null
+      return
+    }
+    return
+  }
+}
+
+async function onBreadcrumbBack() {
+  await lua.extensions.ui_router.back()
+}
+
+function setGarageSubview(componentName) {
+  vehcomp.value = componentName || ""
+  vehcompview.value = componentName && components[componentName] ? markRaw(components[componentName]) : null
+}
+
+async function quitToMainMenu() {
+  if (vehicle.state.vehicleDirty) {
+    const shouldQuit = await openConfirmation(
+      null,
+      $translate.instant("ui.career.garage.vehicleSwitchPrompt"),
+      [
+        { label: $translate.instant("ui.common.yes"), value: true },
+        { label: $translate.instant("ui.common.no"), value: false, extras: { default: true, cancel: true, accent: ACCENTS.secondary } },
+      ]
+    )
+    if (!shouldQuit) return
+  }
+  lua.extensions.gameplay_garageMode.stop()
+  lua.returnToMainMenu()
+}
+
 async function menuOpen(mode) {
   vehcomp.value = vehcomp.value === mode ? "" : mode
   let component = null
   switch (mode) {
     case "paint":
       lua.extensions.gameplay_garageMode.setGarageMenuState("paint")
-      component = components.paint
+      // component = components.paint
+      lua.extensions.ui_router.navigate("garage.vehicle.paint", null, null)
       break
     case "decals":
       bngVue.gotoGameState("decals-loader")
       break
     case "parts":
       lua.extensions.gameplay_garageMode.setGarageMenuState("parts")
-      component = components.parts
+      // component = components.parts
+      lua.extensions.ui_router.navigate("garage.vehicle.parts", null, null)
       break
     case "tuning":
       lua.extensions.gameplay_garageMode.setGarageMenuState("tuning")
-      component = components.tuning
+      // component = components.tuning
+      lua.extensions.ui_router.navigate("garage.vehicle.tuning", null, null)
       break
     case "vehicles":
       lua.extensions.gameplay_garageMode.setGarageMenuState("vehicles")
-      bngVue.gotoGameState("menu.vehicles", { params: { mode: "garageMode", garage: "all" } })
+      lua.ui_vehicleSelector_general.openVehicleSelectorForGarage(false)
       break
     case "mycars":
-      lua.extensions.gameplay_garageMode.setGarageMenuState("myCars")
-      bngVue.gotoGameState("menu.vehicles", { params: { mode: "garageMode", garage: "own" } })
+      lua.extensions.gameplay_garageMode.setGarageMenuState("mycars")
+      lua.ui_vehicleSelector_general.openVehicleSelectorForGarage(true)
+      // lua.extensions.ui_router.navigate("garage.vehicles", null)
       break
     case "photo":
-      bngVue.gotoGameState("menu.photomode")
+      lua.extensions.ui_router.navigate("garage.photomode", null, null)
       break
     case "save":
-      component = components.save
+      // component = components.save
+      lua.extensions.ui_router.navigate("garage.vehicle.save", null, { preferredScope: "garage-vehicle-save" })
       break
     case "savedefault":
       console.log("TODO: save as default")
@@ -502,19 +597,7 @@ async function menuOpen(mode) {
       break
   }
 
-  if (component) vehcompview.value = markRaw(component)
-}
-
-function exit(event) {
-  // console.log("exit", event)
-  // see also: canScopeDeactivate
-  if (event.detail.force) return
-
-  if (vehcomp.value) {
-    menuOpen()
-  } else {
-    window.bngVue.gotoAngularState("menu.mainmenu")
-  }
+  // if (component) vehcompview.value = markRaw(component)
 }
 
 // handles vehicle change
@@ -525,6 +608,8 @@ async function vehChange() {
   // lock status
   loaded.vehicle = false
   loaded.status = false
+  // start a fresh readiness attempt so a previous attempt's timeout cannot leak
+  vehicleWaitTimedOut.value = false
   // reset vehicle
   vehicle.name = "Unknown"
   vehicle.vehicle = null
@@ -566,9 +651,103 @@ function onStreamsUpdate(streams) {
   }
 }
 
-const canScopeDeactivate = () => {
-  return !vehcomp.value
+const toggleDrawerCamera = () => {
+  console.log("toggleDrawerCamera")
+  nextTick(() => {
+    drawerCamera.value = !drawerCamera.value
+
+    if (drawerCamera.value) {
+      nextTick(() => scopedNav.activateScope(sidemenuScopeIds.camera))
+    }
+  })
 }
+
+const toggleDrawerVehicle = () => {
+  nextTick(() => {
+    drawerVehicle.value = !drawerVehicle.value
+    if (drawerVehicle.value) {
+      nextTick(() => scopedNav.activateScope(sidemenuScopeIds.vehicle))
+    }
+  })
+}
+
+const toggleDrawerGarage = () => {
+  nextTick(() => {
+    drawerGarage.value = !drawerGarage.value
+    if (drawerGarage.value) {
+      nextTick(() => scopedNav.activateScope(sidemenuScopeIds.garage))
+    }
+  })
+}
+
+const onBack = () => {
+  if (vehcomp.value) {
+    lua.extensions.ui_router.back()
+  }
+}
+
+async function notifyRouteMountedWhenReady() {
+  const routeName = route.name
+  if (!routeName || routeName === "unknown" || routeName === "__legacyAngular") return
+
+  const requestId = ++mountedAckRequestId
+  await nextTick()
+
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    await new Promise(resolve => window.requestAnimationFrame(() => resolve()))
+  }
+
+  if (requestId !== mountedAckRequestId) return
+  if (route.name !== routeName) return
+  const canonicalRoute = window.__luaRouter__?._pendingCanonicalRoute || routeName
+  if (lastMountedAckRouteName.value === canonicalRoute) return
+
+  const result = await lua.extensions.ui_router.routeMounted(canonicalRoute)
+  lastMountedAckRouteName.value = canonicalRoute
+  if (!result?.success) return
+  if (window.__luaRouter__) window.__luaRouter__._pendingCanonicalRoute = null
+  if (requestId !== mountedAckRequestId) return
+  if (route.name !== routeName) return
+
+  hasMountedAck.value = true
+  await maybeActivateInitialRouteScope(routeName)
+}
+
+async function maybeActivateInitialRouteScope(originalRouteName) {
+  if (originalRouteName && route.name !== originalRouteName) return
+  if (!hasMountedAck.value) return
+  if (hasActivatedInitialRouteScope.value) return
+  if (!loaded.vehicle && !vehicleWaitTimedOut.value) return
+
+  await nextTick()
+
+  if (originalRouteName && route.name !== originalRouteName) return
+  if (!hasMountedAck.value) return
+  if (hasActivatedInitialRouteScope.value) return
+  if (!loaded.vehicle && !vehicleWaitTimedOut.value) return
+
+  hasActivatedInitialRouteScope.value = true
+  activateRouteTargetScope()
+}
+
+watch(
+  () => route.fullPath,
+  async () => {
+    lastMountedAckRouteName.value = ""
+    hasMountedAck.value = false
+    hasActivatedInitialRouteScope.value = false
+    vehicleWaitTimedOut.value = false
+    await notifyRouteMountedWhenReady()
+  },
+  { immediate: true }
+)
+
+watch(
+  [() => loaded.vehicle, vehicleWaitTimedOut],
+  ([vehicleReady, timedOut]) => {
+    if (vehicleReady || timedOut) maybeActivateInitialRouteScope()
+  }
+)
 
 onBeforeMount(async () => {
   // // see also play.js
@@ -581,18 +760,18 @@ onBeforeMount(async () => {
   tmrInit = setTimeout(() => {
     console.log("Unable to get vehicle details in time. Forcing to init...")
     loaded.init = true
+    vehicleWaitTimedOut.value = true
     tmrInit = null
   }, 3000)
 
   events.on("VehicleChange", vehChange)
   api.activeObjectLua("electrics.setIgnitionLevel(1)") // enable electrics w/o ignition
 
-  // TODO: see angular's vehicleselect.js, port the confirmation prompt
-  // events.on("garageVehicleDirtied", data => {
-  //   if (typeof data !== "object") return
-  //   vehicle.state.vehicleDirty = data.vehicleDirty
-  //   vehicle.state.switchedToNewVehicle = data.switchedToNewVehicle
-  // })
+  events.on("garageVehicleDirtied", data => {
+    if (typeof data !== "object") return
+    vehicle.state.vehicleDirty = !!data.vehicleDirty
+    vehicle.state.switchedToNewVehicle = !!data.switchedToNewVehicle
+  })
 
   // garage configs are registered in angular vehicle controller
 
@@ -602,9 +781,12 @@ onBeforeMount(async () => {
 
   // garage lighting
   lightState.value = await lua.extensions.gameplay_garageMode.getLighting()
-
-  props.component && menuOpen(props.component)
 })
+
+watch(() => props.component, (newComp, oldComp) => {
+  console.log("newComp", newComp, "oldComp", oldComp)
+  setGarageSubview(newComp)
+}, { immediate: true })
 
 onUnmounted(() => {
   tmrInit && clearTimeout(tmrInit)
@@ -615,6 +797,12 @@ onUnmounted(() => {
 @use "@/styles/modules/mixins" as *;
 @use "@/styles/modules/density" as *;
 
+.garage-layout {
+  --layout-menu-buttons-bottom-justify: flex-start;
+  --layout-menu-buttons-side-top: 2.8rem;
+  --layout-menu-buttons-side-transform: none;
+}
+
 .garage-view,
 .garage-view * {
   position: relative;
@@ -622,44 +810,27 @@ onUnmounted(() => {
 }
 
 .garage-view {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: stretch;
   align-items: stretch;
-  padding: 2em;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  width: 100%;
+  padding: 0;
   padding-bottom: 1em; // to align with infobar
   font-size: 16px !important;
   overflow: hidden;
 }
 
 .garage-row-title {
-  margin-left: 0.375em;
-}
-
-.garage-title-sup {
+  // margin-left: 0.375em;
 }
 
 .garage-title-main {
-  .garage-back-button {
-    top: -0.15em;
-    min-width: 0 !important;
-    margin: 0 !important;
-    margin-right: 0.25em !important;
-    :deep(> .icon) {
-      margin-right: -0.2em;
-      padding-right: 0;
-    }
-    &.garage-back-binding-shown {
-      margin-right: 0 !important;
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-    }
-  }
+  margin: 0;
 }
 
 .garage-row-title,
@@ -748,7 +919,8 @@ onUnmounted(() => {
 
   .garage-menugroup {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: stretch;
     width: auto;
     height: auto;
@@ -770,7 +942,8 @@ onUnmounted(() => {
 
     .garage-drawer-content {
       display: flex;
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
       align-items: stretch;
       height: 100%;
     }
@@ -802,7 +975,7 @@ onUnmounted(() => {
   flex-direction: row;
   justify-content: flex-start;
   margin-left: 0.25rem;
-  margin-bottom: -0.5em;
+  // margin-bottom: -0.5em;
   max-width: fit-content;
   z-index: 1;
 }

@@ -1,5 +1,6 @@
 <template>
-  <BngImageAsset mask :class="nozzleClass" :src="nozzleImageURL" :bg-color="modeSettings.color">
+  <BngImageAsset mask :class="nozzleClass" :src="nozzleImageURL" :bg-color="nozzleBackgroundColor" :style="nozzleStyle">
+    <span v-if="normalizedFillLevel > 0" class="nozzle-fill" aria-hidden="true"></span>
     <BngButton
       bng-no-nav="true"
       :class="{ empty: true, gamepad: showIfController }"
@@ -7,8 +8,8 @@
       @mousedown="emit('triggerDown')"
       @mouseup="emit('triggerUp')"
       :accent="ACCENTS.text">
-      <BngBinding action="fuelVehicle" deviceMask="xinput" :disabled="!modeSettings.buttonEnabled" :accent="ACCENTS.text" />
-      <BngIcon v-if="!showIfController" :type="icons.plus" title="Activate" />
+      <BngBinding v-if="showIfController" action="fuelVehicle" controller :disabled="!modeSettings.buttonEnabled" :accent="ACCENTS.text" />
+      <BngIcon v-else :type="icons.plus" title="Activate" />
     </BngButton>
   </BngImageAsset>
 </template>
@@ -16,7 +17,8 @@
 <script>
 const nozzleModes = {
   on: {
-    color: "var(--bng-orange-b400)",
+    color: "var(--bng-black-o6)",
+    fillColor: "var(--bng-orange-b400)",
     buttonEnabled: true,
   },
   off: {
@@ -58,6 +60,10 @@ const props = defineProps({
     type: String,
     default: "off",
   },
+  fillLevel: {
+    type: Number,
+    default: 0,
+  },
 })
 
 const emit = defineEmits(["triggerDown", "triggerUp"])
@@ -66,10 +72,35 @@ const nozzleImageURL = computed(() => `icons/${typeSettings.value.nozzleIconType
 const typeSettings = computed(() => fuellingModes[props.refuelType])
 const modeSettings = computed(() => nozzleModes[props.nozzleMode])
 const nozzleClass = computed(() => ({ nozzle: true, [props.refuelType]: true }))
+const normalizedFillLevel = computed(() => (props.nozzleMode === "on" ? Math.max(0, Math.min(props.fillLevel || 0, 1)) : 0))
+const nozzleBackgroundColor = computed(() => modeSettings.value.color)
+const nozzleStyle = computed(() => ({
+  "--nozzle-fill-level": `${normalizedFillLevel.value * 75 + 25}%`,
+  "--nozzle-fill-color": modeSettings.value.fillColor || "transparent",
+}))
 </script>
 
 <style scoped lang="scss">
 .nozzle {
+  position: relative;
+  overflow: hidden;
+
+  .nozzle-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--nozzle-fill-level);
+    background-color: var(--nozzle-fill-color);
+    pointer-events: none;
+    transition: height 120ms linear;
+  }
+
+  & .bng-button {
+    position: relative;
+    z-index: 1;
+  }
+
   &.charge {
     width: 5em !important;
     & .bng-button {
@@ -81,7 +112,7 @@ const nozzleClass = computed(() => ({ nozzle: true, [props.refuelType]: true }))
   &.fuel {
     width: 6.25em !important;
     & .bng-button {
-      top: 37%;
+      top: 33%;
       left: 34%;
       width: 2.75em;
       height: 2em;
@@ -89,9 +120,10 @@ const nozzleClass = computed(() => ({ nozzle: true, [props.refuelType]: true }))
       margin-top: 8px;
     }
     & .bng-button.gamepad {
-      top: 37.75%;
+      top: 34%;
     }
   }
-  height: 25em !important;
+  margin-top: 5em;
+  height: 15em !important;
 }
 </style>

@@ -3,11 +3,11 @@ const PARSE_NESTED = 'PARSE_NESTED'
 export default [
 
   // URLs
-  [/\[url=https?:\/\/([^\s\]]+)\](.*?(?=\[\/url\]))\[\/url\]/gi, '<a href="http-external://$1">$2</a>'],
-  [/\[url='https?:\/\/([^\s\]]+)'\](.*?(?=\[\/url\]))\[\/url\]/gi, '<a href="http-external://$1">$2</a>'],
-  [/\[forumurl=https?:\/\/([^\s\]]+)\](\S*?(?=\[\/forumurl\]))\[\/forumurl\]/gi, '<a href="http-external://$1">$2</a>'],
-  [/\[url\]https?:\/\/(.*?(?=\[\/url\]))\[\/url\]/gi, '<a href="http-external://$1">$1</a>'],
-  [/\[url=([^\s\]]+)\](.*?(?=\[\/url\]))\[\/url\]/gi, '<a href="$1">$2</a>'],
+  [/\[url=(https?:\/\/[^\s\]]+)\](.*?(?=\[\/url\]))\[\/url\]/gi, '<BbcodeLink href="$1">$2</BbcodeLink>'],
+  [/\[url='(https?:\/\/[^\s\]]+)'\](.*?(?=\[\/url\]))\[\/url\]/gi, '<BbcodeLink href="$1">$2</BbcodeLink>'],
+  [/\[forumurl=(https?:\/\/[^\s\]]+)\](\S*?(?=\[\/forumurl\]))\[\/forumurl\]/gi, '<BbcodeLink href="$1">$2</BbcodeLink>'],
+  [/\[url\](https?:\/\/.*?(?=\[\/url\]))\[\/url\]/gi, '<BbcodeLink href="$1">$1</BbcodeLink>'],
+  [/\[url=([^\s\]]+)\](.*?(?=\[\/url\]))\[\/url\]/gi, '<BbcodeLink href="$1">$2</BbcodeLink>'],
 
   // Headings
   [/\[h(\d)\](.*?(?=\[\/h\d\]))\[\/h\d\]/gi, '<h$1>$2</h$1>'],
@@ -16,7 +16,7 @@ export default [
   [/\[img\]\s*?(\S*?(?=\[\/img\]))\[\/img\]/gi, '<img style="max-width: 98%;" src="$1"></img>'],
 
   // Plain text link (only works with preceding whitespace) - put here to avoid trashing links above (right?)
-  [/\shttp(s|):\/\/(\S*)/gi, '<a href="http-external://$2">http$1://$2</a>'],
+  [/(\s)http(s|):\/\/(\S*)/gi, '$1<BbcodeLink href="http$2://$3">http$2://$3</BbcodeLink>'],
 
   // Lists
   [/\[list=\d+\](.*?(?=\[\/list\]))\[\/list\]/gi, '<ol>$1</ol>'],

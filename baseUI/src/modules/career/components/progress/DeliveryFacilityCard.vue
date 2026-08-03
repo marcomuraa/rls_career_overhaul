@@ -150,7 +150,7 @@ const hasLockedOrders = computed(() => {
 
   .order-item {
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     align-items: center;
     padding: 0.3rem 0.5rem;
 

@@ -5,25 +5,24 @@
         {{ $ctx_t(panel.text) }}
       </div>
       <div class="list">
-        <template v-for="dial in panel.dials" :key="dial.key">
-          <div class="setting-item">
-            <div class="setting-item-label">
-              {{ $t(dial.label) }}
-            </div>
-            <BngInput
-              class="input"
-              v-model="dial.value"
-              :min="0"
-              :max="60"
-              :suffix="'seconds'"
-              :decimals="2"
-              type="number"
-              :disabled="dial.disabled"
-              :step="0.01"
-              @valueChanged="updateDial(dial)" />
-          </div>
-          <!--          @valueChanged="value => store.changeSettings(setting.key, value)"-->
-        </template>
+        <BngRow
+          v-for="dial in panel.dials"
+          :key="dial.key"
+          class="setting-row"
+          :label="$t(dial.label)"
+          :disabled="dial.disabled"
+          vertical
+        >
+          <BngInput
+            :model-value="clampedValue(dial)"
+            :min="0"
+            :max="60"
+            suffix="s"
+            type="number"
+            :step="0.01"
+            :show-external-button="false"
+            @update:modelValue="onDialInput(dial, $event)" />
+        </BngRow>
       </div>
     </template>
   </InfoCard>
@@ -31,7 +30,7 @@
 
 <script setup>
 import { $translate } from "@/services"
-import { BngInput } from "@/common/components/base"
+import { BngInput, BngRow } from "@/common/components/base"
 import { lua, useBridge } from "@/bridge"
 import InfoCard from "../components/InfoCard.vue"
 
@@ -42,23 +41,19 @@ const props = defineProps({
   },
 })
 
-function updateDial(dial) {
-  // dial.value = Math.floor(dial.value * 100) / 100
+// toFixed(3) + parseFloat avoids floating point artifacts (e.g. 12.229999999999999) that Math.round alone can leave behind
+function clampedValue(dial) {
+  return parseFloat(Number(dial.value).toFixed(3))
+}
+
+function onDialInput(dial, value) {
+  dial.value = clampedValue({ value })
   lua.extensions.hook("onDialSetByDialPanel", dial)
 }
 </script>
 
 <style scoped lang="scss">
-.setting-item {
-  display: flex;
-  align-items: center;
-  .setting-item-label {
-    flex: 1 0 auto;
-    font-weight: 500;
-    padding-left: 0.45rem;
-  }
-  .input {
-    flex: 0 1 10rem;
-  }
+.setting-row {
+  width: 96%;
 }
 </style>

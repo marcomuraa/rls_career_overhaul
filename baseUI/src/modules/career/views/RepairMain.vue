@@ -1,15 +1,17 @@
 <template>
-  <ComputerWrapper :path="['Repair']" :title="`Repair ${repairStore.vehicleData.name}`" back @back="close">
+  <ComputerWrapper
+    :title="$translate.instant('ui.career.repair.titleWithVehicle', { name: repairStore.vehicleData.name })"
+    @back="close">
     <BngCard v-if="repairStore.vehicleData.name" class="repairMain blue-background">
-      <div class="content blue-background">
-        <div class="title">Vehicle Repair</div>
+      <div class="content blue-background" v-bng-ui-nav-scroll.force>
+        <div class="title">{{ $translate.instant("ui.career.repair.title") }}</div>
         <div class="vehicle-info">
           <InsuranceVehTile class="vehicle-tile" :vehicle="repairStore.vehicleData">
             <template #rightContent>
               <div class="right-info-wrapper">
                 <div class="damage-estimate-wrapper">
                   <span class="damage-estimate-text">
-                    Damage Estimate:
+                    {{ $translate.instant("ui.career.repair.damageEstimate") }}
                   </span>
                   <span class="damage-estimate-value">
                     <BngUnit class="red-price" :money="repairStore.vehicleData.damageCost" />
@@ -17,7 +19,7 @@
                 </div>
                 <div v-if="!repairStore.vehicleData.isInsured">
                   <span class="not-insured-text">
-                    Not Insured!
+                    {{ $translate.instant("ui.career.repair.notInsured") }}
                   </span>
                 </div>
               </div>
@@ -26,11 +28,13 @@
         </div>
 
         <div>
-          <div class="repair-options-title">Repair Options</div>
+          <div class="repair-options-title">{{ $translate.instant("ui.career.repair.repairOptions") }}</div>
           <div class="repair-options">
-            <div v-for="(repairOption, key) in repairStore.repairOptions" :key="key"
+            <Button v-for="(repairOption, key) in repairStore.repairOptions" :key="key"
               class="repair-option"
               :class="{ selected: selectedRepairOptionKey === key }"
+              :tab-index="-1"
+              :nav-item="false"
               @click="onRepairOptionClick(key)"
             >
               <div class="icon-wrapper">
@@ -39,28 +43,28 @@
               <div>
                 <div class="option-text-wrapper" v-if="repairOption.useInsurance">
                   <div class="bigger-text">
-                    Insurance Claim
+                    {{ $translate.instant("ui.career.repair.insuranceClaim") }}
                   </div>
                   <div class="smaller-text">
                     {{ repairOption.insuranceName }}
                   </div>
                   <div class="bigger-text" style="margin-top: -5px;">
-                    Deductible : <BngUnit class="unit-no-padding" :money="repairStore.repairOptions.insuranceRepairData.deductible" />
+                    {{ $translate.instant("ui.career.repair.deductible") }} <BngUnit class="unit-no-padding" :money="repairStore.repairOptions.insuranceRepairData.deductible" />
                   </div>
                 </div>
                 <div class="option-text-wrapper" v-else>
                   <div class="bigger-text">
-                    Private Repair
+                    {{ $translate.instant("ui.career.repair.privateRepair") }}
                   </div>
                   <div class="smaller-text">
-                    No Policy Impact
+                    {{ $translate.instant("ui.career.repair.noPolicyImpact") }}
                   </div>
                   <div class="bigger-text">
-                    Full Damage Cost
+                    {{ $translate.instant("ui.career.repair.fullDamageCost") }}
                   </div>
                 </div>
               </div>
-            </div>
+            </Button>
           </div>
         </div>
 
@@ -76,74 +80,79 @@
 
         <div class="details-wrapper">
           <div class="detail-wrapper">
-            <h3>Insurance Impact</h3>
+            <h3>{{ $translate.instant("ui.career.repair.insuranceImpact") }}</h3>
             <div class="item">
               <span>
-                <div class="item-label">Driver Score Change</div>
+                <div class="item-label">{{ $translate.instant("ui.career.repair.driverScoreChange") }}</div>
                 <div class="accident-forgivenesses-text" v-if="currentRepairOption.useInsurance"> {{ accidentForgivenessesText }}</div>
               </span>
               <span class="item-value" :class="{ 'red-text': currentRepairOption.useInsurance && repairStore.futureDriverScore < repairStore.driverScore }">
                 <template v-if="currentRepairOption.useInsurance">
-                  {{ repairStore.futureDriverScore === repairStore.driverScore ? "No Change (" + repairStore.driverScore + ")" : repairStore.driverScore + " → " + repairStore.futureDriverScore }}
+                  {{ repairStore.futureDriverScore === repairStore.driverScore ? $translate.instant("ui.career.repair.noChangeWithScore", { score: repairStore.driverScore }) : $translate.instant("ui.career.repair.scoreChange", { from: repairStore.driverScore, to: repairStore.futureDriverScore }) }}
                 </template>
                 <template v-else>
-                  No Change ({{ repairStore.driverScore }})
+                  {{ $translate.instant("ui.career.repair.noChangeWithScore", { score: repairStore.driverScore }) }}
                 </template>
               </span>
             </div>
             <div v-if="repairStore.repairOptions.insuranceRepairData" class="item">
-              <span class="item-label">Premium Impact</span>
+              <span class="item-label">{{ $translate.instant("ui.career.repair.premiumImpact") }}</span>
               <span class="item-value">
                 <template v-if="currentRepairOption.useInsurance && repairStore.repairOptions.insuranceRepairData.futurePremium !== repairStore.repairOptions.insuranceRepairData.currentPremium">
                   <BngUnit :money="repairStore.repairOptions.insuranceRepairData.currentPremium" /> → <BngUnit class="red-price" :money="repairStore.repairOptions.insuranceRepairData.futurePremium" />
                 </template>
                 <template v-else>
-                  No Change (<BngUnit :money="repairStore.repairOptions.insuranceRepairData.currentPremium" />)
+                  {{ $translate.instant("ui.career.repair.noChange") }} (<BngUnit :money="repairStore.repairOptions.insuranceRepairData.currentPremium" />)
                 </template>
               </span>
             </div>
             <div v-if="currentRepairOption.useInsurance" class="renews-in-wrapper">
-              <span class="renews-in-name">{{ currentRepairOption.insuranceName }} renews in </span>
+              <span class="renews-in-name">{{ $translate.instant("ui.career.repair.renewsIn", { name: currentRepairOption.insuranceName }) }}</span>
               <span class="renews-in-value">{{ renewsInFormatted }}</span>
             </div>
           </div>
           <div class="detail-wrapper">
-            <h3>Vehicle Repair</h3>
+            <h3>{{ $translate.instant("ui.career.repair.vehicleRepair") }}</h3>
             <div class="item">
-              <span class="item-label">Repair Option</span>
-              <span class="item-value">{{ currentRepairOption.useInsurance ? "Insurance (" + currentRepairOption.insuranceName + ")" : "Private" }}</span>
+              <span class="item-label">{{ $translate.instant("ui.career.repair.repairOption") }}</span>
+              <span class="item-value">{{ currentRepairOption.useInsurance ? $translate.instant("ui.career.repair.repairOptionInsurance", { name: currentRepairOption.insuranceName }) : $translate.instant("ui.career.repair.repairOptionPrivate") }}</span>
             </div>
             <div class="item">
-              <span class="item-label">Repair Time</span>
+              <span class="item-label">{{ $translate.instant("ui.career.repair.repairTime") }}</span>
               <span class="item-value">{{ selectedRepairTimeOption?.choiceText }} (<BngUnit :money="selectedRepairTimeOption?.premiumInfluence" />)</span>
             </div>
             <div v-if="currentRepairOption.useInsurance" class="item">
-              <span class="item-label">Deductible</span>
+              <span class="item-label">{{ $translate.instant("ui.career.repair.deductibleLabel") }}</span>
               <span class="item-value"><BngUnit :money="repairStore.repairOptions.insuranceRepairData.deductible" /></span>
             </div>
             <div v-else class="item">
-              <span class="item-label">Vehicle Damage</span>
+              <span class="item-label">{{ $translate.instant("ui.career.repair.vehicleDamage") }}</span>
               <span class="item-value"><BngUnit :money="repairStore.vehicleData.damageCost" /></span>
             </div>
             <div class="item total-cost">
-              <span>Total Cost</span>
+              <span>{{ $translate.instant("ui.career.repair.totalCost") }}</span>
               <span class="item-value"><BngUnit :money="selectedRepairTimeOption?.totalPrice" /></span>
             </div>
           </div>
         </div>
 
-        <BngButton class="bigger-button confirm-repair-button" accent="custom" :disabled="!selectedRepairTimeOption?.canPay || !repairStore.vehicleData.needsRepair" @click="startRepair(selectedRepairOptionKey, selectedRepairTimeOptionIndex)">
+        <BngButton
+          class="bigger-button confirm-repair-button"
+          :accent="ACCENTS.custom_old"
+          :disabled="!selectedRepairTimeOption?.canPay || !repairStore.vehicleData.needsRepair"
+          @click="startRepair(selectedRepairOptionKey, selectedRepairTimeOptionIndex)"
+        >
           <div v-if="!repairStore.vehicleData.needsRepair">
-            Vehicle doesn't need repair
+            {{ $translate.instant("ui.career.repair.vehicleDoesntNeedRepair") }}
           </div>
           <div v-else-if="!selectedRepairTimeOption?.canPay">
-            Insufficient funds
+            {{ $translate.instant("ui.career.shared.insufficientFunds") }}
             <div class="confirm-repair-money-wrapper">
               <BngUnit :money="selectedRepairTimeOption?.totalPrice" />
             </div>
           </div>
           <div v-else>
-            Confirm Repair
+            {{ $translate.instant("ui.career.repair.confirmRepair") }}
             <div class="confirm-repair-money-wrapper">
               <BngUnit :money="selectedRepairTimeOption?.totalPrice" />
             </div>
@@ -151,23 +160,30 @@
         </BngButton>
       </div>
     </BngCard>
+
+    <!-- Tabs are shown in infobar because they are tracked events by crossfire.
+     This is a hack to prevent them from displaying in the infobar -->
+    <BngBinding v-show="false" ui-event="tab_l" controller />
+    <BngBinding v-show="false" ui-event="tab_r" controller />
   </ComputerWrapper>
 </template>
 
 <script setup>
-import { lua, useBridge } from "@/bridge"
-import { BngButton, BngCard, BngIcon, icons } from "@/common/components/base"
-import ComputerWrapper from "./ComputerWrapper.vue"
-import { useRepairStore } from "../stores/repairStore"
 import { onMounted, onUnmounted, ref, computed, watch } from "vue"
-import { BngUnit } from "@/common/components/base"
-import { useComputerStore } from "../stores/computerStore"
-import { vBngOnUiNav, vBngClick,vBngFocusIf } from "@/common/directives"
-import { InsuranceIdentity, CoverageOption, InsuranceVehTile } from "@/modules/career/components"
+import { BngButton, BngCard, BngIcon,BngUnit, BngBinding, icons, ACCENTS } from "@/common/components/base"
+import { vBngUiNavScroll } from "@/common/directives"
+import { Button } from "@/common/components/utility"
+import { lua, useBridge } from "@/bridge"
+import { $translate } from "@/services/translation"
+import { useRepairStore } from "../stores/repairStore"
+import { CoverageOption, InsuranceVehTile } from "@/modules/career/components"
+
+import ComputerWrapper from "./ComputerWrapper.vue"
+
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const { units } = useBridge()
 
-const computerStore = useComputerStore()
 const repairStore = useRepairStore()
 
 const selectedRepairOptionKey = ref(null)
@@ -180,9 +196,9 @@ const currentRepairOption = computed(() => {
 
 const accidentForgivenessesText = computed(() => {
   if (!repairStore.repairOptions.insuranceRepairData.accidentForgivenesses > 0) {
-    return "(No Accident Forgivenesses left)"
+    return $translate.instant("ui.career.repair.noAccidentForgivenessesLeft")
   }else{
-    return "(" + repairStore.repairOptions.insuranceRepairData.accidentForgivenesses + " Accident Forgivenesses left)"
+    return $translate.instant("ui.career.repair.accidentForgivenessesLeft", { count: repairStore.repairOptions.insuranceRepairData.accidentForgivenesses })
   }
 })
 
@@ -252,10 +268,6 @@ onUnmounted(() => {
 
 
 </script>
-
-<style lang="scss">
-@import "../components/insurance/insuranceStyle.css";
-</style>
 
 <style scoped lang="scss">
 .content {
@@ -433,28 +445,49 @@ onUnmounted(() => {
 }
 
 .repair-option{
+  --bng-content-flow: row;
+  --bng-content-align: center;
+  --bng-content-justify: flex-start;
+  --bng-button-min-width: 20rem;
+  --bng-button-max-width: none;
+  --bng-button-margin: 0;
+  --bng-button-padding: 0.625rem;
+  --bng-button-padding-top: 0.625rem;
+  --bng-button-padding-bottom: 0.625rem;
+  --bng-bg-border-radius: var(--bng-corners-3);
+  --bng-bg-border-width: 2px;
+  --bng-bg-enabled: var(--bng-cool-gray-800);
+  --bng-bg-hover: var(--orange-shade-50);
+  --bng-bg-active: var(--orange-shade-50);
+  --bng-bg-focus: var(--orange-shade-50);
+  --bng-bg-disabled: var(--bng-cool-gray-800);
+  --bng-bg-enabled-opacity: 1;
+  --bng-bg-hover-opacity: 1;
+  --bng-bg-active-opacity: 1;
+  --bng-bg-focus-opacity: 1;
+  --bng-bg-disabled-opacity: 1;
+  --bng-bg-border-enabled: var(--bng-cool-gray-700);
+  --bng-bg-border-hover: var(--orange-shade-10);
+  --bng-bg-border-active: var(--orange-shade-10);
+  --bng-bg-border-focus: var(--orange-shade-10);
+  --bng-bg-border-disabled: var(--bng-cool-gray-700);
+
   gap: 0.625rem;
-  border-radius: var(--bng-corners-3);
-  padding: 0.625rem;
-
-
   display: flex;
   flex-direction: row;
   align-items: center;
-  border: 2px solid var(--bng-cool-gray-700);
-  background-color: var(--bng-cool-gray-800);
-  cursor: pointer;
   min-width: 20rem;
   transition: all 0.2s ease;
 
-  &:hover {
-    background-color: var(--orange-shade-50);
-    border: 2px solid var(--orange-shade-10);
-  }
-
   &.selected {
-    background-color: var(--orange-shade-50);
-    border: 2px solid var(--orange-shade-10);
+    --bng-bg-enabled: var(--orange-shade-50);
+    --bng-bg-hover: var(--orange-shade-50);
+    --bng-bg-active: var(--orange-shade-50);
+    --bng-bg-focus: var(--orange-shade-50);
+    --bng-bg-border-enabled: var(--orange-shade-10);
+    --bng-bg-border-hover: var(--orange-shade-10);
+    --bng-bg-border-active: var(--orange-shade-10);
+    --bng-bg-border-focus: var(--orange-shade-10);
   }
 }
 
@@ -485,7 +518,8 @@ onUnmounted(() => {
 .career-status-value {
   display: flex;
   justify-content: left;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: baseline;
   & > :first-child {
     margin-right: 0.125rem;
@@ -494,7 +528,8 @@ onUnmounted(() => {
 
 .veh-part-caption {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: center;
   overflow: hidden;
@@ -518,7 +553,8 @@ onUnmounted(() => {
   overflow-y: hidden;
   & :deep(.card-cnt) {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
   }
 }
 

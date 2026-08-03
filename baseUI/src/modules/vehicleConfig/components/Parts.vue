@@ -1,31 +1,20 @@
 <template>
   <div
-    :class="{
-      'parts-browser': true,
-      'with-background': withBackground,
-    }"
+    class="parts-browser"
     v-bng-blur="withBackground"
   >
-    <div
-      class="parts-browser-search"
-      v-bng-scoped-nav="{bubbleWhitelistEvents: ['menu']}"
-      @activate="search.start"
-      @deactivate="() => !search.text && search.stop()"
-    >
+    <div class="parts-browser-search">
       <BngInput
-        v-model.trim="search.text"
+        v-model="search.text"
         :leading-icon="icons.search"
-        floating-label="Search"
+        :label="$t('ui.common.search')"
+        floating-label
+        :external-button-fn="() => search.stop()"
+        @activate="search.start()"
+        @deactivate="() => !search.text && search.stop()"
         @click="search.start()"
-        @valueChanged="search.onChange()"
+        @change="search.onChange()"
         @keydown="search.history.onKeyDown($event)"
-      />
-      <BngButton
-        :icon="icons.mathMultiply"
-        :style="'font-size: 0.75rem'"
-        :accent="ACCENTS.text"
-        v-bng-disabled="!search.active"
-        @click="search.stop()"
       />
     </div>
 
@@ -82,7 +71,7 @@
 
           <div v-show="Object.keys(search.result).length === 0" class="search-help">
             <hr />
-            Examples:
+            {{ $t("ui.vehicleconfig.searchExamples") }}:
             <ul>
               <li>
                 <span class="search-example">left</span><br />
@@ -117,7 +106,6 @@
             {{ $t("ui.vehicleconfig.searchHelp.notes") }}:
             <ul>
               <li>{{ $t("ui.vehicleconfig.searchHelp.notes1") }}</li>
-              <!-- <li>{{ $t("ui.vehicleconfig.searchHelp.notes2") }}</li> -->
               <li>{{ $t("ui.vehicleconfig.searchHelp.notes3") }}</li>
             </ul>
           </div>
@@ -153,12 +141,16 @@
         />
         <BngPopoverMenu name="parts-options-menu" focus>
           <div class="popover-contents-wrapper">
-            <BngButton :accent="ACCENTS.menu"
+            <BngButton
+              v-if="!$simplemenu"
+              :accent="ACCENTS.menu"
               :icon="opts.showAux ? icons.checkmark : icons._empty"
               v-bng-on-ui-nav:ok.focusRequired.asMouse
               @click="saveOption('showAux', opts.showAux = !opts.showAux)"
             >{{ $t("ui.showAuxiliary") }}</BngButton>
-            <BngButton :accent="ACCENTS.menu"
+            <BngButton
+              v-if="!$simplemenu"
+              :accent="ACCENTS.menu"
               :icon="opts.showNames ? icons.checkmark : icons._empty"
               v-bng-on-ui-nav:ok.focusRequired.asMouse
               @click="saveOption('showNames', opts.showNames = !opts.showNames)"
@@ -172,47 +164,40 @@
               :icon="opts.separateSort ? icons.checkmark : icons._empty"
               v-bng-on-ui-nav:ok.focusRequired.asMouse
               @click="saveOption('separateSort', opts.separateSort = !opts.separateSort)"
-            >Sort sublists separately</BngButton>
+            >{{ $t("ui.vehicleconfig.sortSubListsSeparately") }}</BngButton>
             <BngButton :accent="ACCENTS.menu"
               :icon="opts.alwaysSort ? icons.checkmark : icons._empty"
               v-bng-on-ui-nav:ok.focusRequired.asMouse
               @click="saveOption('alwaysSort', opts.alwaysSort = !opts.alwaysSort)"
-            >Always sort by name</BngButton>
+            >{{ $t("ui.vehicleconfig.alwaysSortByName") }}</BngButton>
             <BngButton :accent="ACCENTS.menu"
               v-if="isDev"
               :icon="opts.showEmpty ? icons.checkmark : icons._empty"
               v-bng-on-ui-nav:ok.focusRequired.asMouse
               @click="opts.showEmpty = !opts.showEmpty"
-            >Show empty slots 🐞</BngButton>
+            >{{ $t("ui.vehicleconfig.showEmptySlots") }}</BngButton>
           </div>
         </BngPopoverMenu>
       </div>
       <div class="parts-options-right">
-        <BngSwitch :disabled="partsChanged || waitingForData" v-model="opts.applyPartChangesAutomatically" @valueChanged="saveOption('applyPartChangesAutomatically', opts.applyPartChangesAutomatically)">
+        <BngSwitch
+          v-model="opts.applyPartChangesAutomatically"
+          :disabled="partsChanged || waitingForData"
+          @valueChanged="saveOption('applyPartChangesAutomatically', opts.applyPartChangesAutomatically)"
+        >
           {{ $t("ui.garage.liveUpdates") }}
         </BngSwitch>
-        <!-- part of the test layout
-        <BngButton
-          show-hold
-          :icon="icons.undo"
-          :accent="ACCENTS.custom"
-          class="reset-button"
-          v-bng-on-ui-nav:ok.asMouse.focusRequired
-          v-bng-click="{ holdCallback: resetAllToLoadedConfig, holdDelay: 1000, repeatInterval: 0 }"
-          v-bng-tooltip="'Reset to original config'"
-        >{{ $t("ui.common.reset") }}</BngButton>
-        -->
       </div>
     </div>
 
     <div class="parts-options-row">
-      <div class="license-plate" v-bng-disabled="skipLicGen || waitingForData" v-bng-scoped-nav="{bubbleWhitelistEvents: ['menu']}">
-        <!-- <span class="label">{{ $t('ui.vehicleconfig.licensePlate') }}</span> -->
+      <div class="license-plate" v-bng-disabled="skipLicGen || waitingForData">
         <BngInput
           v-model="licensePlate"
-          :floating-label="$t('ui.vehicleconfig.licensePlate')"
+          :label="$t('ui.vehicleconfig.licensePlate')"
+          floating-label
           maxlength="50"
-          @valueChanged="applyLicensePlateDebounced()"
+          @change="applyLicensePlateDebounced()"
           @keyup.enter="applyLicensePlate()"
           :validate="isLicensePlateTextValid"
         />
@@ -222,49 +207,25 @@
           @click="applyRandomLicensePlate()"
           v-bng-tooltip:top="$t('ui.vehicleconfig.licensePlateGen')"
         />
-        <BngButton
-          v-if="!opts.applyPartChangesAutomatically"
-          :disabled="!licensePlateTextValid"
-          :icon="icons.checkmark"
-          @click="applyLicensePlate()"
-          v-bng-tooltip:top="$t('ui.vehicleconfig.applyLicensePlate')"
-        />
       </div>
       <div class="parts-options-right parts-options-buttons">
         <BngButton
           show-hold
           :icon="icons.undo"
-          :accent="ACCENTS.custom"
+          :accent="ACCENTS.custom_old"
           class="reset-button"
           v-bng-on-ui-nav:ok.asMouse.focusRequired
           v-bng-click="{ holdCallback: resetAllToLoadedConfig, holdDelay: 1000, repeatInterval: 0 }"
-          v-bng-tooltip="'Reset to original config'"
+          v-bng-tooltip="$t('ui.vehicleconfig.revertToOriginalConfig')"
           :disabled="waitingForData"
         />
         <BngButton
           class="parts-apply-button"
           :icon="icons.checkmark"
-          @click="write()"
           :disabled="opts.applyPartChangesAutomatically || !partsChanged || waitingForData"
-        >{{ $t("ui.common.apply") }}</BngButton>
-      </div>
-      <!-- part of the test layout
-      <div class="parts-options-right parts-options-buttons-test">
-        <BngSwitch
-          class="parts-apply-switch"
-          v-model="opts.applyPartChangesAutomatically"
-          :disabled="partsChanged"
-          @valueChanged="saveOption('applyPartChangesAutomatically', opts.applyPartChangesAutomatically)"
-          v-bng-tooltip:left="$t('ui.garage.liveUpdates')"
-        />
-        <BngButton
-          class="parts-apply-button"
-          :icon="icons.checkmark"
           @click="write()"
-          :disabled="opts.applyPartChangesAutomatically || !partsChanged"
         >{{ $t("ui.common.apply") }}</BngButton>
       </div>
-      -->
     </div>
   </div>
 </template>
@@ -278,6 +239,7 @@ import { vBngBlur, vBngTooltip, vBngDisabled, vBngPopover, vBngScopedNav, vBngCl
 import { debounce } from "@/utils/rateLimit"
 import { sleep } from "@/utils"
 import { ExecQueue } from "@/services/queue"
+import { isShipping } from "bng:config"
 import PartsBranch from "./PartsBranch.vue"
 import PartsSearch from "../parts/search.js"
 
@@ -297,7 +259,7 @@ const treeStatePermanent = false
 const treeStateKey = "partsTreeState"
 const treeState = ref({})
 
-const isDev = window.beamng && !window.beamng.shipping
+const isDev = !isShipping()
 
 const savedOptions = [
   "applyPartChangesAutomatically",
@@ -314,7 +276,7 @@ const opts = reactive({
   applyPartChangesAutomatically: true,
   simple: false,
   showNames: false,
-  showAux: !beamng.shipping,
+  showAux: !isShipping(),
   separateSort: false,
   alwaysSort: false,
   showEmpty: false, // if this option is going to be saved, make sure to force-disable it when isDev is false
@@ -433,9 +395,10 @@ const licensePlateTextValid = ref(true)
 const settingsChanged = async () => (skipLicGen.value = await lua.settings.getValue("SkipGenerateLicencePlate"))
 const getLicensePlate = () => bngApi.engineLua("core_vehicles.getVehicleLicenseText(getPlayerVehicle(0))", str => (licensePlate.value = str))
 
+// plate text applies automatically as you type (no manual apply button)
 const applyLicensePlateDebounced = debounce(() => {
-  opts.applyPartChangesAutomatically && applyLicensePlate()
-}, 500)
+  applyLicensePlate()
+}, 20)
 
 function applyLicensePlate() {
   applyLicensePlateDebounced.cancel()
@@ -472,7 +435,7 @@ async function partConfigChanged(part) {
 
 const write = queue.wrap("write", async () => {
   waitingForData.value = true
-  await lua.extensions.core_vehicle_partmgmt.setPartsTreeConfig(currentConfig.value)
+  await lua.extensions.core_vehicle_partmgmt.setPartsTreeConfig(currentConfig.value, true, changedPart)
   await waitForData()
 }, {
   write: queue.resolution.merge,
@@ -506,15 +469,12 @@ function processConfig(config) {
 
   waitingForData.value = true // just in case
 
-  // console.log("CONFIG:", config)
-
   // TODO: this should be a separate call to fetch this list
   // flatten the list, assuming that there will be nothing except information field in richPartInfo
   richPartInfo.value = Object.fromEntries(
     Object.entries(config.richPartInfo)
       .map(([name, info]) => [name, info.information])
   )
-  // console.log(`rich ${config.chosenPartsTree.chosenPartName} info:`, richPartInfo.value[config.chosenPartsTree.chosenPartName])
 
   partsHighlighted = config.partsHighlighted
 
@@ -556,7 +516,6 @@ function processConfig(config) {
 
   currentVehID = config.vehID
   currentConfig.value = processSlot(config.chosenPartsTree, config.chosenPartsTree.chosenPartName)
-  // console.log("CURRENT CONFIG:", currentConfig.value)
 
   partsChanged.value = false
 
@@ -589,7 +548,6 @@ const treeStateLoad = () => {
   if (state) {
     try {
       treeState.value = JSON.parse(state)
-      // console.log("TREE STATE:", treeState.value)
     } catch (err) {
       treeState.value = {}
     }
@@ -625,46 +583,31 @@ onUnmounted(() => {
 .parts-browser {
   /* root */
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   justify-content: stretch;
   width: 100%;
   height: 100%;
+
   > * {
     flex: 0 0 auto;
     padding: 0 1em;
   }
-  &.with-background {
-    background-color: rgba(0, 0, 0, 0.6);
-  }
-  &,
-  * {
-    position: relative;
+
+  &, * {
     font-family: "Overpass", var(--fnt-defs);
   }
 }
 
 .parts-browser-search {
-  display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
   border-bottom: 1px solid var(--bng-orange);
-  padding: 0 1em 0.25em 1em;
-  > * {
-    flex: 0 0 auto;
-  }
-  > .bng-input-wrapper {
-    flex: 1 1 auto;
-  }
-  > .bng-button {
-    min-width: unset !important;
-    min-height: unset !important;
-  }
+  padding: 0.35em 1em 0.35em 1em;
 }
 
 .parts-browser-content-wrapper {
   flex: 1 1 auto;
   padding: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .parts-browser-content {
@@ -672,16 +615,17 @@ onUnmounted(() => {
   height: 100%;
   padding: 0.5em 1em;
   overflow-y: scroll;
+
   > * {
     margin: 0 -0.65rem;
   }
+
   :deep(.bng-accitem) {
     margin: 0;
   }
 }
 
 // focus frame adjustment for scrollbar width and balance its appearance
-.parts-browser-search,
 .parts-browser-content-wrapper {
   @include modify-focus($border-rad-1, 0px);
   &::before {
@@ -695,44 +639,22 @@ onUnmounted(() => {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   padding-bottom: 0.5rem;
+
   &.parts-options-row-separator {
     padding-top: 0.5rem;
     border-top: solid 2px var(--bng-orange);
-  }
-
-  .parts-options-left {
-    //
-  }
-  .parts-options-right {
-    //
   }
 }
 
 .license-plate {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   align-items: first baseline;
-  .label {
-    margin-right: 0.25rem;
-  }
-  .bng-input-wrapper {
-    max-width: 12em;
-    margin: 0 0.25rem;
-    :deep(.floating-label) {
-      top: -0.5em;
-      left: 0.4em;
-      font-size: 0.8rem;
-    }
-  }
-  .bng-button {
-    min-width: unset !important;
-    > * {
-      font-size: 1.5em;
-    }
-  }
 }
 
 .reset-button {
@@ -743,30 +665,33 @@ onUnmounted(() => {
   width: max-content;
   max-width: 32rem;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
 }
 
 .parts-options-buttons {
   display: flex;
-  flex-flow: row nowrap;
-  // align-items: stretch;
-  // justify-content: stretch;
+  flex-direction: row;
+  flex-wrap: nowrap;
 }
 
 .parts-options-buttons-test {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: stretch;
   justify-content: stretch;
+
   > * {
     flex: 1 1 auto;
     max-width: unset;
     max-height: unset;
   }
+
   :deep(.parts-apply-switch) {
     flex: 0 0 auto;
     margin: 0.25em -0.25em 0.25em 0.25em;
     z-index: 1;
+
     &::after {
       content: "";
       position: absolute;
@@ -779,15 +704,18 @@ onUnmounted(() => {
       opacity: 0.5;
       z-index: -1;
     }
+
     &.bng-switch-on::after {
       opacity: 1;
     }
+
     > * {
       margin: auto 0.4em;
     }
   }
   :deep(.parts-apply-button) {
     flex: 1 1 auto;
+
     .background {
       border-top-left-radius: 0;
       border-bottom-left-radius: 0;
@@ -799,11 +727,12 @@ onUnmounted(() => {
 
 .parts-path {
   display: flex;
-  flex-flow: row;
+  flex-direction: row;
   flex-wrap: nowrap;
   justify-content: flex-start;
   width: 100%;
   overflow: hidden;
+
   > div {
     flex: 0 1 auto;
     max-width: 10em;
@@ -831,7 +760,7 @@ onUnmounted(() => {
   > div {
     /* list items container */
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     flex-wrap: wrap;
     justify-content: flex-start;
     align-content: flex-start;
@@ -851,9 +780,6 @@ onUnmounted(() => {
   /* slot item */
   font-weight: bold;
   font-style: italic;
-}
-.parts-item-part {
-  /* part variant item */
 }
 .parts-item-icon {
   min-width: 3em;
@@ -913,7 +839,7 @@ onUnmounted(() => {
     margin-bottom: 0.5em;
   }
   .search-example {
-    font-family: monospace;
+    font-family: var(--fnt-mono);
     font-size: 1.1em;
     font-weight: bold;
     color: rgb(255, 102, 0);

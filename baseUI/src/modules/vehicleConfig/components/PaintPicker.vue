@@ -235,7 +235,8 @@ init()
 
   .paint-flex {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
 
     .paint-preview {
       position: relative;

@@ -1,54 +1,76 @@
-// BngSoundClass Directive - allows elements to have 'sound classes'
-
 import { nextTick } from "vue"
-import { lua } from "@/bridge"
+import {
+  SOUND_DOM_EVENTS,
+  SOUND_EVENT_LISTENER_OPTIONS,
+  registerSoundClass,
+  unregisterSoundClass,
+  setEnabledEvents,
+  getEnabledDOMEvents,
+  resolveSoundOwner,
+  playSoundEvent,
+  getDomEventName,
+  isHoverSoundFromRecentMove,
+  shouldDeferToOwnerListener,
+} from "@/services/soundManager"
 
-const ID = "__bngSound"
 const ID_STOP = "__bngSoundStop"
 // note: nextTick and ID_STOP is here to be able to catch click event on a disappearing element
 //       because vue cleans up events a bit early
 
-const events = {
-  // real_event: "event_in_sound_class"
-  click: "click",
-  // mousedown: "click",
-  dblclick: "dblclick",
-  focus: "focus",
-  mouseenter: "mouseenter",
+function updateEventListeners(el) {
+  const enabledEvents = new Set(getEnabledDOMEvents(el))
+  for (const eventName of SOUND_DOM_EVENTS) {
+    el.removeEventListener(eventName, handler, SOUND_EVENT_LISTENER_OPTIONS[eventName] || false)
+  }
+  for (const eventName of enabledEvents) {
+    el.addEventListener(eventName, handler, SOUND_EVENT_LISTENER_OPTIONS[eventName] || false)
+  }
+}
+
+function cleanupElement(el) {
+  delete el[ID_STOP]
+  unregisterSoundClass(el)
+  for (const eventName of SOUND_DOM_EVENTS) {
+    el.removeEventListener(eventName, handler, SOUND_EVENT_LISTENER_OPTIONS[eventName] || false)
+  }
 }
 
 function handler(ev) {
-  // TODO: prevent hovering sound when sound-enabled element appears below the mouse cursor
-
   const el = ev.currentTarget
-  if (el) {
-    if (el[ID] && events[ev.type]) {
-      lua.ui_audio.playEventSound(el[ID], events[ev.type])
-    }
-    if (el[ID_STOP]) {
-      delete el[ID_STOP]
-      delete el[ID]
-      for(const event in events) {
-        el.removeEventListener(event, handler)
+  if (!el) return
+  const eventName = getDomEventName(ev.type)
+  if (eventName && isHoverSoundFromRecentMove(ev)) {
+    const owner = resolveSoundOwner(el, eventName)
+    if (owner) {
+      if (owner === el || !shouldDeferToOwnerListener(eventName)) {
+        playSoundEvent(el, eventName)
       }
     }
   }
+  if (el[ID_STOP]) {
+    cleanupElement(el)
+  }
+}
+
+function applyBinding(el, binding) {
+  registerSoundClass(el, binding.value || null)
+  setEnabledEvents(el, binding.modifiers)
 }
 
 export default {
   mounted: (el, binding) => {
     delete el[ID_STOP]
-    el[ID] = binding.value
+    applyBinding(el, binding)
     nextTick(() => {
-      for(const event in events) {
-        el.addEventListener(event, handler)
-      }
+      updateEventListeners(el)
     })
   },
   updated: (el, binding) => {
-    el[ID] = binding.value
+    applyBinding(el, binding)
+    updateEventListeners(el)
   },
   unmounted: el => {
+    unregisterSoundClass(el)
     el[ID_STOP] = true
   },
 }

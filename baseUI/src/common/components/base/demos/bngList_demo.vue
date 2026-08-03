@@ -207,7 +207,8 @@ const scrollToRandomTitle = () => {
 <style lang="scss" scoped>
 .list-demo-layout {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-content: start;
   justify-content: stretch;
   height: calc(100% - 2em);

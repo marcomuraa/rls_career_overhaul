@@ -1,6 +1,5 @@
 import { computed, ref, reactive } from "vue"
 import { defineStore } from "pinia"
-import router from "@/router"
 import { lua, useBridge } from "@/bridge"
 import { buildActionsDrawer } from "../services/actionsDrawerBuilder"
 import { openEditFileDialog } from "@/modules/liveryEditor/utils"
@@ -58,32 +57,32 @@ export const useLiveryEditorStore = defineStore("liveryEditor", () => {
   const selectedLayerUids = computed(() => (selectedLayers.value ? selectedLayers.value.map(x => x.uid) : undefined))
 
   events.on("liveryEditor_OnLayersUpdated", data => {
-    console.log("liveryEditor_OnLayersUpdated", data)
+    // console.log("liveryEditor_OnLayersUpdated", data)
     layers.value = data
   })
 
   events.on("liveryEditor_Layers_OnVisibleCountChanged", data => {
-    console.log("liveryEditor_Layers_OnVisibleCountChanged", data)
+    // console.log("liveryEditor_Layers_OnVisibleCountChanged", data)
     visibleLayersCount.value = data
   })
 
   events.on("LiveryEditor_onSaveFileLoaded", data => {
-    console.log("LiveryEditor_onSaveFileLoaded", data)
+    // console.log("LiveryEditor_onSaveFileLoaded", data)
     currentFile.value = data
   })
 
   events.on("LiveryEditorLayersUpdate", data => {
-    console.log("LiveryEditorLayersUpdated", data)
+    // console.log("LiveryEditorLayersUpdated", data)
     layers.value = data
   })
 
   events.on("LiveryEditor_SelectedLayersDataUpdated", async data => {
-    console.log("LiveryEditor_SelectedLayersDataUpdated", data)
+    // console.log("LiveryEditor_SelectedLayersDataUpdated", data)
     selectedLayers.value = data && Array.isArray(data) ? data : undefined
   })
 
   events.on("LiverEditorLayerActionsUpdated", async data => {
-    console.log("LiverEditorLayerActionsUpdated", data)
+    // console.log("LiverEditorLayerActionsUpdated", data)
 
     // if (!data || data.length === 0) {
     //   layerActions.value = null
@@ -94,22 +93,22 @@ export const useLiveryEditorStore = defineStore("liveryEditor", () => {
   })
 
   events.on("LiveryEditor_onHistoryUpdated", data => {
-    console.log("LiveryEditor_onHistoryUpdated", data)
+    // console.log("LiveryEditor_onHistoryUpdated", data)
     history.value = data
   })
 
   events.on("LiveryEditor_SelectedLayersChanged", data => {
-    console.log("selected Layer Updated", data)
+    // console.log("selected Layer Updated", data)
     currentContext.value = data && data.length > 0 ? EDITOR_CONTEXT.selectedLayer : null
   })
 
   events.on("LiveryEditorToolChanged", data => {
-    console.log("LiverEditorToolChanged", data)
+    // console.log("LiverEditorToolChanged", data)
     selectedTool.value = data
   })
 
   events.on("LiveryEditor_OnCameraChanged", data => {
-    console.log("LiverEditorToolChanged", data)
+    // console.log("LiverEditorToolChanged", data)
     cameraView.value = data
   })
 
@@ -191,7 +190,7 @@ export const useLiveryEditorStore = defineStore("liveryEditor", () => {
     if (showHideIndex > -1) {
       const aggregateShowHide =
         selectedLayers.value && selectedLayers.value.length > 1 ? selectedLayers.value.find(x => x.enabled) !== undefined : selectedLayers.value[0].enabled
-      console.log("aggregateShowHide", aggregateShowHide)
+      // console.log("aggregateShowHide", aggregateShowHide)
       layerActions.value[showHideIndex].active = aggregateShowHide
     }
 
@@ -286,7 +285,7 @@ export const useLiveryEditorStore = defineStore("liveryEditor", () => {
   }
 
   async function exit() {
-    router.replace({ name: "garagemode" })
+    lua.extensions.ui_router.navigate("garage", null, null)
     await lua.extensions.ui_liveryEditor_editor.exitEditor()
   }
 

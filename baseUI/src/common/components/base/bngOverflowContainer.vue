@@ -267,11 +267,13 @@ if (useBindings) {
         arg: focusNav[0],
         modifiers: {},
         value: activatePrev,
+        source: "BngOverflowContainer",
       }, vnode)
       vBngOnUiNav.mounted(elm, {
         arg: focusNav[1],
         modifiers: {},
         value: activateNext,
+        source: "BngOverflowContainer",
       }, vnode)
       elm.addEventListener("focusin", fixActive)
     })
@@ -351,7 +353,7 @@ $binding-pad: 2.5em;
 
 .bng-overflow-container {
   position: relative;
-  background-color: var(--bng-overflow-container-background, rgba(0, 0, 0, 0.5));
+  background-color: var(--bng-overflow-container-background, rgba(var(--bng-off-black-rgb), 0.6));
   border-radius: $border-rad-2;
   max-width: 100%;
   overflow: hidden;
@@ -359,7 +361,8 @@ $binding-pad: 2.5em;
 
 .scroll-container {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: var(--bng-overflow-container-gap, 0);
   padding: 0.25em;
   overflow-x: auto;

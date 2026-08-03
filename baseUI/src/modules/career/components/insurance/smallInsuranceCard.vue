@@ -1,10 +1,15 @@
 <template>
-  <div class="small-insurance-card" :class="{ 'no-vehicles': buttonsDisabled }" :style="{ 'border-top': `0.7rem solid ${props.insuranceData.color}`, 'background': `linear-gradient(180deg, ${props.insuranceData.color}80 0%, ${props.insuranceData.color}30 10%, ${props.insuranceData.color}10 35%, var(--bng-cool-gray-800) 50%, var(--blue-shade-100) 100%)` }">
+  <div
+    v-bng-scoped-nav="buttonsDisabled ? null : { scopeId: `small-insurance-card-${props.insuranceData.id}` }"
+    :class="{ 'no-vehicles': buttonsDisabled }"
+    class="small-insurance-card themed"
+    >
     <InsuranceIdentity class="insurance-identity" :insuranceData="props.insuranceData" />
-
     <div class="premium-wrapper">
       <div class="breakdown-item">
-        <span>Premium / {{ renewsEveryFormatted }}</span>
+        <span>
+          {{ $ctx_t({ txt: "ui.career.insurance.smallCard.premiumPerPeriod", context: { period: renewsEveryFormatted } }) }}
+        </span>
         <span class="breakdown-item-value">
           <div class="premium-value-wrapper">
             <BngUnit :money="props.insuranceData.currentPremiumDetails.totalPriceWithDriverScore" />
@@ -12,7 +17,7 @@
         </span>
       </div>
       <div class="breakdown-item">
-        <span>Renews in </span>
+        <span>{{ $t("ui.career.insurance.smallCard.renewsIn") }} </span>
         <span class="breakdown-item-value">
           <template v-if="props.insuranceData.carsInsuredCount === 0">
             -
@@ -23,13 +28,13 @@
         </span>
       </div>
       <div class="breakdown-item">
-        <span>Vehicle Coverage</span>
+        <span>{{ $t("ui.career.insurance.smallCard.vehicleCoverage") }}</span>
         <span class="breakdown-item-value">
           <BngUnit :money="props.insuranceData.totalInsuranceVehsValue" />
         </span>
       </div>
       <div class="breakdown-item">
-        <span>Vehicles</span>
+        <span>{{ $t("ui.career.insurance.smallCard.vehicles") }}</span>
         <span class="breakdown-item-value orange-text">
           {{ props.insuranceData.carsInsuredCount }}
         </span>
@@ -41,25 +46,20 @@
 
     <div class="group-discount-wrapper" :class="{'disabled': props.insuranceData.groupDiscountData.currentTierData.id === -1}">
       <div v-if="props.insuranceData.carsInsuredCount === 0" class="grey-text">
-        No vehicles insured under this policy
+        {{ $t("ui.career.insurance.smallCard.noVehiclesInsured") }}
       </div>
       <div v-else-if="props.insuranceData.carsInsuredCount === 1" class="grey-text">
-        Add a second vehicle to unlock Tier 1 ({{ props.insuranceData.groupDiscountData.groupDiscountTiers[0].discount * 100 }}%) coverage savings.
+        {{ $ctx_t(tierOneUnlockMessage) }}
       </div>
       <template v-else>
         <div class="group-discount">
-          MULTI-VEHICLE DISCOUNT
+          {{ $t("ui.career.insurance.smallCard.multiVehicleDiscount") }}
         </div>
         <div class="group-discount-savings">
-          Savings :<BngUnit :money="props.insuranceData.currentPremiumDetails.groupDiscountSavings" />
+          {{ $t("ui.career.insurance.smallCard.savings") }}<BngUnit :money="props.insuranceData.currentPremiumDetails.groupDiscountSavings" />
         </div>
         <div class="breakdown-item">
-          <span class="grey-text" v-if="tierToDisplay.max">
-            Your coverage falls in the {{ tierToDisplay.min / 1000 }}k - {{ tierToDisplay.max / 1000 }}k range
-          </span>
-          <span class="grey-text" v-else>
-            Your coverage falls in the {{ tierToDisplay.min / 1000 }}k+ range
-          </span>
+          <span class="grey-text">{{ $ctx_t(coverageRangeLabel) }}</span>
         </div>
         <div>
           <InsuranceTiers :showTier="true" :tiers="props.insuranceData.groupDiscountData.groupDiscountTiers" />
@@ -68,24 +68,27 @@
     </div>
 
     <div class="buttons">
-      <BngButton class="edit-policy-button bigger-button" accent="custom" @click="openEditPolicy" :disabled="buttonsDisabled">
+      <BngButton class="edit-policy-button bigger-button" :accent="ACCENTS.custom_old" @click="openEditPolicy" :disabled="buttonsDisabled">
         <BngIcon class="button-icon" :type="icons.adjust" :class="{'disabled': buttonsDisabled}"/>
-        <span class="button-text" :class="{'disabled': buttonsDisabled}">Edit Policy</span>
+        <span class="button-text" :class="{'disabled': buttonsDisabled}">{{ $t("ui.career.insurance.smallCard.editPolicy") }}</span>
       </BngButton>
-      <BngButton class="see-vehicles-button bigger-button" accent="custom" @click="openVehicleList" :disabled="buttonsDisabled">
+      <BngButton class="see-vehicles-button bigger-button" :accent="ACCENTS.custom_old" @click="openVehicleList" :disabled="buttonsDisabled">
         <BngIcon class="button-icon" :type="icons.car" :class="{'disabled': buttonsDisabled}"/>
-        <span class="button-text" :class="{'disabled': buttonsDisabled}">See Vehicles</span>
+        <span class="button-text" :class="{'disabled': buttonsDisabled}">{{ $t("ui.career.insurance.smallCard.seeVehicles") }}</span>
       </BngButton>
     </div>
   </div>
 </template>
 
 <script setup>
-import { BngIcon, icons, BngUnit, BngButton } from "@/common/components/base"
 import { computed } from "vue"
-import { InsuranceTiers, InsurancePerks, InsuranceIdentity, VehicleInsuranceList, EditPolicy } from "@/modules/career/components"
+import { BngIcon, icons, BngUnit, BngButton, ACCENTS } from "@/common/components/base"
+import { vBngScopedNav } from "@/common/directives"
 import { addPopup } from "@/services/popup"
 import { useBridge } from "@/bridge"
+
+import { InsuranceTiers, InsurancePerks, InsuranceIdentity, VehicleInsuranceList, EditPolicy } from "@/modules/career/components"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const { units } = useBridge()
 
@@ -108,9 +111,7 @@ const renewsInFormatted = computed(() => {
   return units.buildString('length', props.insuranceData.renewsIn * 1000, 0)
 })
 
-const buttonsDisabled = computed(() => {
-  return props.insuranceData.carsInsuredCount === 0
-})
+const buttonsDisabled = computed(() => props.insuranceData.carsInsuredCount === 0)
 
 const openVehicleList = () => {
   addPopup(VehicleInsuranceList, { insuranceData: props.insuranceData, driverScoreData: props.driverScoreData })
@@ -128,25 +129,65 @@ const tierToDisplay = computed(() => {
     return props.insuranceData.groupDiscountData.groupDiscountTiers[0]
   }
 })
+
+const tierOneUnlockMessage = computed(() => ({
+  txt: "ui.career.insurance.smallCard.addSecondVehicleTierUnlock",
+  context: {
+    discount: props.insuranceData.groupDiscountData.groupDiscountTiers[0].discount * 100,
+  },
+}))
+
+const coverageRangeLabel = computed(() => {
+  const tier = tierToDisplay.value
+  const min = tier.min / 1000
+  if (tier.max) {
+    return {
+      txt: "ui.career.insurance.smallCard.coverageRange",
+      context: { min, max: tier.max / 1000 },
+    }
+  }
+  return {
+    txt: "ui.career.insurance.smallCard.coverageRangeMinPlus",
+    context: { min },
+  }
+})
 </script>
 
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
-
 <style scoped lang="scss">
+@use "@/styles/modules/mixins" as *;
+@use "@/styles/modules/density" as *;
+
 .small-insurance-card{
+  $f-offset: 0.25rem;
+  $rad: var(--bng-corners-3);
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.5rem;
   width: 30em;
   min-width: 20em;
   max-width: 100%;
-
   border: 1px solid var(--bng-cool-gray-700);
   border-radius: var(--bng-corners-3);
-  padding: 1.25rem;
+  padding: 0.25rem 1.25rem;
   background: linear-gradient(135deg, var(--bng-cool-gray-800) 0%, var(--blue-shade-100) 100%);
+
+  // Modify the focus frame radius and offset based on tile corner radius
+  @include modify-focus($rad, $f-offset);
+
+  &.themed {
+    // accent drawn inset so it stays within the border-radius (and thus inside the focus frame)
+    box-shadow: inset 0 0.7rem 0 0 v-bind("props.insuranceData.color");
+    padding-top: 1.95rem; // 1.25rem base padding + 0.7rem accent, keeps content in the same place
+    background: linear-gradient(
+      180deg,
+      v-bind("props.insuranceData.color + '80'") 0%,
+      v-bind("props.insuranceData.color + '30'") 10%,
+      v-bind("props.insuranceData.color + '10'") 35%,
+      var(--bng-cool-gray-800) 50%,
+      var(--blue-shade-100) 100%
+    );
+  }
 
   &.no-vehicles {
     opacity: 0.5;

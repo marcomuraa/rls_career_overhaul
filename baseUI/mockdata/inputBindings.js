@@ -3084,7 +3084,7 @@ export default {
                 "cat": "general",
                 "desc": "ui.inputActions.general.photomode.description",
                 "title": "ui.inputActions.general.photomode.title",
-                "onDown": "guihooks.trigger('MenuOpenModule', 'menu.photomode')",
+                "onDown": "guihooks.trigger('MenuOpenModule', 'pause.photomode')",
                 "order": 10,
                 "ctx": "tlua"
             },
@@ -3230,7 +3230,7 @@ export default {
             "enableHeadset": {
                 "cat": "camera",
                 "title": "ui.inputActions.camera.enableHeadset.title",
-                "onDown": "if OpenXR then extensions.load('render_openxr') OpenXR.toggle() end",
+                "onDown": "if render_openxr then render_openxr.toggle() end",
                 "order": 70,
                 "ctx": "tlua"
             },
@@ -4279,7 +4279,7 @@ export default {
             "centerHeadset": {
                 "cat": "camera",
                 "title": "ui.inputActions.camera.centerHeadset.title",
-                "onDown": "if OpenXR then OpenXR.center() end",
+                "onDown": "if render_openxr then render_openxr.center() end",
                 "order": 71,
                 "ctx": "tlua"
             },

@@ -2,19 +2,21 @@
   <div
     ref="bngSwitch"
     v-bng-on-ui-nav:ok.asMouse.focusRequired
-    bng-nav-item
-    v-bng-disabled="disabled"
+    v-bind="rootAttrs"
+    v-bng-disabled="effectiveDisabled"
     class="bng-switch"
     :class="{
       'bng-switch-on': isSwitchOn,
       'with-background': !alwaysTransparent,
+      'always-opaque': alwaysOpaque,
       'with-label': label || slots.default,
       'label-position-before': labelBefore,
       'inline-switch': (!label && !slots.default) || inline,
+      'no-focus-frame': inRow,
     }"
-    :tabindex="disabled ? -1 : 0"
+    :tabindex="rootTabindex"
     @click="onClicked">
-    <div class="bng-switch-control"></div>
+    <SwitchToggle class="bng-switch-control" :checked="isSwitchOn" :disabled="effectiveDisabled" />
     <template v-if="slots.default || label">
       <div class="bng-switch-label" :class="['label-alignment-' + labelAlignment]">
         <slot>
@@ -34,8 +36,10 @@ export const LABEL_ALIGNMENTS = {
 </script>
 
 <script setup>
-import { computed, onUpdated, ref, useSlots } from "vue"
+import { computed, inject, onMounted, onBeforeUnmount, onUpdated, ref, useAttrs, useSlots } from "vue"
+import { SwitchToggle } from "@/common/components/utility"
 import { vBngDisabled, vBngOnUiNav } from "@/common/directives"
+import { lua } from "@/bridge"
 import { ensureFocus } from "@/services/uiNavFocus"
 
 const props = defineProps({
@@ -59,7 +63,10 @@ const props = defineProps({
     default: true,
   },
   alwaysTransparent: Boolean,
+  alwaysOpaque: Boolean,
   disabled: Boolean,
+  noNav: Boolean,
+  bngNoNav: [Boolean, String],
   valueOn: {
     type: [Boolean, Number, String],
     default: undefined,
@@ -71,19 +78,48 @@ const props = defineProps({
 })
 
 const emit = defineEmits(["update:modelValue", "change", "valueChanged"])
+defineOptions({ inheritAttrs: false })
+
+const attrs = useAttrs()
 const slots = useSlots()
 
 const bngSwitch = ref(null)
+
+// row-aware mode: when wrapped in <BngRow>, the row owns focus + activation;
+// the switch suppresses its own nav handling and registers itself with the row
+const row = inject("BngRow", null)
+const inRow = !!row
+const effectiveDisabled = computed(() => props.disabled || (inRow && row.disabled.value))
+const navDisabled = computed(() => props.noNav || props.bngNoNav || inRow)
+
+const rootAttrs = computed(() => {
+  const { tabindex, tabIndex, ...fallthroughAttrs } = attrs
+
+  return {
+    ...fallthroughAttrs,
+    ...(navDisabled.value ? { "bng-no-nav": "true" } : { "bng-nav-item": "" }),
+  }
+})
+const rootTabindex = computed(() => {
+  if (props.noNav || props.bngNoNav) return null
+  if (effectiveDisabled.value) return -1
+  return inRow ? -1 : (attrs.tabindex ?? attrs.tabIndex ?? 0)
+})
 
 const valOn = computed(() => (typeof props.valueOn === "undefined" ? true : props.valueOn))
 const valOff = computed(() => (typeof props.valueOff === "undefined" ? false : props.valueOff))
 
 const isSwitchOn = computed(() => (props.modelValue != null ? props.modelValue === valOn.value : props.checked))
 
+function playSwitchSound() {
+  lua.ui_audio.playEventSound("bng_switch", "click")
+}
+
 function onClicked() {
-  if (props.disabled) return
+  if (effectiveDisabled.value) return
 
   const newValue = !isSwitchOn.value ? valOn.value : valOff.value
+  playSwitchSound()
 
   if (props.modelValue != null) emit("update:modelValue", newValue)
 
@@ -91,14 +127,23 @@ function onClicked() {
   emit("change", newValue)
 }
 
-onUpdated(() => ensureFocus(bngSwitch.value))
+const rowControlApi = inRow
+  ? {
+      activate: onClicked,
+      isEventInside: event => !!(bngSwitch.value && event?.target instanceof Node && bngSwitch.value.contains(event.target)),
+    }
+  : null
+if (inRow) {
+  onMounted(() => row.register(rowControlApi))
+  onBeforeUnmount(() => row.unregister(rowControlApi))
+}
+
+onUpdated(() => {
+  if (!navDisabled.value) ensureFocus(bngSwitch.value)
+})
 </script>
 
 <style lang="scss" scoped>
-$knob-background-color: var(--bng-cool-gray-600);
-$knob-on-background-color: var(--bng-orange-600);
-$knob-disabled-color: var(--bng-cool-gray-800);
-$knob-disabled-background-color: var(--bng-cool-gray-700);
 $on-background-color: (var(--bng-cool-gray-700));
 
 @use "@/styles/modules/mixins" as *;
@@ -138,20 +183,18 @@ $on-background-color: (var(--bng-cool-gray-700));
     }
   }
 
+  .bng-switch-control {
+    flex-shrink: 0;
+  }
+
   &.bng-switch-on {
     &.with-background.with-label {
       background: $on-background-color;
     }
+  }
 
-    > .bng-switch-control {
-      background: $knob-on-background-color;
-      border-color: transparent;
-      background-clip: padding-box;
-
-      &::after {
-        left: 0.5em;
-      }
-    }
+  &.always-opaque.with-label {
+    background: rgba(0, 0, 0, 0.6);
   }
 
   &[disabled] {
@@ -162,30 +205,6 @@ $on-background-color: (var(--bng-cool-gray-700));
   }
 }
 
-.bng-switch-control {
-  position: relative;
-  height: 0.75rem;
-  width: 1.25rem;
-  padding: 0.0625rem 0.0625rem 0.0625rem 0.0625rem;
-  flex-shrink: 0;
-  justify-content: flex-start;
-  align-items: center;
-  background: $knob-background-color;
-  border-radius: 2rem;
-
-  &::after {
-    position: absolute;
-    display: block;
-    top: 0.0625rem;
-    left: 0.0625rem;
-    content: "";
-    border-radius: 50%;
-    background: var(--bng-off-white);
-    width: 0.625rem;
-    height: 0.625rem;
-    transition: all 0.15s ease-in-out;
-  }
-}
 
 .bng-switch-label {
   display: flex;

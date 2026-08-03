@@ -2,6 +2,7 @@
   <Accordion>
     <SlotItem v-for="childSlot in children"
       ref="slotItemRefs"
+      :key="childSlot.path"
       :static="!childSlot.chosenPartName || !childSlot.children || Object.keys(childSlot.children).length === 0"
       :expanded="partShoppingStore.expandedSlots[childSlot.path]"
       :path="childSlot.path"
@@ -17,11 +18,11 @@
 </template>
 
 <script setup>
+import { ref } from "vue"
 import { Accordion } from "@/common/components/utility"
 import SlotItem from "./SlotItem.vue"
 import PartSubTree from "./PartSubTree.vue"
 import { usePartShoppingStore } from "../../stores/partShoppingStore"
-import { ref, onMounted } from "vue"
 
 const slotItemRefs = ref([])
 

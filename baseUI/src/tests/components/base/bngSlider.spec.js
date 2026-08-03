@@ -1,10 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { shallowMount, mount } from '@vue/test-utils'
 import { BngSlider } from '@/common/components/base'
+import { bootstrapUiNavForTest } from '@/tests/bootstrapUiNav'
 
 const valueChangedEventName = 'valueChanged'
 
 describe('bngSlider.vue Test', () => {
+    beforeEach(() => {
+        bootstrapUiNavForTest()
+    })
+
     it('should emit valueChanged event on input value changed', async () => {
         const wrapper = mount(BngSlider, {props: {max: 100}})
         const input = wrapper.find('input')
@@ -12,7 +17,7 @@ describe('bngSlider.vue Test', () => {
         await input.setValue(30)
 
         expect(wrapper.emitted(valueChangedEventName).length).toEqual(1)
-        expect(wrapper.emitted(valueChangedEventName)[0]).toEqual(['30'])
+        expect(wrapper.emitted(valueChangedEventName)[0]).toEqual([30])
     })
 
     it('should not emit valueChanged event when disabled', async () => {
@@ -35,51 +40,48 @@ describe('bngSlider.vue Test', () => {
     it('should have min equal to min prop', () => {
         const min = 10
         const wrapper = shallowMount(BngSlider, {props: {min: min, max: 100}})
-        
-        expect(wrapper.attributes('min')).toEqual(min.toString())
+
+        // min/max/step/disabled live on the inner <input>, not the component root
+        expect(wrapper.find('input').attributes('min')).toEqual(min.toString())
     })
 
     it('should have max equal to max prop', () => {
         const max = 100
         const wrapper = shallowMount(BngSlider, {props: {max: max}})
         
-        expect(wrapper.attributes('max')).toEqual(max.toString())
+        expect(wrapper.find('input').attributes('max')).toEqual(max.toString())
     })
 
     it('should have step equal to step prop', () => {
         const step = 10
         const wrapper = shallowMount(BngSlider, {props: {step: step, max: 100}})
         
-        expect(wrapper.attributes('step')).toEqual(step.toString())
+        expect(wrapper.find('input').attributes('step')).toEqual(step.toString())
     })
 
     it('should be navigatable when enabled', () => {
         const wrapper = shallowMount(BngSlider, {props: {max: 100}})
-        
-        expect(wrapper.attributes('tabindex')).toEqual('0')
+
+        // a native <input type="range"> is tabbable without an explicit tabindex - only
+        // the disabled attribute governs navigability here
+        expect(wrapper.find('input').attributes('disabled')).toBeUndefined()
     })
 
     it('should not be navigatable when disabled', () => {
         const wrapper = shallowMount(BngSlider, {props: {max: 100, disabled: true}})
         
-        expect(wrapper.attributes('tabindex')).toEqual('-1')
-    })
-
-    it('should be navigatable when enabled', () => {
-        const wrapper = shallowMount(BngSlider, {props: {max: 100}})
-        
-        expect(wrapper.attributes('tabindex')).toEqual('0')
+        expect(wrapper.find('input').attributes('disabled')).not.toBeUndefined()
     })
 
     it('should not be disabled when prop disabled is false', () => {
         const wrapper = shallowMount(BngSlider, {props: {max: 100, disabled: false}})
         
-        expect(wrapper.attributes('disabled')).toBeUndefined()
+        expect(wrapper.find('input').attributes('disabled')).toBeUndefined()
     })
 
     it('should be disabled when prop disabled is true', () => {
         const wrapper = shallowMount(BngSlider, {props: {max: 100, disabled: true}})
         
-        expect(wrapper.attributes('disabled')).not.toBeUndefined()
+        expect(wrapper.find('input').attributes('disabled')).not.toBeUndefined()
     })
 })

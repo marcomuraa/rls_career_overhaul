@@ -1,17 +1,6 @@
 <template>
   <div class="filters">
-    <!-- Search bar at the top of detailed filters -->
-    <div v-if="detailsMode === 'filter'" class="search-section">
-      <SearchBar
-        :searchText="searchText"
-        :setSearchText="setSearchText"
-        placeholder="Search items..."
-        :full-width="true"
-        @focus-item="emit('focus-item', $event)"
-      />
-    </div>
-
-    <div class="filter-options-grid" v-if="detailsMode !== 'filter'">
+    <div class="filter-options-grid" v-if="!useDetailedView">
       <BngPill
         v-for="(filter, index) in commonFilters"
         :key="index"
@@ -20,7 +9,7 @@
         bng-nav-item
         class="filter-option-chip"
         @click="toggleFilter(filter[0], filter[1])">
-        <span class="option-label">{{ filter[1] }}</span>
+        <span class="option-label">{{ filter[2] || getFilterOptionLabel(filter[0], filter[1]) }}</span>
         <span class="option-icon">
           <BngIcon v-if="filterByProp && filterByProp[filter[0]] && filterByProp[filter[0]][filter[1]]" :type="icons.checkmark" />
           <BngIcon v-else :type="icons.xmark" />
@@ -29,7 +18,7 @@
       </BngPill>
     </div>
 
-    <div class="filters-container" v-if="detailsMode === 'filter'">
+    <div class="filters-container" v-if="useDetailedView">
       <Accordion class="filters-accordion">
         <div v-for="filter in filterList" :key="filter.propName" class="filter-wrapper">
           <AccordionItem
@@ -52,15 +41,15 @@
                 <BngPill
                   v-for="(option, index) in filter.options"
                   :key="index"
-                  :class="[getFilterOptionClass(filter.propName, option), { 'filter-locked': props.isFilterOptionLocked(filter.propName, option) }]"
-                  :style="{ cursor: props.isFilterOptionLocked(filter.propName, option) ? 'not-allowed' : 'pointer' }"
+                  :class="[getFilterOptionClass(filter.propName, getOptionValue(option)), { 'filter-locked': props.isFilterOptionLocked(filter.propName, getOptionValue(option)) }]"
+                  :style="{ cursor: props.isFilterOptionLocked(filter.propName, getOptionValue(option)) ? 'not-allowed' : 'pointer' }"
                   class="filter-option-chip"
-                  @click="toggleFilter(filter.propName, option)">
-                  <span class="option-label">{{ option }}</span>
+                  @click="toggleFilter(filter.propName, getOptionValue(option))">
+                  <span class="option-label">{{ getOptionLabel(option) }}</span>
                   <span class="option-icon">
-                    <BngIcon v-if="filterByProp[filter.propName][option]" :type="icons.checkmark" />
+                    <BngIcon v-if="filterByProp[filter.propName][getOptionValue(option)]" :type="icons.checkmark" />
                     <BngIcon v-else :type="icons.abandon" />
-                    <BngIcon v-if="props.isFilterOptionLocked(filter.propName, option)" :type="icons.lockClosed" class="lock-icon" />
+                    <BngIcon v-if="props.isFilterOptionLocked(filter.propName, getOptionValue(option))" :type="icons.lockClosed" class="lock-icon" />
                   </span>
                 </BngPill>
               </div>
@@ -74,7 +63,7 @@
 
               <div class="range-inputs">
                 <div class="range-input-group">
-                  <label class="range-label">Min:</label>
+                  <label class="range-label">{{ $t('ui.menu.gridSelector.filters.min') }}:</label>
                   <BngInput
                     :key="filter.propName + 'min'"
                     :modelValue="filterByProp[filter.propName].min"
@@ -86,7 +75,7 @@
                     @valueChanged="(val) => onRangeFilterChanged(filter.propName, val, 'min')" />
                 </div>
                 <div class="range-input-group">
-                  <label class="range-label">Max:</label>
+                  <label class="range-label">{{ $t('ui.menu.gridSelector.filters.max') }}:</label>
                   <BngInput
                     :key="filter.propName + 'max'"
                     :modelValue="filterByProp[filter.propName].max"
@@ -107,14 +96,11 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, computed } from "vue"
-import { BngIcon, BngInput, icons, BngCardHeading, BngPill, BngCard, BngButton } from "@/common/components/base"
-import { vBngDoubleClick, vBngScopedNav } from "@/common/directives"
+import { computed, onMounted, onUnmounted, ref } from "vue"
+import { BngIcon, BngInput, icons, BngPill } from "@/common/components/base"
 import { Accordion, AccordionItem } from "@/common/components/utility"
 import { debounce } from "@/utils/rateLimit"
-import DisplayControls from "./DisplayControls.vue"
-import SearchBar from "./SearchBar.vue"
-import BngInputNew from "@/common/components/base/bngInputNew.vue"
+import logger from "@/services/logger"
 
 const props = defineProps({
   filterList: {
@@ -125,10 +111,6 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  searchText: {
-    type: String,
-    default: "",
-  },
   commonFilters: {
     type: Array,
     default: () => [],
@@ -136,6 +118,13 @@ const props = defineProps({
   detailsMode: {
     type: String,
     required: true,
+  },
+  // Optional controlled override for the accordion (detailed) view.
+  // When null, the component falls back to detailsMode === 'filter' (legacy).
+  // When boolean, that value wins regardless of detailsMode.
+  showDetailedFilters: {
+    type: Boolean,
+    default: null,
   },
   onlyCommonFilters: {
     type: Boolean,
@@ -153,31 +142,22 @@ const props = defineProps({
     type: Function,
     required: true,
   },
-  toggleFilter: {
-    type: Function,
-    required: true,
-  },
-  updateRangeFilter: {
-    type: Function,
-    required: true,
-  },
-  resetRangeFilter: {
-    type: Function,
-    required: true,
-  },
-  setSearchText: {
-    type: Function,
-    required: true,
-  },
-  setDetailsMode: {
-    type: Function,
-    required: true,
-  },
 })
 
-const emit = defineEmits(['focus-item'])
+const emit = defineEmits([
+  "focus-item",
+  "filter-toggle",
+  "range-filter-update",
+  "range-filter-reset",
+  "details-mode-change",
+])
 
 // All values are now passed as props
+
+const useDetailedView = computed(() => {
+  if (props.showDetailedFilters !== null) return props.showDetailedFilters
+  return props.detailsMode === "filter"
+})
 
 // Track which accordions should be expanded
 const expandedAccordions = ref({})
@@ -193,7 +173,7 @@ const getDebouncedUpdate = (propName) => {
     debouncedUpdateFunctions.value[propName] = debounce(() => {
       if (pendingRangeUpdates.value[propName]) {
         const { min, max } = pendingRangeUpdates.value[propName]
-        props.updateRangeFilter(propName, min, max)
+        emit("range-filter-update", propName, min, max)
         delete pendingRangeUpdates.value[propName]
       }
     }, 300)
@@ -217,12 +197,24 @@ const formatFilterName = key => {
   return key
 }
 
+const getOptionValue = option => typeof option === "object" && option !== null
+  ? (option.value ?? option.id ?? option.name) : option
+
+const getOptionLabel = option => typeof option === "object" && option !== null
+  ? (option.label ?? getOptionValue(option)) : option
+
+const getFilterOptionLabel = (propName, value) => {
+  const filter = props.filterList.find(item => item.propName === propName)
+  const option = filter?.options?.find(item => getOptionValue(item) === value)
+  return getOptionLabel(option ?? value)
+}
+
 const getFilterOptionClass = (propName, option) => {
   const filter = props.filterList.find(f => f.propName === propName)
   if (!filter || !filter.options) return ""
 
-  const allEnabled = filter.options.every(opt => props.filterByProp[propName]?.[opt] === true)
-  const currentOptionEnabled = props.filterByProp[propName]?.[option] === true
+  const allEnabled = filter.options.every(opt => props.filterByProp[propName]?.[getOptionValue(opt)] === true)
+  const currentOptionEnabled = props.filterByProp[propName]?.[getOptionValue(option)] === true
 
   if (allEnabled) {
     // All items are enabled - show neutral state
@@ -255,7 +247,7 @@ const hasActiveFilters = propName => {
     if (!filter.options || !Array.isArray(filter.options)) return false
 
     return filter.options.some(option => {
-      const status = props.filterByProp[propName]?.[option]
+      const status = props.filterByProp[propName]?.[getOptionValue(option)]
       return status === false
     })
   }
@@ -264,7 +256,7 @@ const hasActiveFilters = propName => {
 const toggleFilter = (propName, option, event) => {
   // Don't toggle if the filter is locked
   if (props.isFilterOptionLocked(propName, option)) {
-    console.log("Cannot toggle locked filter:", propName, option)
+    logger.debug("DetailedFilters.lockedToggleIgnored", propName, option)
     return
   }
 
@@ -276,13 +268,13 @@ const toggleFilter = (propName, option, event) => {
 
   emit('focus-item', 'filters')
 
-  props.toggleFilter(propName, option)
+  emit("filter-toggle", propName, option)
 }
 
 const onRangeFilterChanged = (propName, newValue, field) => {
   // Don't update if the filter is locked
   if (props.isRangeFilterLocked(propName)) {
-    console.log("Cannot update locked range filter:", propName)
+    logger.debug("DetailedFilters.lockedRangeUpdateIgnored", propName)
     return
   }
 
@@ -325,16 +317,6 @@ const onRangeFilterChanged = (propName, newValue, field) => {
   emit('focus-item', propName)
 }
 
-const resetRangeFilter = propName => {
-  // Don't reset if the filter is locked
-  if (props.isRangeFilterLocked(propName)) {
-    console.log("Cannot reset locked range filter:", propName)
-    return
-  }
-
-  props.resetRangeFilter(propName)
-}
-
 const isFilterActive = filter => {
   return hasActiveFilters(filter.propName)
 }
@@ -361,27 +343,6 @@ const getRangeBarStyle = propName => {
   }
 }
 
-const clearSearch = () => {
-  props.setSearchText("")
-}
-
-const commitSearch = () => {
-  // No need to commit since we're using the new filter system
-  // The search is already applied when updateFilterOption is called
-}
-
-const toggleDetailsMode = () => {
-  if (props.detailsMode === "filter") {
-    props.setDetailsMode("default")
-  } else {
-    props.setDetailsMode("filter")
-  }
-}
-
-const onSearchChanged = value => {
-  props.setSearchText(value)
-}
-
 // Initialize expanded accordions based on active filters
 onMounted(() => {
   if (props.filterList) {
@@ -402,10 +363,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-
-  .search-section {
-    margin-bottom: 0.5rem;
-  }
 
   :deep(.card-cnt) {
     gap: 0.5rem;
@@ -435,62 +392,6 @@ onMounted(() => {
   overflow: visible !important;
 }
 
-.search-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 0 0 auto;
-
-  .search-input {
-    flex: 1;
-  }
-  :deep(.bng-input-container) {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-  .search-icon {
-    cursor: pointer;
-    width: 2.5rem;
-    padding: 0.5rem;
-    height: 2.5rem;
-  }
-  .search-icon-container {
-    position: relative;
-    width: 2.5rem;
-    height: 2.5rem;
-    margin-left: -0.5rem;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-top-right-radius: 0.25rem;
-    border-bottom-right-radius: 0.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-left: none;
-    &.active {
-      background-color: rgba(34, 197, 94, 0.2);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      border-left: none;
-    }
-    &:hover {
-      .show-unhovered {
-        opacity: 0;
-      }
-      .show-hovered {
-        opacity: 1;
-      }
-    }
-  }
-  .show-unhovered {
-    position: absolute;
-    top: 0;
-    left: 0;
-    opacity: 1;
-  }
-  .show-hovered {
-    position: absolute;
-    top: 0;
-    left: 0;
-    opacity: 0;
-  }
-}
 .filter-toggle-icon {
   flex: 0;
   margin-right: 0.5rem;

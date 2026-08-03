@@ -29,7 +29,7 @@ export class UINavEventProcessor {
       return null
     }
 
-    return this.createEventData(name, value, extras)
+    return this.createEventData(name, value, extras, context)
   }
 
   /**
@@ -52,7 +52,7 @@ export class UINavEventProcessor {
    * Check if this event should be handled by Angular integration
    */
   shouldHandleWithAngular(name, value) {
-    return window.globalAngularRootScope && window.bngIntroShown && (name === "menu" || name === "back") && value === 1
+    return window.globalAngularRootScope && window.bngIntroShown && name === "menu" && value === 1
   }
 
   handleAngularIntegration() {
@@ -62,7 +62,7 @@ export class UINavEventProcessor {
   /**
    * Create event data object for DOM event
    */
-  createEventData(name, value, extras) {
+  createEventData(name, value, extras, context = {}) {
     const activeElement = document.activeElement
     let targetScope = null
 
@@ -71,7 +71,7 @@ export class UINavEventProcessor {
       if (scopeElement) targetScope = scopeElement.getAttribute(UI_SCOPE_ATTR)
     }
 
-    return {
+    const eventData = {
       name,
       value,
       modified: name !== "modifier" && this.isModified,
@@ -80,6 +80,12 @@ export class UINavEventProcessor {
       sendToCrossfire: true,
       targetScope,
     }
+
+    // DEV_ONLY >>
+    if (context.perfId) eventData.perfId = context.perfId
+    // << DEV_ONLY
+
+    return eventData
   }
 
   /**
@@ -87,7 +93,7 @@ export class UINavEventProcessor {
    */
   getEventBroadcastElement(activeScope) {
     const activeElement = document.activeElement
-    if (activeElement && activeElement !== document.body) {
+    if (activeElement && activeElement !== document.body && activeElement.tagName.toLowerCase() !== "dialog") {
       return activeElement
     }
 

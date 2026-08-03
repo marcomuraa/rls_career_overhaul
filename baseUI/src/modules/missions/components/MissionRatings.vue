@@ -1,5 +1,5 @@
 <template>
-   <InfoCard class="mission-ratings" header="Ratings"  header-type="ribbon" :no-blur="simple">
+   <InfoCard class="mission-ratings" :header="$t('ui.missions.ratings.title')"  header-type="ribbon" :no-blur="simple">
     <template #content>
       <div class="ratings">
 
@@ -25,7 +25,7 @@
         <div
           v-if="!Array.isArray(ratings.attempts.rows) || ratings.attempts.rows.length == 0"
           class="caption">
-            No Attempts yet!
+            {{ $t('ui.missions.ratings.noAttempts') }}
         </div>
       </div>
      </template>
@@ -137,7 +137,8 @@ let now = Date.now()/1000
   .table-wrapper {
     padding: 0.15rem;
     display: flex;
-    flex-flow: column nowrap;
+    flex-direction: column;
+    flex-wrap: nowrap;
     .caption {
       color: var(--bng-cool-gray-200);
       padding: 1rem;

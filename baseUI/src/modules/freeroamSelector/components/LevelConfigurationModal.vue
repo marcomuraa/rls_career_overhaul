@@ -23,7 +23,7 @@
           <Tile
             :tile="vehicleTile"
             displaySize="small"
-            :isConfig="true"
+            :show-sub-element-count="false"
             @click="openVehicleSelector"
           />
         </div>

@@ -1,15 +1,15 @@
 <template>
-  <ComputerWrapper :title="computerStore.computerData.facilityName + ' - Home screen'" close @back="close">
+  <ComputerWrapper :title="$translate.instant(computerStore.computerData.facilityName) + $translate.instant('ui.career.shared.homeScreenSuffix')" close @back="close">
 
     <BngCard class="card-content" v-bng-blur="1" >
       <BngCardHeading v-if="computerLoading">
-        Loading...
+        {{ $translate.instant("ui.career.computer.loading") }}
       </BngCardHeading>
 
       <div v-if="!computerLoading" class="computer-actions">
         <div class="action-header">
           <div class="line left"></div>
-          <div class="title">Vehicle Management</div>
+          <div class="title">{{ $translate.instant("ui.career.shared.vehicleManagement") }}</div>
           <div class="line right"></div>
         </div>
         <div v-if="hasVehicles" class="vehicle-select-container">
@@ -21,7 +21,7 @@
                 class="vehicle-tile-row"
                 :class="{ 'hasButtons': showVehicleSelectorButtons }"
                 :data="currentVehicleData"
-                :enableHover="false"
+                :noInteraction="true"
                 :small="true"
               />
 
@@ -31,52 +31,55 @@
           </div>
 
           <div class="actions-list" v-if="computerStore.activeInventoryId && computerStore.vehicleSpecificComputerFunctions[computerStore.activeInventoryId]">
-            <div class="computer-function-tile"
+            <Button class="computer-function-tile"
               v-for="(computerFunction, index) in computerStore.vehicleSpecificComputerFunctions[computerStore.activeInventoryId]"
               :key="computerFunction.id"
               :class="{ 'action-disabled': computerFunction.disabled }"
-              tabindex="0" bng-nav-item v-bng-on-ui-nav:ok.asMouse.focusRequired
+              v-bng-route-target.id="computerFunction.routeTarget"
+              v-bng-on-ui-nav:ok.asMouse.focusRequired
               @click="computerButtonCallback(computerFunction, computerStore.activeInventoryId)"
               @mouseover="setReason(0, infoById[computerFunction.id].reason)"
               @focus="setReason(0, infoById[computerFunction.id].reason)"
               @mouseleave="setReason(0)"
               @blur="setReason(0)"
-              v-bng-ui-nav-focus="index == 0 ? 0 : undefined"
+              :no-sound="computerFunction.disabled"
             >
               <BngIcon class="icon" :type="infoById[computerFunction.id].icon" />
               <span class="label">{{ infoById[computerFunction.id].label }}</span>
-            </div>
+            </Button>
           </div>
         </div>
 
         <div v-else class="no-vehicle-container">
-          <span>No vehicles in garage.</span>
-          <p> Place a vehicle in your garage to access modify and manage it.</p>
+          <span>{{ $translate.instant("ui.career.shared.noVehiclesInGarage") }}</span>
+          <p>{{ $translate.instant("ui.career.shared.placeVehicleInGarageHint") }}</p>
         </div>
 
         <div class="action-header" v-if="computerStore.generalComputerFunctions">
           <div class="line left"></div>
-          <div class="title">General Computer Functions</div>
+          <div class="title">{{ $translate.instant("ui.career.shared.generalComputerFunctions") }}</div>
           <div class="line right"></div>
         </div>
         <div v-if="computerStore.generalComputerFunctions" class="general-functions-container">
           <div class="actions-list">
             <template v-for="(computerFunction, index) in computerStore.generalComputerFunctions" :key="computerFunction.id">
-              <div class="computer-function-tile"
+              <Button class="computer-function-tile"
                 v-if="!computerFunction.type"
                 :class="{ 'action-disabled': computerFunction.disabled }"
-                tabindex="0"
-                bng-nav-item v-bng-on-ui-nav:ok.asMouse.focusRequired
+                v-bng-route-target.id="computerFunction.routeTarget"
+                v-bng-on-ui-nav:ok.asMouse.focusRequired
                 @click="computerButtonCallback(computerFunction)"
                 @mouseover="setReason(1, infoById[computerFunction.id].reason)"
                 @focus="setReason(1, infoById[computerFunction.id].reason)"
                 @mouseleave="setReason(1)"
                 @blur="setReason(1)"
-                v-bng-ui-nav-focus="!hasVehicles && index == 0 ? 0 : undefined"
+                :bng-scoped-nav-autofocus="!hasVehicles && index === 0 ? true : undefined"
+                :no-sound="computerFunction.disabled"
+                :sound-class="'bng_click_hover_generic'"
                 >
                 <BngIcon class="icon" :type="infoById[computerFunction.id].icon" />
                 <span class="label">{{ infoById[computerFunction.id].label }}</span>
-              </div>
+              </Button>
             </template>
           </div>
           <div class="disable-reason" v-if="disableReason[0]">
@@ -99,11 +102,13 @@ import { lua } from "@/bridge"
 import { useComputerStore } from "../stores/computerStore"
 import ComputerWrapper from "./ComputerWrapper.vue"
 import { BngButton, ACCENTS, BngCard, BngCardHeading, BngBinding, BngImageTile, BngIcon, icons, BngList } from "@/common/components/base"
+import { Button } from "@/common/components/utility"
 // import { default as UINavEvents, UI_EVENT_GROUPS } from "@/bridge/libs/UINavEvents"
 import { getUINavServiceInstance, UI_EVENT_GROUPS } from "@/services/uiNav"
-import { vBngOnUiNav, vBngBlur, vBngUiNavFocus } from "@/common/directives"
+import { vBngOnUiNav, vBngBlur, vBngRouteTarget } from "@/common/directives"
 import VehicleTileRow from "../components/vehicleInventory/VehicleTileRow.vue"
 import { LIST_LAYOUTS } from "@/common/components/base"
+import { $translate } from "@/services/translation"
 
 const computerStore = useComputerStore()
 const currentVehicleData = ref(null)
@@ -122,7 +127,7 @@ const hasVehicles = computed(() => computerStore.computerData.vehicles && comput
 const currentVehicleName = computed(() => (hasVehicles.value ? computerStore.computerData.vehicles[computerStore.activeVehicleIndex].vehicleName : ""))
 const currentVehicleThumbnail = computed(() => (hasVehicles.value ? computerStore.computerData.vehicles[computerStore.activeVehicleIndex].thumbnail : ""))
 
-const startTestTitle = computed(() => hasVehicles.value ? (computerStore.computerData.vehicles[computerStore.activeVehicleIndex].needsRepair ? "Assess Performance (Repair Required)" : "Assess Performance") : "")
+const startTestTitle = computed(() => hasVehicles.value ? (computerStore.computerData.vehicles[computerStore.activeVehicleIndex].needsRepair ? $translate.instant("ui.career.shared.assessPerformanceRepairRequired") : $translate.instant("ui.career.shared.assessPerformance")) : "")
 
 // list of function IDs that are known to take some time, so we inform the user about loading
 const slowFunctions = ["vehicleShop", "partInventory"]
@@ -151,6 +156,7 @@ const iconById = {
   partInventory: icons.engine,
   vehicleShop: icons.carCoins,
   performanceIndex: icons.raceFlag,
+  apmLandingPage: icons.garage01,
 }
 
 const infoById = computed(() => [
@@ -175,7 +181,6 @@ const infoById = computed(() => [
   return res
 }, {}))
 
-const isTutorialActive = ref(false)
 const disableReason = ref([null, null])
 const setReason = (idx, reason = null) => {
   disableReason.value[idx] = reason
@@ -188,8 +193,6 @@ const close = () => {
 }
 
 const start = async () => {
-  // UINavEvents.setFilteredEvents(UI_EVENT_GROUPS.focusMoveScalar)
-  getUINavServiceInstance().setFilteredEvents(UI_EVENT_GROUPS.focusMoveScalar)
   computerStore.requestComputerData()
 
   if (Number(computerStore.activeInventoryId)) {
@@ -197,15 +200,10 @@ const start = async () => {
       currentVehicleData.value = data
     })
   }
-  lua.career_modules_linearTutorial.isLinearTutorialActive().then(data => {
-    isTutorialActive.value = data
-  })
 }
 
 const kill = () => {
   computerStore.onMenuClosed()
-  // UINavEvents.clearFilteredEvents()
-  getUINavServiceInstance().clearFilteredEvents()
   computerStore.$dispose()
 }
 
@@ -266,8 +264,6 @@ onUnmounted(kill)
     &.left {
       flex: 0 0 1rem;
     }
-    &.right {
-    }
   }
 }
 
@@ -284,9 +280,23 @@ onUnmounted(kill)
 
   .vehicle-tile-row {
     flex: 1;
-    background:none;
-    border:none;
-    border-radius: 0;
+    --bng-bg-enabled: transparent;
+    --bng-bg-hover: transparent;
+    --bng-bg-active: transparent;
+    --bng-bg-focus: transparent;
+    --bng-bg-disabled: transparent;
+    --bng-bg-enabled-opacity: 1;
+    --bng-bg-hover-opacity: 1;
+    --bng-bg-active-opacity: 1;
+    --bng-bg-focus-opacity: 1;
+    --bng-bg-disabled-opacity: 1;
+    --bng-bg-border-width: 0;
+    --bng-bg-border-enabled: transparent;
+    --bng-bg-border-hover: transparent;
+    --bng-bg-border-active: transparent;
+    --bng-bg-border-focus: transparent;
+    --bng-bg-border-disabled: transparent;
+    --bng-bg-border-radius: 0;
     &.hasButtons{
       border-left: 1px solid rgba(255, 255, 255, 0.1);
       border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -299,7 +309,7 @@ onUnmounted(kill)
     justify-content: center;
     display: flex;
     align-items: center;
-    flex-flow: column;
+    flex-direction: column;
     // width: 3em;
   }
 }
@@ -313,20 +323,36 @@ onUnmounted(kill)
 }
 
 .computer-function-tile {
-  // Setting round corners and focus frame offset for focusable tile
-  $f-offset: 0.25rem;
-  $rad: var(--bng-corners-1);
+  --bng-content-flow: row;
+  --bng-content-align: center;
+  --bng-content-justify: flex-start;
+  --bng-button-min-width: 100%;
+  --bng-button-max-width: 100%;
+  --bng-button-margin: 0;
+  --bng-button-padding: 0.5em;
+  --bng-button-padding-top: 0.5em;
+  --bng-button-padding-bottom: 0.5em;
+  --bng-bg-border-radius: var(--bng-corners-1);
+  --bng-bg-border-width: 1px;
+  --bng-bg-enabled: rgba(0, 0, 0, 0.6);
+  --bng-bg-hover: rgba(var(--bng-cool-gray-700-rgb), 0.8);
+  --bng-bg-active: rgba(var(--bng-cool-gray-700-rgb), 0.8);
+  --bng-bg-focus: rgba(var(--bng-cool-gray-700-rgb), 0.8);
+  --bng-bg-disabled: rgba(0, 0, 0, 0.6);
+  --bng-bg-enabled-opacity: 1;
+  --bng-bg-hover-opacity: 1;
+  --bng-bg-active-opacity: 1;
+  --bng-bg-focus-opacity: 1;
+  --bng-bg-disabled-opacity: 1;
+  --bng-bg-border-enabled: rgba(255, 255, 255, 0.15);
+  --bng-bg-border-hover: rgba(255, 255, 255, 0.15);
+  --bng-bg-border-active: rgba(255, 255, 255, 0.15);
+  --bng-bg-border-focus: var(--bng-cool-gray-300);
+  --bng-bg-border-disabled: rgba(255, 255, 255, 0.15);
 
-  position: relative;
-  display: flex;
-  align-items: center;
   gap: 0.5em;
-  padding: 0.5em;
-  width: 100%;
-  border-radius: $rad;
-  background-color: rgba(0, 0, 0, 0.6);
   transition: background-color ease-in 75ms;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  @include modify-focus(var(--bng-corners-1), 0.25rem);
 
   .icon {
     font-size: 2.5em;
@@ -336,14 +362,6 @@ onUnmounted(kill)
     font-size: 1.3em;
     font-weight: 400;
     text-align: left;
-  }
-
-  // Modify the focus frame radius and offset based on tile corner radius
-  @include modify-focus($rad, $f-offset);
-
-  &:focus,
-  &:hover {
-    background-color: rgba(var(--bng-cool-gray-700-rgb), 0.8);
   }
 }
 

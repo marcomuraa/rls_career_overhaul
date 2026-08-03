@@ -1,131 +1,161 @@
 <template>
   <div
+    class="innerTuningCard"
     :class="{
-      innerTuningCard: true,
       'with-background': withBackground,
     }"
     v-bng-blur="withBackground"
+    v-bng-on-ui-nav:action_4="toggleTuningApps"
+    v-bng-ui-nav-label:action_4="showTuningApps ? $t('ui.vehicleconfig.tuning') : ''"
   >
-    <div v-if="tuningStore.buckets" class="tuning-form">
+    <TuningDebugAppsPanel v-if="showTuningApps" ref="tuningAppsPanelRef" />
+
+    <div v-if="tuningStore.buckets" class="tuning-form" v-bng-ui-nav-scroll>
       <div v-if="extraFeatures.length > 0" class="extra-features">
-        <BngButton v-bng-disabled="!extraFeatures.find(f => f.mirrorsEnabled)" @click="toMirrors" accent="secondary">{{ $t("ui.mirrors.name") }}</BngButton>
+        <BngButton
+          v-bng-disabled="!extraFeatures.find(f => f.mirrorsEnabled)"
+          @click="toMirrors"
+          accent="secondary"
+        >
+          {{ $t("ui.mirrors.name") }}
+        </BngButton>
       </div>
       <div class="tuning-category" v-for="category in tuningStore.buckets" :key="category.name">
         <h2 class="category-heading"><span class="category-name">{{ category.name }}</span></h2>
         <div class="tuning-subcategory" v-for="subCategory in category.items" :key="subCategory.name">
           <h3 class="subcategory-heading" v-if="subCategory.name !== 'Other'"><span class="subcategory-name">{{ subCategory.name }}</span></h3>
-          <div
+          <BngRow
             v-for="varData in subCategory.items"
             :key="category.name + subCategory.name + varData.name"
-            :class="{ 'input-container': true, 'variable-box': varData.type === 'slider' }"
-            v-bng-tooltip:top="varData.description"
+            class="input-container variable-box"
+            vertical
+            :tooltip="varData.description"
           >
-            <div class="variable-title">{{ varData.title }}</div>
-            <div class="variable-box">
-              <BngSlider
-                ref="inputs"
-                :min="varData.minDis"
-                :max="varData.maxDis"
-                :step="varData.stepDis"
-                :unit="varData.unit"
-                :class="{ 'property-slider': true }"
-                with-input
-                with-reset
-                :orig-value="tuningStore.tuningVariables[varData.name].default"
-                v-model="tuningStore.tuningVariables[varData.name].valDis"
-                @valueChanged="onChange(varData.name)" />
-            </div>
-          </div>
+            <template #label>{{ varData.title }}</template>
+            <BngSlider
+              ref="inputs"
+              :min="varData.minDis"
+              :max="varData.maxDis"
+              :step="varData.stepDis"
+              :unit="varData.unit"
+              :class="{ 'property-slider': true }"
+              with-input
+              with-reset
+              :orig-value="tuningStore.tuningVariables[varData.name].default"
+              v-model="tuningStore.tuningVariables[varData.name].valDis"
+              @valueChanged="onChange(varData.name)"
+            />
+          </BngRow>
         </div>
       </div>
+      <div v-if="bottomSpacer" class="tuning-bottom-spacer" aria-hidden="true" />
     </div>
-    <div class="tuning-static">
-      <advancedWheelsDebug :class="{ 'awd-app': awdApp }" ref="awdApp" v-show="awdShow" />
-      <!-- <Teleport :disabled="!buttonTarget" :to="buttonTarget"> -->
-      <BngSwitch v-if="awdApp && awdApp.hasData" v-model="awdShow">{{ $t("ui.garage.tune.advWheel") }}</BngSwitch>
+
+    <div v-if="showControls" class="tuning-static">
       <BngSwitch v-model="autoApply" @valueChanged="applySettingChanged">{{ $t("ui.garage.liveUpdates") }}</BngSwitch>
+
       <div class="buttons">
         <BngButton
           show-hold
           :icon="icons.undo"
-          :accent="ACCENTS.custom"
+          :accent="ACCENTS.custom_old"
           class="reset-button"
           v-bng-on-ui-nav:ok.asMouse.focusRequired
           v-bng-click="{ holdCallback: resetVarsToLoadedConfig, holdDelay: 1000, repeatInterval: 0 }"
-          v-bng-tooltip="'Reset to original config'" />
-      <BngButton :disabled="autoApply || !isChanged" @click="apply">{{ $t("ui.common.apply") }}</BngButton>
-      <BngButton v-if="closeButton" @click="close" :accent="ACCENTS.attention"
-        ><BngBinding ui-event="back" deviceMask="xinput" />{{ $t("ui.common.close") }}</BngButton
-      >
+          v-bng-tooltip="$t('ui.common.reset')"
+        />
+
+        <BngButton :disabled="autoApply || !isChanged" @click="apply">
+          {{ $t("ui.common.apply") }}
+        </BngButton>
+
+        <BngButton v-if="closeButton" @click="close" :accent="ACCENTS.attention">
+          <BngBinding ui-event="back" deviceMask="xinput" />
+          {{ $t("ui.common.close") }}
+        </BngButton>
       </div>
-      <!-- </Teleport> -->
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onBeforeMount, onUnmounted, nextTick } from "vue"
-import { BngButton, ACCENTS, BngSwitch, BngSlider, BngBinding, BngIcon, icons, BngCardHeading } from "@/common/components/base"
-import { vBngBlur, vBngTooltip, vBngDisabled, vBngPopover, vBngScopedNav, vBngClick, vBngOnUiNav } from "@/common/directives"
-import { advancedWheelsDebug } from "@/modules/apps"
+import { BngRow, BngButton, ACCENTS, BngSwitch, BngSlider, BngBinding, icons } from "@/common/components/base"
+import { vBngBlur, vBngTooltip, vBngDisabled, vBngClick, vBngOnUiNav, vBngUiNavLabel, vBngUiNavScroll } from "@/common/directives"
+import TuningDebugAppsPanel from "./TuningDebugAppsPanel.vue"
 import { useTuningStore } from "../stores/tuningStore"
-// import { default as UINavEvents, UI_EVENT_GROUPS } from "@/bridge/libs/UINavEvents"
 import { getUINavServiceInstance, UI_EVENT_GROUPS } from "@/services/uiNav"
 import { debounce } from "@/utils/rateLimit"
 import { useBridge } from "@/bridge"
-import { useUINavBlocker } from "@/services/uiNavTracker"
-
-const navBlocker = useUINavBlocker()
-navBlocker.blockOnly(["context"])
+import { useSettingsAsync } from "@/services/settings.js"
 
 const { lua } = useBridge()
 
 const tuningStore = useTuningStore()
 
-defineProps({
+const props = defineProps({
   withBackground: Boolean,
   buttonTarget: {
     type: Object,
   },
   closeButton: Boolean, // used in career mode
+  showControls: {
+    type: Boolean,
+    default: true,
+  },
+  bottomSpacer: Boolean,
+  autoApply: {
+    type: Boolean,
+    default: null,
+  },
+  blockContextNav: {
+    type: Boolean,
+    default: true,
+  },
+  mirrorsRoute: {
+    type: String,
+    default: null,
+  },
+  showTuningApps: Boolean,
 })
 
-const awdApp = ref()
-const awdShow = ref(false)
+const tuningAppsPanelRef = ref(null)
 
-const apply = () => {
-  tuningStore.apply()
-  // for (let ipt of inputs.value) ipt.markClean()
+function toggleTuningApps() {
+  if (!props.showTuningApps) return true
+  tuningAppsPanelRef.value?.toggle?.()
+  return false
 }
-const close = () => {
-  // if (isChanged.value) {
-  //   // TODO: confirmation
-  // }
+
+function apply() {
+  tuningStore.apply()
+}
+function close() {
   tuningStore.close()
 }
 
-import { useSettingsAsync } from "@/services/settings.js"
 const mirrorsShown = ref(true)
 const mirrorsEnabled = ref(false)
 
-let mirrorsRoute = "menu.vehicleconfig.tuning.mirrors"
+let mirrorsRoute = props.mirrorsRoute || "menu.vehicleconfig.tuning.mirrors"
 
-const toMirrors = () => {
-  // emit("mirrors:click")
-  window.bngVue.gotoGameState(mirrorsRoute)
-  // window.bngVue.gotoGameState(mirrorsRoute)
+async function toMirrors() {
+  await lua.extensions.ui_router.navigate(mirrorsRoute, null, null)
 }
 
 const inputs = ref([])
 
 const isChanged = computed(() => inputs.value.some(ipt => ipt.dirty))
+const changedCount = computed(() => inputs.value.filter(ipt => ipt.dirty).length)
 
-defineExpose({
-  apply,
-  close,
+const localAutoApply = ref(false)
+const autoApply = computed({
+  get: () => typeof props.autoApply === "boolean" ? props.autoApply : localAutoApply.value,
+  set: val => {
+    if (typeof props.autoApply !== "boolean") localAutoApply.value = val
+    applySettingChanged(val)
+  },
 })
-
-const autoApply = ref(false)
 const applyDebounce = debounce(apply, 1000)
 
 function onChange(varName) {
@@ -154,16 +184,13 @@ onBeforeMount(async () => {
   const optAutoApply = localStorage.getItem("applyTuningChangesAutomatically")
   if (optAutoApply) {
     try {
-      autoApply.value = !!JSON.parse(optAutoApply)
+      localAutoApply.value = !!JSON.parse(optAutoApply)
     } catch (err) { }
   }
 
-  if (await lua.extensions.gameplay_garageMode.isActive()) {
+  if (!props.mirrorsRoute && await lua.extensions.gameplay_garageMode.isActive()) {
     mirrorsRoute = "menu.vehicleconfig.tuning.mirrors.in-garage"
   }
-  // else if (await lua.career_career.isActive()) {
-  //   mirrorsRoute = "career.tuning.mirrors"
-  // }
 
   if (await lua.career_career.isActive()) {
     mirrorsShown.value = false
@@ -173,7 +200,6 @@ onBeforeMount(async () => {
 
   await tuningStore.init()
   await tuningStore.requestInitialData()
-  // UINavEvents.setFilteredEvents(UI_EVENT_GROUPS.focusMoveScalar)
   getUINavServiceInstance().setFilteredEvents(UI_EVENT_GROUPS.focusMoveScalar)
 })
 
@@ -189,8 +215,14 @@ onUnmounted(async () => {
   await tuningStore.notifyOnMenuClosed()
   tuningStore.close()
   tuningStore.$dispose()
-  // UINavEvents.clearFilteredEvents()
   getUINavServiceInstance().clearFilteredEvents()
+})
+
+defineExpose({
+  apply,
+  close,
+  changedCount,
+  isChanged,
 })
 </script>
 
@@ -199,26 +231,24 @@ onUnmounted(async () => {
   display: flex;
   width: 100%;
   height: 100%;
-  flex-flow: column;
+  flex-direction: column;
+
   > * {
     flex: 1 1 auto;
     width: 100%;
   }
+
   > .tuning-static {
     flex: 0 0 auto;
     padding: 0.5em 1em;
     border-top: solid 2px var(--bng-orange);
 
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
 
     gap: 0.25em;
-
-    .awd-app {
-      flex: 1 0.15 100%;
-      padding: 0;
-    }
 
     .buttons {
       text-align: right;
@@ -249,16 +279,23 @@ onUnmounted(async () => {
 
     .extra-features {
       display: flex;
-      flex-flow: row wrap;
+      flex-direction: row;
+      flex-wrap: wrap;
       justify-content: center;
       gap: 0.5rem;
     }
 
+    .tuning-bottom-spacer {
+      height: 3rem;
+      flex: 0 0 auto;
+    }
+
     .tuning-category {
       display: flex;
-      flex-flow: column nowrap;
+      flex-direction: column;
+      flex-wrap: nowrap;
       padding: 0.5em 0 0.75em 0;
-      // border-bottom: 1px solid var(--bng-orange-750);
+
       .category-heading {
         margin: 0 0 0 0;
         font-size: 1.25em;
@@ -272,7 +309,7 @@ onUnmounted(async () => {
         justify-content: flex-start;
         gap: 0.5em;
         color: var(--bng-orange-100);
-        // transform: translateX(-1.5rem);
+
         &::after {
           content: "";
           display: inline-block;
@@ -282,9 +319,11 @@ onUnmounted(async () => {
           flex: 1 1 auto;
         }
       }
+
       .tuning-subcategory {
         display: flex;
-        flex-flow: column nowrap;
+        flex-direction: column;
+        flex-wrap: nowrap;
         padding: 0 0.5rem 0 1rem;
 
         .subcategory-heading {
@@ -298,6 +337,7 @@ onUnmounted(async () => {
           align-items: center;
           justify-content: flex-start;
           gap: 0.5em;
+
           &::after {
             content: "";
             display: inline-block;
@@ -308,9 +348,11 @@ onUnmounted(async () => {
           }
         }
       }
+
       .input-container {
         display: flex;
-        flex-flow: column nowrap;
+        flex-direction: column;
+        flex-wrap: nowrap;
       }
     }
   }
@@ -322,7 +364,6 @@ onUnmounted(async () => {
 
   .variable-box {
     float: left;
-    // width: 100%;
     --input-width: 7em;
     --bng-slider-margin: 0.25em;
 

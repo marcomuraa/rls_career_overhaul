@@ -6,6 +6,8 @@ import { openScreenOverlay, addPopup, fixedDelayPopup } from "@/services/popup"
 import ActivityStart from "@/modules/activitystart/views/ActivityStart.vue"
 import Recovery from "@/modules/recovery/views/Recovery.vue"
 import RadialFavoriteSelection from "@/modules/radial/views/FavoriteSelection.vue"
+import TutorialPopupDialog from "@/modules/career/components/tutorial/TutorialPopupDialog.vue"
+import OptionalChallengeSelect from "@/modules/career/components/tutorial/OptionalChallengeSelect.vue"
 
 export const useGameContextStore = defineStore("gameContext", () => {
   const { events } = useBridge()
@@ -16,6 +18,7 @@ export const useGameContextStore = defineStore("gameContext", () => {
   let radialFavoriteSelectionPrompt = null
   let deliveryEndScreen = null
   let simpleDelayPopup = null
+  let tutorialPopup = null
 
   const startMission = missionId => {
     const mission = activities.value.find(x => x.id === missionId)
@@ -43,6 +46,54 @@ export const useGameContextStore = defineStore("gameContext", () => {
     simpleDelayPopup = fixedDelayPopup(data.timer, { title: data.heading })
   }
 
+  function openTutorialPopup(data = {}) {
+    if (tutorialPopup) {
+      tutorialPopup.promise.close(true)
+      tutorialPopup = null
+    }
+    const payload = data && typeof data === "object" ? data : {}
+  const popupComponent = resolveTutorialPopupComponent(payload)
+  const popup = addPopup(popupComponent, {
+    ...payload,
+    showContinueButtons: shouldShowTutorialContinueButtons(payload),
+  })
+    tutorialPopup = popup
+    popup.promise.finally(() => {
+      if (tutorialPopup === popup) tutorialPopup = null
+    })
+  }
+
+  function resolveTutorialPopupComponent(payload = {}) {
+  const { popupComponents, componentName, isSingleComponentPayload } = getTutorialPopupComponentData(payload)
+
+    if ((isSingleComponentPayload || !popupComponents.length) && componentName === "OptionalChallengeSelect") {
+      return OptionalChallengeSelect
+    }
+
+    return TutorialPopupDialog
+  }
+
+function getTutorialPopupComponentData(payload = {}) {
+  const popupList = Array.isArray(payload.popups) ? payload.popups : []
+  const popupComponents = popupList.map(item => item?.vueComponent).filter(name => typeof name === "string")
+  const directComponent = typeof payload.vueComponent === "string" ? payload.vueComponent : null
+  const componentName = popupComponents[0] || directComponent
+  const isSingleComponentPayload = popupComponents.length > 0 && popupComponents.every(name => name === componentName)
+
+  return { popupComponents, componentName, isSingleComponentPayload }
+}
+
+function shouldShowTutorialContinueButtons(payload = {}) {
+  if (payload.showContinueButtons === false) return false
+
+  const { componentName, isSingleComponentPayload } = getTutorialPopupComponentData(payload)
+  const isGearboxPopup = componentName === "GearboxSelect" || componentName === "ShiftModeSelect"
+  if (isSingleComponentPayload && isGearboxPopup) return false
+
+  return true
+}
+
+
   const performActivityAction = activityActionIndex => lua.ui_missionInfo.performActivityAction(activityActionIndex)
 
   events.on("ActivityAcceptUpdate", onActivityAcceptUpdate)
@@ -57,6 +108,8 @@ export const useGameContextStore = defineStore("gameContext", () => {
   events.on("OpenDynamicSlotConfigurator", openDynamicSlotConfigurator)
 
   events.on("OpenSimpleDelayPopup", openSimpleDelayPopup)
+  events.on("OpenTutorialPopup", openTutorialPopup)
+  events.on("CloseTutorialPopup", closeTutorialPopup)
 
   const deliveryRewardData = ref(false)
   function showDeliveryEndScreen(data) {
@@ -65,14 +118,30 @@ export const useGameContextStore = defineStore("gameContext", () => {
   }
   events.on("OpenDeliveryEndScreen", showDeliveryEndScreen)
 
-  function onActivityAcceptUpdate(data) {
-    if (activityScreen && (activities.value || !data)) closeActivitiesPopup()
+  async function getPlayState() {
+    try {
+      const current = await lua.extensions.ui_router.getCurrent()
+      //console.log("getPlayState", current)
+      return !!(current && current.resolved.name === "play")
+    } catch {
+      return false
+    }
+  }
 
-    if (window.location.hash !== "#/play") return
+  // Workaround to avoid race condition when receiving multiple requests to open activity screens
+  let updateVersion = 0
+  async function onActivityAcceptUpdate(data) {
+    const version = ++updateVersion
+    closeActivitiesPopup()
+
+    const isPlay = await getPlayState()
+
+    if (version !== updateVersion) return
+    if (!isPlay) return
 
     activities.value = data
 
-    if (activities.value && activities.value.length > 0) {
+    if (activities.value?.length > 0) {
       activityScreen = openScreenOverlay(ActivityStart)
     }
   }
@@ -104,6 +173,13 @@ export const useGameContextStore = defineStore("gameContext", () => {
     simpleDelayPopup = null
   }
 
+  function closeTutorialPopup() {
+    if (tutorialPopup) {
+      tutorialPopup.promise.close(true)
+      tutorialPopup = null
+    }
+  }
+
   function closeDeliveryEndScreen() {
     if (!deliveryEndScreen) return
 
@@ -114,6 +190,8 @@ export const useGameContextStore = defineStore("gameContext", () => {
   function dispose() {
     events.off("ActivityAcceptUpdate", onActivityAcceptUpdate)
     events.off("ActivityAcceptClose", closeActivitiesPopup)
+    events.off("OpenTutorialPopup", openTutorialPopup)
+    events.off("CloseTutorialPopup", closeTutorialPopup)
   }
 
   return {
@@ -123,6 +201,7 @@ export const useGameContextStore = defineStore("gameContext", () => {
     closeRecoveryPrompt,
     closeRadialFavoriteSelectionPrompt,
     closeSimpleDelayPopup,
+    closeTutorialPopup,
     deliveryRewardData,
     dispose,
     performActivityAction,

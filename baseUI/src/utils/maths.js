@@ -1,4 +1,27 @@
-export const clamp = (val, min, max) => Math.min(Math.max(val, min), max)
+/**
+ * Clamp a numeric value between a minimum and maximum value.
+ * @param {number} val
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+export function clamp(val, min, max) {
+  return Math.min(Math.max(val, min), max)
+}
+
+/**
+ * Clamp a number between a minimum and maximum value with fallback if it's not a number or not a finite number.
+ * @param {any} val
+ * @param {number} min
+ * @param {number} max
+ * @param {number} [fallback=min] defaults to `min`
+ * @returns {number|any}
+ */
+export function clampNumber(val, min, max, fallback = min) {
+  const n = Number(val)
+  if (!Number.isFinite(n)) return fallback
+  return clamp(n, min, max)
+}
 
 export const round = (val, step = 1) => {
   if (typeof val === "undefined")

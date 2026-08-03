@@ -11,7 +11,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue"
+import { computed, ref, useAttrs } from "vue"
+import { lua } from "@/bridge"
 import { BngPill, BngIcon, icons } from "@/common/components/base"
 
 const props = defineProps({
@@ -27,6 +28,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "valueChanged", "change"])
 
+const attrs = useAttrs()
 const defaultValue = ref(false)
 
 const isChecked = computed({
@@ -42,7 +44,11 @@ const isChecked = computed({
   },
 })
 
-const onChecked = () => (isChecked.value = !isChecked.value)
+function onChecked() {
+  if (attrs.disabled !== undefined && attrs.disabled !== false && attrs.disabled !== "false") return
+  lua.ui_audio.playEventSound("bng_switch", "click")
+  isChecked.value = !isChecked.value
+}
 
 function notifyListeners(value) {
   emit("update:modelValue", value)

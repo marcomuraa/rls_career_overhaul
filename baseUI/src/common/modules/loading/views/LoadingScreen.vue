@@ -12,7 +12,7 @@
       <div v-if="state.mode === 'progress'" class="progress-box">
         <div class="progress-icon-group">
           <div
-            v-for="iconInfo in iconsList"
+            v-for="iconInfo in iconsList.filter(icon => !icon.lazy || state.iconState[icon.id])"
             :key="iconInfo.id"
             class="progress-icon-box"
             :style="{ backgroundPosition: `0 ${state.iconState[iconInfo.id] || 0}%` }"
@@ -32,11 +32,14 @@
           />
         </div>
 
-        <div class="progress-status">{{ currentStatus || $tt("ui.common.loading") }}</div>
+        <div class="progress-status">{{ currentStatus ? $tt(currentStatus) : $tt("ui.common.loading") }}</div>
 
-        <div class="progress-history">
+        <div v-if="state.infobox" class="progress-info progress-custom">
+          <InfoBox :id="state.infobox" />
+        </div>
+        <div v-else class="progress-info progress-history">
           <div v-for="(item, idx) in state.historyEntriesDisplay" :key="idx">
-            {{ item.message }}
+            {{ $tt(item.message) }}
           </div>
         </div>
       </div>
@@ -78,7 +81,17 @@
       <div v-if="state.mode === 'progress' || state.customContent?.tips" class="tips-bar">
         <div class="tips-bar-title">{{ $tt("ui.loadingScreen.tips") }}:</div>
         <div class="tips-bar-tip">
-          <DynamicComponent :translate-id="tip" bbcode />
+          <DynamicComponent v-if="tipText" :translate-id="tipText" bbcode />
+          <div v-if="tipActionItems.length" class="tips-bar-actions">
+            <div
+              v-for="(actionItem, i) in tipActionItems"
+              :key="`tip-action-${i}`"
+              class="tips-bar-action"
+            >
+              <BngBinding :action="actionItem.action" />
+              <span v-if="actionItem.label" class="tips-bar-action-label">{{ $tt(actionItem.label) }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </dialog>
@@ -90,43 +103,47 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from "vue"
-import { BngProgressBar, BngIcon, BngScreenHeading, icons } from "@/common/components/base"
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, inject } from "vue"
+import { BngBinding, BngProgressBar, BngIcon, BngScreenHeading, icons } from "@/common/components/base"
 import { DynamicComponent } from "@/common/components/utility"
+import InfoBox from "../components/InfoBox.vue"
 import { useEvents } from "@/services/events"
 import { useBridge } from "@/bridge"
 import { useUINavBlocker } from "@/services/uiNavTracker"
 import { linkLoadingScreenState } from "@/services/screenCover"
-import { getAssetURL } from "@/utils"
+import useControls from "@/services/controls"
+import { useImageList, UNOFFICIAL } from "@/services/imageList"
 import { debounce } from "@/utils/rateLimit"
 import Logger from "@/services/logger"
-import hints from "../hints"
+import { getHints } from "../hints"
 
 const events = useEvents()
-const { lua } = useBridge()
+const { lua, api } = useBridge()
 const navBlocker = useUINavBlocker()
+const controls = useControls()
+const $simplemenu = inject("$simplemenu", ref(!!window.beamng?.simplemenu))
+const activeHints = computed(() => getHints(!!$simplemenu.value))
 
-const imagesAmount = 18 // fallback number of built-in loading images
-const customImagesAmount = 12 // number of custom loading images
-const customImagePathPattern = "/ui/modules/loading/drive/rls_drive_loading_{n}.jpg"
-const preferCustomLoadingImages = true
 const activeRepeatTime = 10_000 // safety to ensure lua is notified (as it was in angular)
+const loadingImageList = useImageList("images/loading/drive")
 
 // css transition durations (in ms)
 const fadeInDefault = 1_000
 const fadeOutDefault = 2_000
 
-let lastImageNum = -1
+let lastImageUrl = null
 let repeatTimer = null
 let customTimer = null
 
 const iconsList = [
+  // add lazy:true to icons that are not needed immediately
   { id: "terrain", icon: icons.terrain },
   { id: "environment", icon: icons.water },
   { id: "forest", icon: icons.trafficCone },
   { id: "meshes", icon: icons.garage01 },
   { id: "roads", icon: icons.road },
   { id: "beamng", icon: icons.beamNG },
+  { id: "multiplayer", icon: icons.helmets, lazy: true },
 ]
 
 const state = reactive({
@@ -141,6 +158,7 @@ const state = reactive({
   iconState: {},
   currentEntries: [],
   historyEntriesDisplay: [],
+  infobox: null, // name of the template with custom content to show instead of progress history
   customContent: null, // when mode is "custom"
   fadeInTime: fadeInDefault,
   fadeOutTime: fadeOutDefault,
@@ -153,17 +171,31 @@ function resetState() {
   state.iconState = {}
   state.currentEntries = []
   state.historyEntriesDisplay = []
+  state.infobox = null
   state.fadeInTime = fadeInDefault
   state.fadeOutTime = fadeOutDefault
   state.customPause = -1
 }
 
 const tip = ref("")
+const isHintEntry = value => value && typeof value === "object" && "id" in value
+const tipText = computed(() => isHintEntry(tip.value) ? tip.value.id : tip.value || "")
+const hasBindingForAction = action => {
+  if (typeof action !== "string" || action.length === 0) return false
+  return !!controls.makeViewerObj({ action, useLastDevice: true })
+}
+const tipActionItems = computed(() => {
+  if (!isHintEntry(tip.value) || !Array.isArray(tip.value.actionItems)) return []
+  return tip.value.actionItems.filter(actionItem => (
+    actionItem?.missing !== true &&
+    hasBindingForAction(actionItem?.action)
+  ))
+})
 const setTip = (txt = undefined, _retrying = false) => {
-  const idx = ~~(Math.random() * hints.length)
-  tip.value = txt || hints[idx]
-  if (!tip.value || tip.value === "undefined") {
-    Logger.debug(`Loading Screen tip is undefined!\nARG: ${JSON.stringify(txt)} TIP: ${JSON.stringify(tip.value)} IDX: ${idx}/${hints.length}`)
+  const idx = ~~(Math.random() * activeHints.value.length)
+  tip.value = txt || activeHints.value[idx]
+  if (!tipText.value || tipText.value === "undefined") {
+    Logger.debug(`Loading Screen tip is undefined!\nARG: ${JSON.stringify(txt)} TIP: ${JSON.stringify(tip.value)} IDX: ${idx}/${activeHints.value.length}`)
     if (!_retrying) {
       setTip(undefined, true)
     } else {
@@ -219,8 +251,9 @@ events.on("LoadingScreen", data => {
         state.image = state.customContent.image
       }
     } else {
-      resetState()
-      window.bngVue.gotoAngularState("blank")
+      resetState(false)
+      state.infobox = data.infobox || null
+      window.router.hideAngularScreen()
     }
 
     setTip(state.customContent?.tips)
@@ -228,8 +261,8 @@ events.on("LoadingScreen", data => {
   } else if (state.mode === "progress" && "gotoMainMenu" in data) {
     const args = []
     if (data.gotoMainMenu) {
-      // window.bngVue.gotoAngularState("menu.mainmenu")
-      args.push("menu.mainmenu")
+      // window.bngVue.gotoAngularState("menu")
+      args.push("menu")
     } else {
       // window.bngVue.gotoAngularState("menu")
       args.push("menu", ["loading"])
@@ -287,9 +320,12 @@ const onFadeIn = () => {
 const onFadeOut = () => {
   state.fading = false
   state.shown = false
-  if (state.mode === "custom") {
+  if (state.mode === "progress") {
+    lua.core_gamestate.loadingScreenInactive(2)
+  } else if (state.mode === "custom") {
     lua.extensions.ui_fadeScreen.onScreenFadeStateDelayed(3)
   }
+
   // clean up
   resetState()
   // switch and preload next image to avoid partial display next time
@@ -327,6 +363,10 @@ const activateLoading = () => {
 }
 
 const deactivateLoading = debounce(() => {
+  console.log(`Loading Screen: deactivating (${state.active})`)
+  if (state.mode === "progress") {
+    lua.core_gamestate.loadingScreenInactive(1)
+  }
   // Logger.debug(`Loading Screen: deactivating (${state.active})`)
   if (!state.active) {
     // Logger.debug("Loading Screen: unblocking all events")
@@ -339,42 +379,35 @@ const deactivateLoading = debounce(() => {
   }
 }, 100)
 
-const getRandomImageNum = (amount = imagesAmount) => {
-  const rnd = ~~(Math.random() * amount) + 1
-  if (rnd === lastImageNum) return getRandomImageNum(amount)
-  lastImageNum = rnd
-  return rnd
-}
-
-const getCustomImageUrl = () => customImagePathPattern.replace("{n}", getRandomImageNum(customImagesAmount))
-
 const getNextImageUrl = () => {
-  let url
   if (state.highSeas) {
-    url = "images/mainmenu/unofficial_version.jpg"
-  } else if (preferCustomLoadingImages) {
-    // Kept absolute so the path points directly to this mod's custom images.
-    url = getCustomImageUrl()
-  } else {
-    url = `images/loading/drive/${getRandomImageNum()}.jpg`
-    url = getAssetURL(url)
+    return UNOFFICIAL.normal
   }
-  if (url.startsWith("/")) return url
-  return getAssetURL(url)
+  const list = loadingImageList.images.value
+  if (list.length === 0) return null
+
+  let selected = loadingImageList.getRandom()
+  let selectedUrl = selected?.normal || selected?.blur || null
+  if (!selectedUrl) return null
+
+  if (list.length > 1 && selectedUrl === lastImageUrl) {
+    // Keep random picks, but avoid immediate repeats when possible.
+    for (let tries = 0; tries < 5 && selectedUrl === lastImageUrl; tries++) {
+      selected = loadingImageList.getRandom()
+      selectedUrl = selected?.normal || selected?.blur || null
+    }
+  }
+
+  lastImageUrl = selectedUrl
+  return selectedUrl
 }
 
 const loadNextImage = async () => {
   const url = getNextImageUrl()
+  if (!url) return
   if (state.image === url) return
-  try {
-    await loadImage(url)
-    state.image = url
-  } catch {
-    // If custom image loading fails, gracefully fall back to stock images.
-    const fallbackUrl = getAssetURL(`images/loading/drive/${getRandomImageNum(imagesAmount)}.jpg`)
-    await loadImage(fallbackUrl)
-    state.image = fallbackUrl
-  }
+  await loadImage(url)
+  state.image = url
 }
 
 // use this to load images
@@ -396,16 +429,31 @@ const clearTimers = () => {
   }
 }
 
-const initLoadingScreen = () => bngApi.engineLua("sailingTheHighSeas", async ahoy => {
+const initLoadingScreen = () => api.engineLua("sailingTheHighSeas", async ahoy => {
   state.highSeas = ahoy === true
+  await loadingImageList.refresh()
   await loadNextImage()
   setTip()
 
-  lua.core_gamestate.loadingScreenActive() // for auto-activation in case of lost loading state (command line args or ui reload)
+  // hold the auto-activation until the whole ui boot has finished
+  // otherwise, a command-line startup (skipping the main menu) releases the wait-for-ui too early and the concurrent loading process lags
+  const autoActivateLoadingScreen = async () => {
+    try {
+      if (await lua.core_gamestate.loading()) return
+    } catch {}
+    lua.core_gamestate.loadingScreenActive() // for auto-activation in case of lost loading state (command line args or ui reload)
+  }
+  const whenBootDone = window.bngUiBootstrap?.whenDone
+  if (whenBootDone && typeof whenBootDone.then === "function") {
+    whenBootDone.then(autoActivateLoadingScreen).catch(() => {})
+  } else {
+    autoActivateLoadingScreen()
+  }
 
   window.loadingTest = active => { // FIXME: TEMP TESTING
     events.emit("LoadingScreen", {
       active,
+      infobox: "multiplayer_connect",
       // custom: {
       //   fadeIn: 1,
       //   pause: -1,
@@ -487,8 +535,6 @@ onUnmounted(() => clearTimers())
   z-index: 1;
 }
 
-.loading-screen-progress {
-}
 .loading-screen-custom {
   .loading-background {
     // display: none;
@@ -513,7 +559,8 @@ onUnmounted(() => clearTimers())
 .custom-box {
   position: relative;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: space-evenly;
   align-items: stretch;
   width: 100%;
@@ -608,23 +655,31 @@ onUnmounted(() => clearTimers())
 
 .progress-status {
   min-height: 2em;
-  border-radius:0px;
+  border-radius: 0px;
   font-style: italic;
   font-weight: 700;
-  color:white;
+  color: var(--bng-off-white);
   margin-top: 15px;
   max-width: 40em;
   word-wrap: normal;
   font-size: 2em;
 }
 
-.progress-history {
-  border-radius:0px;
-  color:rgb(200, 200, 200);
-  text-shadow: #000 0 0 12px, #000 0 0 6px, #000 0 0 3px;
-  width:100%;
-  margin-top: 1em;
+.progress-info {
+  width: 100%;
   min-height: 5em;
+  margin-top: 1em;
+  color: rgb(200, 200, 200);
+
+  &.progress-history {
+    border-radius: 0px;
+    text-shadow: #000 0 0 12px, #000 0 0 6px, #000 0 0 3px;
+  }
+
+  &.progress-custom {
+    padding: 0.65em 1em;
+    background-color: var(--bng-cool-gray-800);
+  }
 }
 
 .tips-bar {
@@ -648,10 +703,33 @@ onUnmounted(() => clearTimers())
 }
 
 .tips-bar-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5em;
+
   font-size: 1.125em;
   color: #fff;
   margin-left: 0.5em;
   max-width: 36em;
+}
+
+.tips-bar-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+
+.tips-bar-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.tips-bar-action-label {
+  white-space: nowrap;
 }
 
 .loading-fade-enter-active,
@@ -664,6 +742,7 @@ onUnmounted(() => clearTimers())
 }
 .loading-fade-leave-active {
   transition-duration: v-bind(fadeOutTimeVar);
+  pointer-events: none;
 }
 .loading-fade-enter-from,
 .loading-fade-leave-to {

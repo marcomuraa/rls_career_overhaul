@@ -1,14 +1,17 @@
-// BngOnUiNav Directive - for adding/removing UINav handlers to dom handlers
-// import { UI_SCOPE_ATTR, UI_EVENT_ATTR } from "@/bridge/libs/UINavEvents"
-import { UINavHandlers, UI_SCOPE_ATTR, UI_EVENT_ATTR, isOnOffEvent, checkOn } from "@/services/uiNav"
+import { getUINavHandlers, UI_EVENT_ATTR, isOnOffEvent, checkOn } from "@/services/uiNav"
 import { eventDispatcherForElement } from "@/utils/DOM"
 // import { default as UINavHandlers, _isOnOffEvent, _checkOn } from "@/services/uiNavHandlers"
 import { useUINavTracker } from "@/services/uiNavTracker"
+import { useScopedNav } from "@/services/scopedNav/api"
 
 const UINAV_PROP = "__BngOnUiNav"
 
+const dataMatchesUpdate = (data, signature, handler) =>
+  data.signature === signature &&
+  data.originalHandler === handler
+
 /** determine which element should carry the Nav event handler */
-const _getHandlerElement = element => element.closest(`[${UI_SCOPE_ATTR}]`) || element
+// const _getHandlerElement = element => element.closest(`[${UI_SCOPE_ATTR}]`) || element
 
 /** Attempt to convert a handler to a handler element **/
 const _handlerToElement = handler => {
@@ -37,6 +40,28 @@ const _normalizedEvents = eventNames => eventNames === "*" ? [] : eventNames.spl
 
 /** Retrieves existing directive data for the element */
 const _getDirData = (element, signature) => element[UINAV_PROP]?.find(dir => dir.signature === signature)
+const _uniqueEvents = events => [...new Set((events || []).filter(Boolean))]
+const _formatDirectiveDebugName = (eventNames, modifiers) => {
+  if (!__BNG_DEV__) return ""
+  const events = eventNames ? `:${eventNames}` : ""
+  const modifierText = Object.keys(modifiers || {})
+    .filter(name => modifiers[name])
+    .sort()
+    .map(name => `.${name}`)
+    .join("")
+  return `v-bng-on-ui-nav${events}${modifierText}`
+}
+
+/** Resolve the scoped nav scope for an element */
+let scopedNav
+function _resolveScope(element) {
+  if (!scopedNav) scopedNav = useScopedNav()
+  const scope = scopedNav.getScopeForElement(element)
+  return {
+    scopeId: scope?.scopeId || null,
+    scopeHierarchy: scopedNav.getScopeHierarchy(element),
+  }
+}
 
 /**
  * Sets up the directive.
@@ -82,8 +107,12 @@ function setupAsMouse(data, vnode) {
 
   data.handler = ({ detail }) => {
     if (checkElementDisabled()) return
-    const fromControllerMarker = { fromController: detail }
+    const fromControllerMarker = {
+      fromController: detail,
+      holdStartedAt: data.holdStartedAt || Date.now(),
+    }
     if (detail.value) {
+      data.holdStartedAt = fromControllerMarker.holdStartedAt
       eventFirer("mousedown", fromControllerMarker)
       data.mousedownActive = true
     } else {
@@ -92,6 +121,7 @@ function setupAsMouse(data, vnode) {
         data.mousedownActive = false
         eventFirer("click", fromControllerMarker)
       }
+      data.holdStartedAt = null
     }
     return !!data.modifiers.bubble
   }
@@ -103,6 +133,20 @@ function setupAsMouse(data, vnode) {
 function applyTracker(data, element) {
   const uiNavTracker = useUINavTracker()
   if (data.modifiers.focusRequired) {
+    if (data.focusListenersApplied) {
+      const activeElement = document.activeElement
+      if (activeElement instanceof Node && (element === activeElement || element.contains(activeElement)) && data.tracked.length < data.eventNames.length) {
+        data.eventNames.forEach(name => uiNavTracker.updateEvent(name, data.signature, element, {
+          active: data.modifiers.active,
+          nogroup: data.modifiers.nogroup,
+          source: data.source,
+        }))
+        data.tracked = [...data.eventNames]
+      }
+      return
+    }
+    data.focusListenersApplied = true
+
     // note: if you experience lost events despite successful programmatic focus, try adding nextTick in your focus code
 
     // focusin/focusout events are bubbled, so we need to check the relatedTarget
@@ -127,35 +171,41 @@ function applyTracker(data, element) {
       cur.eventNames.forEach(name => uiNavTracker.updateEvent(name, cur.signature, element, {
         active: cur.modifiers.active,
         nogroup: cur.modifiers.nogroup,
+        source: cur.source,
       }))
       cur.tracked = [...cur.eventNames]
     })
 
     element.addEventListener("focusout", evt => {
       // might help with transitions and other temporary focus changes
-      // if (element.contains(evt.relatedTarget)) return
+      if (evt.relatedTarget instanceof Node && element.contains(evt.relatedTarget)) return
 
       const cur = _getDirData(element, data.signature)
-      if (!cur || cur.tracked.length > 0) return
-      const nextDirs = evt.relatedTarget?.[UINAV_PROP]
-      // if next dirs have no focusRequired directive, we can remove all tracked events
-      // otherwise do nothing - let those directives handle the removal
-      if (!nextDirs || !nextDirs.some(directive => directive.modifiers.focusRequired)) {
-        cur.tracked.forEach(name => uiNavTracker.removeEvent(name, cur.signature, element))
-        cur.tracked = []
-      }
+      if (!cur || cur.tracked.length === 0) return
+      cur.tracked.forEach(name => uiNavTracker.removeEvent(name, cur.signature, element))
+      cur.tracked = []
     })
 
     // in case the element is already focused (somehow)
     // if (document.activeElement === element) {
     //   data.eventNames.forEach(name => uiNavTracker.addEvent(name, element))
     // }
+    const activeElement = document.activeElement
+    if (activeElement instanceof Node && (element === activeElement || element.contains(activeElement))) {
+      data.eventNames.forEach(name => uiNavTracker.updateEvent(name, data.signature, element, {
+        active: data.modifiers.active,
+        nogroup: data.modifiers.nogroup,
+        source: data.source,
+      }))
+      data.tracked = [...data.eventNames]
+    }
   } else {
     // if not focusRequired - we're listening globally. so we're going to track this right away
     // we're using updateEvent instead of addEvent to gracefully handle situations with multiple global directives on the same element
     data.eventNames.forEach(name => uiNavTracker.updateEvent(name, data.signature, element, {
       active: data.modifiers.active,
       nogroup: data.modifiers.nogroup,
+      source: data.source,
     }))
     data.tracked = [...data.eventNames]
   }
@@ -193,13 +243,15 @@ function applyUiNav(data, element) {
   //   element,
   // )
 
-  data.uiNavHandler = UINavHandlers.add(
+  data.uiNavHandler = getUINavHandlers().add(
     element,
     {
       name: name => data.eventNames.includes(name),
       value: valueChecker,
       modified: data.modifiers.modified || false,
       focusRequired: data.modifiers.focusRequired ? element : undefined,
+      eventNames: data.eventNames,
+      source: data.source || undefined,
     },
     data.handler,
   )
@@ -211,7 +263,9 @@ function applyUiNav(data, element) {
 /**
  * Mounts the directive.
  */
-function mounted(element, { arg: eventNames, value: handler, modifiers }, vnode) {
+function mounted(element, binding, vnode) {
+  const { arg: eventNames, value: handler } = binding
+  let { modifiers } = binding
   if (!modifiers) modifiers = {}
 
   const storage = (element[UINAV_PROP] || (element[UINAV_PROP] = []))
@@ -226,9 +280,13 @@ function mounted(element, { arg: eventNames, value: handler, modifiers }, vnode)
       eventNames: _normalizedEvents(eventNames),
       modifiers,
       handler,
+      originalHandler: handler,
       uiNavHandler: null,
+      focusListenersApplied: false,
       mousedownActive: false,
       tracked: [],
+      source: binding.source || (binding.dir ? _formatDirectiveDebugName(eventNames, modifiers) : ""),
+      ..._resolveScope(element),
     }
     storage.push(data)
   } else if (window.BNG_Logger) {
@@ -241,28 +299,35 @@ function mounted(element, { arg: eventNames, value: handler, modifiers }, vnode)
 /**
  * Updates the directive with new everything.
  */
-function updated(element, { arg: eventNames, value: handler, modifiers }, vnode) {
+function updated(element, binding, vnode) {
+  const { arg: eventNames, value: handler } = binding
+  let { modifiers } = binding
   if (!modifiers) modifiers = {}
 
-  const data = _getDirData(element, _generateSignature(vnode, eventNames, modifiers))
+  const signature = _generateSignature(vnode, eventNames, modifiers)
+  const data = _getDirData(element, signature)
   if (!data) return
+  if (dataMatchesUpdate(data, signature, handler)) return
 
   if (typeof data.uiNavHandler === "function") {
-    UINavHandlers.remove(element, data.uiNavHandler)
+    getUINavHandlers().remove(element, data.uiNavHandler)
   }
 
   const normalizedEvents = _normalizedEvents(eventNames)
-  const oldEvents = data.tracked.filter(name => !normalizedEvents.includes(name))
+  const oldEvents = _uniqueEvents([...data.tracked, ...data.eventNames])
   if (oldEvents.length > 0) {
     const uiNavTracker = useUINavTracker()
     oldEvents.forEach(name => uiNavTracker.removeEvent(name, data.signature, element))
-    data.tracked = data.tracked.filter(name => normalizedEvents.includes(name))
+    data.tracked = []
   }
 
   data.eventNames = normalizedEvents
   data.modifiers = modifiers
   data.handler = handler
+  data.originalHandler = handler
   data.uiNavHandler = null
+  data.source = binding.source || (binding.dir ? _formatDirectiveDebugName(eventNames, modifiers) : "")
+  Object.assign(data, _resolveScope(element))
 
   setup(data, element, vnode)
 }
@@ -279,11 +344,13 @@ function dispose(element) {
   // const handlerElement = _getHandlerElement(element)
 
   storage.forEach(directive => {
-    if (directive.tracked.length > 0) {
-      directive.tracked.forEach(name => uiNavTracker.removeEvent(name, directive.signature, element))
+    const events = _uniqueEvents([...directive.tracked, ...directive.eventNames])
+    if (events.length > 0) {
+      events.forEach(name => uiNavTracker.removeEvent(name, directive.signature, element))
+      directive.tracked = []
     }
     if (directive.uiNavHandler) {
-      UINavHandlers.remove(element, directive.uiNavHandler)
+      getUINavHandlers().remove(element, directive.uiNavHandler)
     }
   })
 

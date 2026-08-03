@@ -1,14 +1,14 @@
 <template>
-  <div v-bng-scoped-nav="{ activated }" class="file-list-item" @activate="onActivate(true)" @deactivate="onActivate(false)">
+  <div class="file-list-item" :class="{ 'controller-nav-active': Controls.isControllerUsed }">
     <div class="save-info-container">
       <div class="file-name">{{ name }}</div>
       <div class="file-modified">{{ modifiedFormatted }}</div>
       <div class="file-size">{{ fileSizeFormatted }}</div>
     </div>
-    <div v-if="selected" class="save-file-actions">
-      <BngButton :icon="icons.import" @click="load" />
-      <BngButton :icon="icons.rename" :accent="ACCENTS.secondary" @click="rename" />
-      <BngButton :icon="icons.trashBin2" :accent="ACCENTS.attention" @click="deleteSave" />
+    <div class="save-file-actions">
+      <BngButton :icon="icons.import" @click="$emit('load')" />
+      <BngButton :icon="icons.rename" :accent="ACCENTS.secondary" @click="$emit('rename')" />
+      <BngButton :icon="icons.trashBin2" :accent="ACCENTS.attention" @click="$emit('delete')" />
     </div>
   </div>
 </template>
@@ -17,22 +17,17 @@
 export default {
   width: 14,
   height: 6,
-  margin: 0.25,
+  margin: 0.5,
 }
 </script>
 
 <script setup>
-import { nextTick, ref } from "vue"
 import { BngButton, ACCENTS, icons } from "@/common/components/base"
-import { vBngScopedNav } from "@/common/directives"
-import { openFormDialog, openConfirmation } from "@/services/popup"
-import { useLiveryFileStore, useLiveryMainStore } from "@/modules/liveryEditor/stores"
-import FileEditForm from "@/modules/liveryEditor/components/fileManager/FileEditForm.vue"
+import useControls from "@/services/controls"
 
-const store = useLiveryFileStore()
-const mainStore = useLiveryMainStore()
+const Controls = useControls()
 
-const props = defineProps({
+defineProps({
   name: {
     type: String,
     required: true,
@@ -46,60 +41,7 @@ const props = defineProps({
   selected: Boolean,
 })
 
-const activated = ref(false)
-const openedDialog = ref(null)
-
-function load() {
-  mainStore.load(props)
-  window.bngVue.gotoGameState("LiveryMain")
-}
-
-function rename() {
-  const model = { name: props.name }
-
-  nextTick(() => {
-    openedDialog.value = "rename"
-  })
-
-  openFormDialog(
-    FileEditForm,
-    model,
-    model => {
-      return model.name !== null && model.name !== undefined && model.name !== ""
-    },
-    "Rename file",
-    "Enter new name"
-  ).then(res => {
-    if (res.value) store.renameFile(props, res.formData.name)
-    forceActivateScope()
-  })
-}
-
-function deleteSave() {
-  openConfirmation("Delete", `Are you sure you want to delete ${props.name}`).then(res => {
-    if (res) {
-      store.deleteFile(props)
-    } else {
-      forceActivateScope()
-    }
-  })
-}
-
-function onActivate(activate) {
-  activated.value = activate
-
-  nextTick(() => {
-    if (activate && openedDialog.value) {
-      openedDialog.value = null
-    }
-  })
-}
-
-function forceActivateScope() {
-  nextTick(() => {
-    activated.value = true
-  })
-}
+defineEmits(["load", "rename", "delete"])
 </script>
 
 <style lang="scss" scoped>
@@ -119,21 +61,35 @@ function forceActivateScope() {
 
   @include modify-focus($rad, $f-offset);
 
-  > .save-info-container {
+  >.save-info-container {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
 
-    > .file-name {
+    >.file-name {
       font-size: 1.25em;
       font-weight: 600;
     }
   }
+}
 
-  .save-file-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+.file-list-item > .save-file-actions {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-list-item:hover > .save-file-actions,
+.file-list-item:active > .save-file-actions,
+.file-list-item:focus-within > .save-file-actions {
+  display: flex;
+}
+
+// Under controller navigation, keep the actions rendered while this item's
+// scope owns focus or is suspended (e.g. by the rename dialog). This ensures
+// focus can be restored to the selected button once the popup closes.
+.file-list-item.controller-nav-active[data-bng-scoped-nav-state="active"] > .save-file-actions,
+.file-list-item.controller-nav-active[data-bng-scoped-nav-state="suspended"] > .save-file-actions {
+  display: flex;
 }
 </style>

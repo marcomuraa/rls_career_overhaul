@@ -1,16 +1,23 @@
 <template>
-  <div class="editor" bng-ui-scope="livery-editor" v-bng-on-ui-nav:menu,back,ok="() => {}">
-    <div class="editor-header-wrapper">
-      <LiveryEditorHeader />
-    </div>
+  <LayoutMenu
+    class="editor"
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    heading="Livery Editor">
+    <template #topbar-right>
+      <CameraViewButton />
+    </template>
     <div
       class="editor-content"
+      v-bng-on-ui-nav:menu,back,ok="() => {}"
       :class="{
         'layers-collapse': minimizedMode,
       }">
       <component :is="currentView"></component>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script>
@@ -23,23 +30,28 @@ const EDITOR_VIEWS_COMPONENT = {
 </script>
 
 <script setup>
-import { computed, ref, onBeforeMount, onMounted, onUnmounted, shallowRef, watch } from "vue"
+import { computed, ref, onBeforeMount, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { vBngOnUiNav } from "@/common/directives"
+import { LayoutMenu } from "@/common/layouts"
 import { useInfoBar } from "@/services/infoBar"
+import { useRouteDataStore } from "@/services/routeData"
 import useControls from "@/services/controls"
-import { useLiveryEditorStore, useEditorHeaderStore } from "@/modules/liveryEditor/stores"
+import { useLiveryEditorStore } from "@/modules/liveryEditor/stores"
 import DecalSelector from "@/modules/liveryEditor/components/DecalSelector.vue"
 import EditModeLayout from "@/modules/liveryEditor/layouts/EditModeLayout.vue"
 import DefaultLayout from "@/modules/liveryEditor/layouts/DefaultLayout.vue"
-import { CameraViewButton, LiveryEditorHeader } from "@/modules/liveryEditor/components"
+import { CameraViewButton } from "@/modules/liveryEditor/components"
 
 const store = useLiveryEditorStore()
 const infobar = useInfoBar()
+const routeDataStore = useRouteDataStore()
 const Controls = useControls()
 const { showIfController } = storeToRefs(Controls)
 
 infobar.visible = true
+
+const breadcrumbItems = computed(() => (Array.isArray(routeDataStore.breadcrumbs) ? routeDataStore.breadcrumbs : []))
 
 const currentView = computed(() => EDITOR_VIEWS_COMPONENT[store.editorView])
 
@@ -52,26 +64,6 @@ watch(showIfController, value => {
 onBeforeMount(async () => {
   await store.startEditor()
   store.setUseMousePos(!showIfController.value)
-})
-
-// HEADER ITEMS
-const HEADER_ITEMS = [
-  {
-    id: "camera_view",
-    section: "end",
-    component: shallowRef(CameraViewButton),
-  },
-]
-
-const headerStore = useEditorHeaderStore()
-
-onMounted(() => {
-  headerStore.setPreheader(store.currentFile ? store.currentFile : "New Save")
-  headerStore.addItems(HEADER_ITEMS)
-})
-
-onUnmounted(() => {
-  headerStore.removeItems(HEADER_ITEMS)
 })
 </script>
 

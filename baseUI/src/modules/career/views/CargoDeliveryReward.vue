@@ -1,21 +1,21 @@
 <template>
   <LayoutSingle
     v-if="data"
-    class="layout-content-full flex-column layout-paddings layout-align-center"
+    class="layout-content-full flex-column layout-align-center"
     bng-ui-scope="deliveryReward"
     v-bng-blur
     v-bng-on-ui-nav:back,menu,ok="exit">
     <div class="reward-wrapper">
       <BngCard>
         <CareerStatus class="career-status" />
-        <BngCardHeading type="ribbon"> Delivery Complete! </BngCardHeading>
+        <BngCardHeading type="ribbon"> {{ $translate.instant("ui.career.cargoReward.deliveryComplete") }} </BngCardHeading>
         <div class="card-content">
           <div class="rewards-breakdown-container padding-bottom">
-            <span class="span2-heading"> Reward Breakdown </span>
+            <span class="span2-heading"> {{ $translate.instant("ui.career.cargoReward.rewardBreakdown") }} </span>
             <div class="grid-wrapper">
               <div class="grid-row grid">
-                <div class="label primary">Item</div>
-                <div class="rewards primary">Rewards</div>
+                <div class="label primary">{{ $translate.instant("ui.career.cargoReward.item") }}</div>
+                <div class="rewards primary">{{ $translate.instant("ui.career.cargoReward.rewards") }}</div>
               </div>
               <div v-for="result in data.sortedResults" class="grid-row grid">
                 <div class="label primary">{{ result.label }}</div>
@@ -29,7 +29,7 @@
               </div>
               <BngDivider />
               <div class="grid-row grid">
-                <div class="label primary">Summary</div>
+                <div class="label primary">{{ $translate.instant("ui.career.cargoReward.summary") }}</div>
                 <div class="rewards primary"><RewardsPills :rewards="data.summary.rewards" /></div>
               </div>
             </div>
@@ -44,18 +44,18 @@
                 :min="reward.branchInfo.max == -1 ? 0 : reward.branchInfo.min"
                 :value="reward.branchInfo.max == -1 ? 1 : reward.branchInfo.animValue"
                 :max="reward.branchInfo.max == -1 ? 1 : reward.branchInfo.max"
-                :value-label-format="reward.branchInfo.max == -1 ? 'Max Level Reached' : undefined" />
+                :value-label-format="reward.branchInfo.max == -1 ? $translate.instant('ui.career.cargoReward.maxLevelReached') : undefined" />
             </div>
           </div>
 
           <div v-if="data.summary.unlocks.length" class="unlocks-wrapper">
-            <span class="span2-heading"> Unlocks</span>
+            <span class="span2-heading"> {{ $translate.instant("ui.career.cargoReward.unlocks") }}</span>
             <UnlockCard v-for="unlock in data.summary.unlocks" class="unlock-item" :data="unlock" />
           </div>
         </div>
 
         <template #buttons>
-          <BngButton @click="exit"><BngBinding ui-event="ok" deviceMask="xinput" /><span>Continue</span></BngButton>
+          <BngButton @click="exit"><BngBinding ui-event="ok" deviceMask="xinput" /><span>{{ $translate.instant("ui.common.continue") }}</span></BngButton>
         </template>
       </BngCard>
     </div>
@@ -74,6 +74,7 @@ import { vBngBlur, vBngOnUiNav } from "@/common/directives"
 import { useGameContextStore } from "@/services"
 // import UINavEvents from "@/bridge/libs/UINavEvents"
 import { useUINavScope, getUINavServiceInstance } from "@/services/uiNav"
+import { $translate } from "@/services/translation"
 
 import { storeToRefs } from "pinia"
 
@@ -179,7 +180,8 @@ export default {
   min-width: 42em;
   .rewards-breakdown-container {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
     align-content: baseline;
 

@@ -1,12 +1,11 @@
 <template>
   <Teleport v-if="isRender" to=".popover-container">
     <div
-      v-bng-scoped-nav="{ activated: scopeActivated, type: SCOPED_NAV_TYPES.popover }"
+      v-bng-scoped-nav="{ scopeId: scopeId, type: SCOPED_NAV_TYPES.popover, trapPolicy: SCOPE_TRAP_POLICIES.ALWAYS }"
       v-bng-on-ui-nav:menu="onMenu"
       ref="popoverContent"
       :data-bng-popover-name="popoverName"
       class="bng-popover"
-      @activate="onScopeChanged(true, $event)"
       @deactivate="onScopeChanged(false, $event)">
       <slot :hide="hide"></slot>
       <span v-if="!hideArrow" ref="arrow" class="bng-popover-arrow"></span>
@@ -19,8 +18,10 @@ import { ref, watch, onBeforeUnmount, onMounted, computed, nextTick } from "vue"
 import { vBngScopedNav, vBngOnUiNav } from "@/common/directives"
 import { usePopover } from "@/services/popover"
 import { uniqueId } from "@/services/uniqueId"
-import { NAVIGABLE_ELEMENTS_SELECTOR } from "@/services/crossfire"
 import { SCOPED_NAV_TYPES } from "@/services/scopedNav"
+import { getNavItems } from "@/services/scopedNav/utils"
+import { SCOPE_TRAP_POLICIES } from "@/services/scopedNav/types"
+import { useScopedNav } from "@/services/scopedNav/api"
 
 const props = defineProps({
   name: String,
@@ -45,8 +46,12 @@ let unwatchShow
 let unwatchPlacement
 const teleportTargetExists = ref(false)
 let observer = null
+let contentObserver = null
 
-const scopeActivated = ref(false)
+const scopedNav = useScopedNav()
+
+const scopeId = ref(uniqueId("bng-popover-content"))
+// const scopeActivated = ref(false)
 
 const isRender = computed(() => !props.disabled && teleportTargetExists.value && show.value)
 
@@ -89,12 +94,16 @@ watch(
 watch(isRender, async value => {
   if (value) {
     await nextTick()
-    checkSlotContent()
+    activatePopoverScopeIfReady()
+    observePopoverContent()
+  } else {
+    stopObservingPopoverContent()
   }
 })
 
 const onMenu = () => {
-  scopeActivated.value = false
+  // scopeActivated.value = false
+  useScopedNav().deactivateScope(scopeId.value)
 }
 
 onBeforeUnmount(() => {
@@ -104,6 +113,8 @@ onBeforeUnmount(() => {
     observer.disconnect()
     observer = null
   }
+
+  stopObservingPopoverContent()
 })
 
 const containerSelector = ".popover-container"
@@ -128,21 +139,47 @@ onMounted(async () => {
 
   if (isRender.value) {
     await nextTick()
-    checkSlotContent()
+    activatePopoverScopeIfReady()
+    observePopoverContent()
   }
 })
 
 function onScopeChanged(activated, event) {
-  scopeActivated.value = activated
+  if (event.detail.force) {
+    return
+  }
 
-  if (!activated && !event.detail.force) {
+  if (!activated && show.value) {
     popover.hide(popoverName)
   }
+  // scopeActivated.value = activated
+
+  // if (!activated && !event.detail.force) {
+  //   popover.hide(popoverName)
+  // }
 }
 
-function checkSlotContent() {
-  const navigableElements = popoverContent.value.querySelectorAll(NAVIGABLE_ELEMENTS_SELECTOR)
-  if (navigableElements && navigableElements.length > 0 && !scopeActivated.value) scopeActivated.value = true
+function hasNavigableContent() {
+  if (!popoverContent.value) return false
+  return getNavItems(popoverContent.value, true, { availableOnly: true }).length > 0
+}
+
+function activatePopoverScopeIfReady() {
+  if (scopedNav.isActiveScope(scopeId.value)) return
+  if (!hasNavigableContent()) return
+  scopedNav.setPendingActivation(scopeId.value, { reason: "popover-content-ready" })
+}
+
+function observePopoverContent() {
+  if (contentObserver || !popoverContent.value) return
+  contentObserver = new MutationObserver(() => activatePopoverScopeIfReady())
+  contentObserver.observe(popoverContent.value, { childList: true, subtree: true })
+}
+
+function stopObservingPopoverContent() {
+  if (!contentObserver) return
+  contentObserver.disconnect()
+  contentObserver = null
 }
 
 function setupPopover() {

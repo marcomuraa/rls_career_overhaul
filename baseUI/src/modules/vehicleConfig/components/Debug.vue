@@ -1,10 +1,9 @@
 <template>
-  <div class="veh-debug">
-    <h3>{{ $tt("ui.debug.vehicle") }}</h3>
-
-    <div v-for="toggle in controls.vehicle.toggleGroup_1" :key="toggle.key">
-      <BngSwitch v-model="geState[toggle.key]" @valueChanged="toggle.onChange()">{{ $tt(toggle.label) }}</BngSwitch>
-    </div>
+  <div class="veh-debug" v-bng-ui-nav-scroll>
+    <BngRow v-for="toggle in controls.vehicle.toggleGroup_1" :key="toggle.key" class="control-switch-row">
+      <template #label>{{ $tt(toggle.label) }}</template>
+      <BngSwitch v-model="geState[toggle.key]" @valueChanged="toggle.onChange()" />
+    </BngRow>
 
     <div class="buttons">
       <BngButton
@@ -21,313 +20,289 @@
 
     <h4>{{ $tt("ui.debug.vehicle.jbeamVis") }}</h4>
 
-    <div class="buttons">
-      <BngButton v-for="btn in controls.jbeamvis.buttonGroup_1" :key="btn.label" @click="btn.action()" :accent="ACCENTS.secondary">{{
-        $tt(btn.label)
-      }}</BngButton>
+    <div class="jbeamvis-controls">
+      <template v-for="ctrl in controls.jbeamvis.controls_1" :key="ctrl.label">
+        <BngRow v-if="ctrl.component === 'switch'" class="control-switch-row">
+          <template #label>{{ $tt(ctrl.label) }}</template>
+          <BngSwitch :model-value="ctrl.model.value" @valueChanged="ctrl.onChange" />
+        </BngRow>
+        <BngButton v-else-if="ctrl.component === 'button'" :accent="ctrl.accent" @click="ctrl.action()">{{ $tt(ctrl.label) }}</BngButton>
+      </template>
     </div>
 
     <!-- Part selector -->
-    <div class="bng-short-select-item">
-      <span class="label-width">{{ $tt("ui.debug.vehicle.partsSelected") }}</span>
-      <BngDropdownContainer class="bng-select-fullwidth dropdown-width">
-        <BngList :layout="LIST_LAYOUTS.LIST" :target-width="31">
-          <BngInput v-model.trim="partsSelectedSearchTerm" :floating-label="$t('ui.debug.vehicle.partsSelectedSearchText')" />
-          <div v-if="partsFiltered && partsFiltered.length > 0">
-            <BngSwitch
-              v-for="part in partsFiltered"
-              v-bng-tooltip:right="part.label + ' \\ ' + part.reversePath"
-              :model-value="part.selected"
-              :key="part.value"
-              :label-alignment="LABEL_ALIGNMENTS.START"
-              :inline="false"
-              class="parts-switch"
-              @change="value => partsSelectedChanged(part.value, value)">
-              <span class="parts-switch-label">
-                <strong>{{ part.label }}</strong> {{ part.reversePath ? "\\" + part.reversePath : "" }}
-              </span>
-            </BngSwitch>
-          </div>
-        </BngList>
-      </BngDropdownContainer>
-      <BngSwitch
-        v-model="selectAllParts"
-        :class="{ 'switch-indeterminate': partsSelectedIndeterminate(), 'switch-width': true }"
-        @onClicked="partsSelectedClicked" />
+    <div class="parts-selector">
+      <BngRow class="control-switch-row">
+        <template #label>{{ $tt("ui.debug.vehicle.toggleAllParts") }}</template>
+        <BngSwitch
+          v-model="selectAllParts"
+          :class="{ 'switch-indeterminate': partsSelectedIndeterminate() }"
+          @onClicked="partsSelectedClicked" />
+      </BngRow>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.partsSelected") }}</template>
+        <BngDropdownContainer class="bng-select-fullwidth">
+          <BngList :layout="LIST_LAYOUTS.LIST" :target-width="31">
+            <BngInput v-model.trim="partsSelectedSearchTerm" :floating-label="$t('ui.debug.vehicle.partsSelectedSearchText')" />
+            <div v-if="partsFiltered && partsFiltered.length > 0">
+              <BngSwitch
+                v-for="part in partsFiltered"
+                v-bng-tooltip:right="part.label + ' \\ ' + part.reversePath"
+                :model-value="part.selected"
+                :key="part.value"
+                :label-alignment="LABEL_ALIGNMENTS.START"
+                :inline="false"
+                class="parts-switch"
+                @change="value => partsSelectedChanged(part.value, value)">
+                <span class="parts-switch-label">
+                  <strong>{{ part.label }}</strong> {{ part.reversePath ? "\\" + part.reversePath : "" }}
+                </span>
+              </BngSwitch>
+            </div>
+          </BngList>
+        </BngDropdownContainer>
+      </BngRow>
     </div>
 
     <template v-if="state.vehicle">
       <!-- Beam Text Mode -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.beamText") }}</span>
-        <BngDropdown v-model="state.vehicle.beamTextMode" :items="beamTextModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.beamText") }}</template>
+        <BngDropdown v-model="state.vehicle.beamTextMode" :items="beamTextModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Beam Visualization Mode -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.beamVis") }}</span>
-        <BngDropdown v-model="state.vehicle.beamVisMode" :items="beamVisModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.beamVis") }}</template>
+        <BngDropdown v-model="state.vehicle.beamVisMode" :items="beamVisModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Visualization Controls -->
       <div v-if="currentBeamVisMode && currentBeamVisMode.usesRange">
         <!-- Range Min -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMin") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMin") }}</template>
             <BngSlider
               v-model="currentBeamVisMode.rangeMin"
               :min="currentBeamVisMode.rangeMinCap"
               :max="currentBeamVisMode.rangeMaxCap"
               :step="(currentBeamVisMode.rangeMaxCap - currentBeamVisMode.rangeMinCap) / 100"
+              :input-step="(currentBeamVisMode.rangeMaxCap - currentBeamVisMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentBeamVisMode.rangeMin"
-              type="number"
-              :min="currentBeamVisMode.rangeMinCap"
-              :max="currentBeamVisMode.rangeMaxCap"
-              :step="(currentBeamVisMode.rangeMaxCap - currentBeamVisMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentBeamVisMode.rangeMinEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Range Max -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMax") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMax") }}</template>
             <BngSlider
               v-model="currentBeamVisMode.rangeMax"
               :min="currentBeamVisMode.rangeMinCap"
               :max="currentBeamVisMode.rangeMaxCap"
               :step="(currentBeamVisMode.rangeMaxCap - currentBeamVisMode.rangeMinCap) / 100"
+              :input-step="(currentBeamVisMode.rangeMaxCap - currentBeamVisMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentBeamVisMode.rangeMax"
-              type="number"
-              :min="currentBeamVisMode.rangeMinCap"
-              :max="currentBeamVisMode.rangeMaxCap"
-              :step="(currentBeamVisMode.rangeMaxCap - currentBeamVisMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentBeamVisMode.rangeMaxEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Inclusive Range -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</template>
           <BngSwitch v-model="currentBeamVisMode.usesInclusiveRange" @valueChanged="applyState" />
-        </div>
+        </BngRow>
 
         <!-- Show Infinity -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.showInf") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.showInf") }}</template>
           <BngSwitch v-model="currentBeamVisMode.showInfinity" @valueChanged="applyState" />
-        </div>
+        </BngRow>
       </div>
 
       <!-- Highlighted beams, width and transparency controls -->
       <template v-if="state.vehicle.beamVisMode !== 1">
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.showHighlighted") }}</span>
-          <div class="control-group">
-            <BngSwitch v-model="state.vehicle.beamVisShowHighlighted" :disabled="state.vehicle.beamVisMode === 3" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.showHighlighted") }}</template>
+          <BngSwitch v-model="state.vehicle.beamVisShowHighlighted" :disabled="state.vehicle.beamVisMode === 3" @valueChanged="applyState" />
+        </BngRow>
 
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.width") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.beamVisWidthScale" :min="0.1" :max="5" :step="0.1" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.beamVisWidthScale" type="number" :min="0.1" :max="5" :step="0.1" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.width") }}</template>
+          <BngSlider v-model="state.vehicle.beamVisWidthScale" :min="0.1" :max="5" :step="0.1" with-input @valueChanged="applyState" />
+        </BngRow>
 
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.transparency") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.beamVisAlpha" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.beamVisAlpha" type="number" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.transparency") }}</template>
+          <BngSlider v-model="state.vehicle.beamVisAlpha" :min="0" :max="1" :step="0.01" with-input @valueChanged="applyState" />
+        </BngRow>
       </template>
 
       <!-- Node Text Mode -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.nodeText") }}</span>
-        <BngDropdown v-model="state.vehicle.nodeTextMode" :items="nodeTextModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.nodeText") }}</template>
+        <BngDropdown v-model="state.vehicle.nodeTextMode" :items="nodeTextModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Visualization Controls -->
       <div v-if="currentNodeTextMode && currentNodeTextMode.usesRange">
         <!-- Range Min -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMin") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMin") }}</template>
             <BngSlider
               v-model="currentNodeTextMode.rangeMin"
               :min="currentNodeTextMode.rangeMinCap"
               :max="currentNodeTextMode.rangeMaxCap"
               :step="(currentNodeTextMode.rangeMaxCap - currentNodeTextMode.rangeMinCap) / 100"
+              :input-step="(currentNodeTextMode.rangeMaxCap - currentNodeTextMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentNodeTextMode.rangeMin"
-              type="number"
-              :min="currentNodeTextMode.rangeMinCap"
-              :max="currentNodeTextMode.rangeMaxCap"
-              :step="(currentNodeTextMode.rangeMaxCap - currentNodeTextMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentNodeTextMode.rangeMinEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Range Max -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMax") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMax") }}</template>
             <BngSlider
               v-model="currentNodeTextMode.rangeMax"
               :min="currentNodeTextMode.rangeMinCap"
               :max="currentNodeTextMode.rangeMaxCap"
               :step="(currentNodeTextMode.rangeMaxCap - currentNodeTextMode.rangeMinCap) / 100"
+              :input-step="(currentNodeTextMode.rangeMaxCap - currentNodeTextMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentNodeTextMode.rangeMax"
-              type="number"
-              :min="currentNodeTextMode.rangeMinCap"
-              :max="currentNodeTextMode.rangeMaxCap"
-              :step="(currentNodeTextMode.rangeMaxCap - currentNodeTextMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentNodeTextMode.rangeMaxEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Inclusive Range -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</template>
           <BngSwitch v-model="currentNodeTextMode.usesInclusiveRange" @valueChanged="applyState" />
-        </div>
+        </BngRow>
 
         <!-- Show Infinity -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.showInf") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.showInf") }}</template>
           <BngSwitch v-model="currentNodeTextMode.showInfinity" @valueChanged="applyState" />
-        </div>
+        </BngRow>
       </div>
 
       <!-- Node text max distance -->
-      <div class="control-row" v-if="state.vehicle.nodeTextMode !== 1">
-        <span class="control-label indented">{{ $tt("ui.debug.vehicle.maxDist") }}</span>
-        <div class="control-group">
-          <BngSlider v-model="state.vehicle.nodeTextMaxDist" :min="0.1" :max="state.vehicle.nodeTextMaxDistCap" :step="0.1" @valueChanged="applyState" />
-          <BngInput
-            v-model="state.vehicle.nodeTextMaxDist"
-            type="number"
-            :min="0.1"
-            :max="state.vehicle.nodeTextMaxDistCap"
-            :step="0.1"
-            @valueChanged="applyState" />
-        </div>
-      </div>
+      <BngRow class="control-slider-row indented" v-if="state.vehicle.nodeTextMode !== 1">
+        <template #label>{{ $tt("ui.debug.vehicle.maxDist") }}</template>
+        <BngSlider v-model="state.vehicle.nodeTextMaxDist" :min="0.1" :max="state.vehicle.nodeTextMaxDistCap" :step="0.1" with-input @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Show Wheels -->
-      <div class="control-row" v-if="state.vehicle.nodeTextMode !== 1">
-        <span class="control-label indented">{{ $tt("ui.debug.vehicle.showWheels") }}</span>
+      <BngRow class="control-switch-row indented" v-if="state.vehicle.nodeTextMode !== 1">
+        <template #label>{{ $tt("ui.debug.vehicle.showWheels") }}</template>
         <BngSwitch v-model="state.vehicle.nodeTextShowWheels" @valueChanged="applyState" />
-      </div>
+      </BngRow>
+
+      <!-- Node Debug Text Mode -->
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.nodeDebugText") }}</template>
+        <BngDropdown
+          v-model="state.vehicle.nodeDebugTextMode"
+          :items="nodeDebugTextModeItems"
+          long-names="cut"
+          @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Node Visualization Mode -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.nodeVis") }}</span>
-        <BngDropdown v-model="state.vehicle.nodeVisMode" :items="nodeVisModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.nodeVis") }}</template>
+        <BngDropdown v-model="state.vehicle.nodeVisMode" :items="nodeVisModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Visualization Controls -->
       <div v-if="currentNodeVisMode && currentNodeVisMode.usesRange">
         <!-- Range Min -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMin") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMin") }}</template>
             <BngSlider
               v-model="currentNodeVisMode.rangeMin"
               :min="currentNodeVisMode.rangeMinCap"
               :max="currentNodeVisMode.rangeMaxCap"
               :step="(currentNodeVisMode.rangeMaxCap - currentNodeVisMode.rangeMinCap) / 100"
+              :input-step="(currentNodeVisMode.rangeMaxCap - currentNodeVisMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentNodeVisMode.rangeMin"
-              type="number"
-              :min="currentNodeVisMode.rangeMinCap"
-              :max="currentNodeVisMode.rangeMaxCap"
-              :step="(currentNodeVisMode.rangeMaxCap - currentNodeVisMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentNodeVisMode.rangeMinEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Range Max -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMax") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMax") }}</template>
             <BngSlider
               v-model="currentNodeVisMode.rangeMax"
               :min="currentNodeVisMode.rangeMinCap"
               :max="currentNodeVisMode.rangeMaxCap"
               :step="(currentNodeVisMode.rangeMaxCap - currentNodeVisMode.rangeMinCap) / 100"
+              :input-step="(currentNodeVisMode.rangeMaxCap - currentNodeVisMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentNodeVisMode.rangeMax"
-              type="number"
-              :min="currentNodeVisMode.rangeMinCap"
-              :max="currentNodeVisMode.rangeMaxCap"
-              :step="(currentNodeVisMode.rangeMaxCap - currentNodeVisMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentNodeVisMode.rangeMaxEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Inclusive Range -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</template>
           <BngSwitch v-model="currentNodeVisMode.usesInclusiveRange" @valueChanged="applyState" />
-        </div>
+        </BngRow>
 
         <!-- Show Infinity -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.showInf") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.showInf") }}</template>
           <BngSwitch v-model="currentNodeVisMode.showInfinity" @valueChanged="applyState" />
-        </div>
+        </BngRow>
       </div>
 
       <!-- Highlighted nodes, width and transparency controls -->
       <template v-if="state.vehicle.nodeVisMode !== 1">
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.showHighlighted") }}</span>
-          <div class="control-group">
-            <BngSwitch v-model="state.vehicle.nodeVisShowHighlighted" :disabled="state.vehicle.nodeVisMode === 3" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.showHighlighted") }}</template>
+          <BngSwitch v-model="state.vehicle.nodeVisShowHighlighted" :disabled="state.vehicle.nodeVisMode === 3" @valueChanged="applyState" />
+        </BngRow>
 
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.width") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.nodeVisWidthScale" :min="0.3" :max="5" :step="0.1" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.nodeVisWidthScale" type="number" :min="0.3" :max="5" :step="0.1" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.width") }}</template>
+          <BngSlider v-model="state.vehicle.nodeVisWidthScale" :min="0.3" :max="5" :step="0.1" with-input @valueChanged="applyState" />
+        </BngRow>
 
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.transparency") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.nodeVisAlpha" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.nodeVisAlpha" type="number" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.transparency") }}</template>
+          <BngSlider v-model="state.vehicle.nodeVisAlpha" :min="0" :max="1" :step="0.01" with-input @valueChanged="applyState" />
+        </BngRow>
       </template>
 
       <!-- Torsion Bar Visualization Mode select -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.torsionBarVis") }}</span>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.torsionBarVis") }}</template>
         <BngDropdown
           v-model="state.vehicle.torsionBarVisMode"
           :items="torsionBarVisModeItems"
@@ -336,199 +311,163 @@
               console.log('change triggered', value)
               applyState()
             }
-          "
-          class="control-input" />
-      </div>
+          " />
+      </BngRow>
 
       <!-- Torsion Bar Visualization Controls -->
       <template v-if="currentTorsionBarVisMode?.usesRange">
         <!-- Range Min -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMin") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMin") }}</template>
             <BngSlider
               v-model="currentTorsionBarVisMode.rangeMin"
               :min="currentTorsionBarVisMode.rangeMinCap"
               :max="currentTorsionBarVisMode.rangeMaxCap"
               :step="(currentTorsionBarVisMode.rangeMaxCap - currentTorsionBarVisMode.rangeMinCap) / 100"
+              :input-step="(currentTorsionBarVisMode.rangeMaxCap - currentTorsionBarVisMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentTorsionBarVisMode.rangeMin"
-              type="number"
-              :min="currentTorsionBarVisMode.rangeMinCap"
-              :max="currentTorsionBarVisMode.rangeMaxCap"
-              :step="(currentTorsionBarVisMode.rangeMaxCap - currentTorsionBarVisMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentTorsionBarVisMode.rangeMinEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Range Max -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.visRangeMax") }}</span>
-          <div class="control-group">
+        <div class="control-row-switch indented">
+          <BngRow class="control-slider-row">
+            <template #label>{{ $tt("ui.debug.vehicle.visRangeMax") }}</template>
             <BngSlider
               v-model="currentTorsionBarVisMode.rangeMax"
               :min="currentTorsionBarVisMode.rangeMinCap"
               :max="currentTorsionBarVisMode.rangeMaxCap"
               :step="(currentTorsionBarVisMode.rangeMaxCap - currentTorsionBarVisMode.rangeMinCap) / 100"
+              :input-step="(currentTorsionBarVisMode.rangeMaxCap - currentTorsionBarVisMode.rangeMinCap) / 1000"
+              with-input
               @valueChanged="applyState" />
-            <BngInput
-              v-model="currentTorsionBarVisMode.rangeMax"
-              type="number"
-              :min="currentTorsionBarVisMode.rangeMinCap"
-              :max="currentTorsionBarVisMode.rangeMaxCap"
-              :step="(currentTorsionBarVisMode.rangeMaxCap - currentTorsionBarVisMode.rangeMinCap) / 1000"
-              @valueChanged="applyState" />
+          </BngRow>
+          <BngRow>
             <BngSwitch v-model="currentTorsionBarVisMode.rangeMaxEnabled" @valueChanged="applyState" />
-          </div>
+          </BngRow>
         </div>
 
         <!-- Inclusive Range -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.useInclusiveRange") }}</template>
           <BngSwitch v-model="currentTorsionBarVisMode.usesInclusiveRange" @valueChanged="applyState" />
-        </div>
+        </BngRow>
 
         <!-- Show Infinity -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.showInf") }}</span>
+        <BngRow class="control-switch-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.showInf") }}</template>
           <BngSwitch v-model="currentTorsionBarVisMode.showInfinity" @valueChanged="applyState" />
-        </div>
+        </BngRow>
       </template>
 
       <!-- Torsion Bar Vis Width and Transparency -->
       <template v-if="state.vehicle.torsionBarVisMode !== 1">
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.width") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.torsionBarVisWidthScale" :min="0.1" :max="5" :step="0.1" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.torsionBarVisWidthScale" type="number" :min="0.1" :max="5" :step="0.1" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.width") }}</template>
+          <BngSlider v-model="state.vehicle.torsionBarVisWidthScale" :min="0.1" :max="5" :step="0.1" with-input @valueChanged="applyState" />
+        </BngRow>
 
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.transparency") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.torsionBarVisAlpha" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.torsionBarVisAlpha" type="number" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.transparency") }}</template>
+          <BngSlider v-model="state.vehicle.torsionBarVisAlpha" :min="0" :max="1" :step="0.01" with-input @valueChanged="applyState" />
+        </BngRow>
       </template>
 
       <!-- Rails Slidenodes Visualization Mode select -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.railsSlideNodesVis") }}</span>
-        <BngDropdown v-model="state.vehicle.railsSlideNodesVisMode" :items="railsSlideNodesModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.railsSlideNodesVis") }}</template>
+        <BngDropdown v-model="state.vehicle.railsSlideNodesVisMode" :items="railsSlideNodesModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <template v-if="state.vehicle.railsSlideNodesVisMode !== 1">
         <!-- Rails Slidenodes Vis Width slider -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.width") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.railsSlideNodesVisWidthScale" :min="0.1" :max="5" :step="0.1" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.railsSlideNodesVisWidthScale" type="number" :min="0.1" :max="5" :step="0.1" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.width") }}</template>
+          <BngSlider v-model="state.vehicle.railsSlideNodesVisWidthScale" :min="0.1" :max="5" :step="0.1" with-input @valueChanged="applyState" />
+        </BngRow>
 
         <!-- Rails Slidenodes Vis Transparency slider -->
-        <div class="control-row">
-          <span class="control-label indented">{{ $tt("ui.debug.vehicle.transparency") }}</span>
-          <div class="control-group">
-            <BngSlider v-model="state.vehicle.railsSlideNodesVisAlpha" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-            <BngInput v-model="state.vehicle.railsSlideNodesVisAlpha" type="number" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-          </div>
-        </div>
+        <BngRow class="control-slider-row indented">
+          <template #label>{{ $tt("ui.debug.vehicle.transparency") }}</template>
+          <BngSlider v-model="state.vehicle.railsSlideNodesVisAlpha" :min="0" :max="1" :step="0.01" with-input @valueChanged="applyState" />
+        </BngRow>
       </template>
 
       <!-- Center of Gravity select -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.centerOfGravity") }}</span>
-        <BngDropdown v-model="state.vehicle.cogMode" :items="cogModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.centerOfGravity") }}</template>
+        <BngDropdown v-model="state.vehicle.cogMode" :items="cogModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Collision Triangles mode -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.collisionTriangle") }}</span>
-        <BngDropdown v-model="state.vehicle.collisionTriangleVisMode" :items="collisionTriangleModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.collisionTriangle") }}</template>
+        <BngDropdown v-model="state.vehicle.collisionTriangleVisMode" :items="collisionTriangleModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Collision Triangles Transparency slider -->
-      <div class="control-row" v-if="state.vehicle.collisionTriangleVisMode !== 1">
-        <span class="control-label indented">{{ $tt("ui.debug.vehicle.transparency") }}</span>
-        <div class="control-group">
-          <BngSlider v-model="state.vehicle.collisionTriangleVisAlpha" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-          <BngInput v-model="state.vehicle.collisionTriangleVisAlpha" type="number" :min="0" :max="1" :step="0.01" @valueChanged="applyState" />
-        </div>
-      </div>
+      <BngRow class="control-slider-row indented" v-if="state.vehicle.collisionTriangleVisMode !== 1">
+        <template #label>{{ $tt("ui.debug.vehicle.transparency") }}</template>
+        <BngSlider v-model="state.vehicle.collisionTriangleVisAlpha" :min="0" :max="1" :step="0.01" with-input @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Aerodynamics Mode select -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.aerodynamics") }}</span>
-        <BngDropdown v-model="state.vehicle.aeroMode" :items="aeroModeItems" @valueChanged="applyState" class="control-input" />
-      </div>
+      <BngRow class="control-dropdown-row">
+        <template #label>{{ $tt("ui.debug.vehicle.aerodynamics") }}</template>
+        <BngDropdown v-model="state.vehicle.aeroMode" :items="aeroModeItems" @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Aero scale slider -->
-      <div class="control-row" v-if="state.vehicle.aeroMode !== 1">
-        <span class="control-label indented">{{ $tt("ui.debug.vehicle.aerodynamicsScale") }}</span>
-        <div class="control-group">
-          <BngSlider v-model="state.vehicle.aerodynamicsScale" :min="0" :max="0.2" :step="0.01" @valueChanged="applyState" />
-          <BngInput v-model="state.vehicle.aerodynamicsScale" type="number" :min="0" :max="0.2" :step="0.01" @valueChanged="applyState" />
-        </div>
-      </div>
+      <BngRow class="control-slider-row indented" v-if="state.vehicle.aeroMode !== 1">
+        <template #label>{{ $tt("ui.debug.vehicle.aerodynamicsScale") }}</template>
+        <BngSlider v-model="state.vehicle.aerodynamicsScale" :min="0" :max="0.2" :step="0.01" with-input @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Tire Contact Point checkbox -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.tireContactPoint") }}</span>
+      <BngRow class="control-switch-row">
+        <template #label>{{ $tt("ui.debug.vehicle.tireContactPoint") }}</template>
         <BngSwitch v-model="state.vehicle.tireContactPoint" @valueChanged="applyState" />
-      </div>
+      </BngRow>
 
       <!-- Steering geometry checkbox -->
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.steeringGeometry") }}</span>
+      <BngRow class="control-switch-row">
+        <template #label>{{ $tt("ui.debug.vehicle.steeringGeometry") }}</template>
         <BngSwitch v-model="state.vehicle.steeringGeometry" @valueChanged="applyState" />
-      </div>
+      </BngRow>
 
       <!-- Steering geometry line length -->
-      <div class="control-row" v-if="state.vehicle.steeringGeometry">
-        <span class="control-label indented">{{ $tt("ui.debug.vehicle.steeringGeometryLineLength") }}</span>
-        <div class="control-group">
-          <BngSlider v-model="state.vehicle.steeringGeometryLineLength" :min="0" :max="50" :step="0.1" @valueChanged="applyState" />
-          <BngInput v-model="state.vehicle.steeringGeometryLineLength" type="number" :min="0" :max="50" :step="0.1" @valueChanged="applyState" />
-        </div>
-      </div>
+      <BngRow class="control-slider-row indented" v-if="state.vehicle.steeringGeometry">
+        <template #label>{{ $tt("ui.debug.vehicle.steeringGeometryLineLength") }}</template>
+        <BngSlider v-model="state.vehicle.steeringGeometryLineLength" :min="0" :max="50" :step="0.1" with-input @valueChanged="applyState" />
+      </BngRow>
 
       <!-- Wheel thermals checkbox -->
-      <div class="control-row" v-if="!shipping">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.wheelThermals") }} 🐞</span>
+      <BngRow class="control-switch-row" v-if="!shipping">
+        <template #label>{{ $tt("ui.debug.vehicle.wheelThermals") }} 🐞</template>
         <BngSwitch v-model="state.vehicle.wheelThermals" @valueChanged="applyState" />
-      </div>
+      </BngRow>
     </template>
 
     <!-- Mesh Visibility Controls -->
-    <div class="mesh-visibility">
-      <div class="control-row">
-        <span class="control-label">{{ $tt("ui.debug.vehicle.meshVisibility") }}</span>
-        <div class="mesh-buttons">
-          <BngButton
-            v-for="btn in controls.jbeamvis.meshVisButtonGroup"
-            :key="btn.label"
-            @click="btn.action()"
-            :disabled="disableVehicleButtons"
-            :accent="ACCENTS.outlined"
-            class="mesh-button"
-            >{{ btn.label }}</BngButton
-          >
-        </div>
-      </div>
-    </div>
+    <BngRow class="control-switch-row mesh-visibility">
+      <template #label>{{ $tt("ui.debug.vehicle.meshVisibility") }}</template>
+      <BngSmartSelect
+        v-model="meshVisibility"
+        :items="meshVisibilityItems"
+        :disabled="disableVehicleButtons"
+        @change="value => lua.core_vehicles.setMeshVisibility(value)" />
+    </BngRow>
 
     <hr />
 
     <h4>{{ $tt("ui.debug.terrain") }}</h4>
 
-    <div class="buttons">
+    <div class="buttons terrain-buttons">
       <BngButton v-for="btn in controls.terrain.buttonGroup_1" :key="btn.label" @click="btn.action()" :accent="ACCENTS.secondary">{{
         $tt(btn.label)
       }}</BngButton>
@@ -545,12 +484,14 @@ import {
   BngDropdownContainer,
   BngInput,
   BngSlider,
+  BngRow,
   BngList,
+  BngSmartSelect,
   ACCENTS,
   LIST_LAYOUTS,
   LABEL_ALIGNMENTS,
 } from "@/common/components/base"
-import { vBngTooltip } from "@/common/directives"
+import { vBngTooltip, vBngUiNavScroll } from "@/common/directives"
 import { useBridge } from "@/bridge"
 import { useEvents } from "@/services/events"
 import { $translate } from "@/services"
@@ -605,15 +546,37 @@ const shipping = computed(() => window.beamng && window.beamng.shipping)
 const geState = reactive({
   physicsEnabled: true,
   debugSpawnEnabled: false,
+  vehicleDebugInfoEnabled: false,
 })
 
 const partsSelectedSearchTerm = ref("")
 const disableVehicleButtons = ref(false)
 
+// JBeam visualization enabled state is locally owned after the initial read from lua,
+// so switch toggles won't ping-pong against later lua state updates.
+const jbeamVisEnabled = ref(false)
+let jbeamVisInitialized = false
+
+const setJbeamVisEnabled = value => {
+  jbeamVisInitialized = true
+  jbeamVisEnabled.value = value
+  api.activeObjectLua(`bdebug.setEnabled(${value})`)
+}
+
+const clearJbeamVisSettings = () => api.activeObjectLua(`bdebug.resetModes()`)
+
+const meshVisibility = ref(1)
+const meshVisibilityItems = [
+  { label: "0%", value: 0 },
+  { label: "25%", value: 0.25 },
+  { label: "50%", value: 0.5 },
+  { label: "75%", value: 0.75 },
+  { label: "100%", value: 1 },
+]
+
 const controls = {
   vehicle: {
     buttonGroup_1: [
-      { label: "ui.debug.vehicle.loadDefault", action: () => lua.core_vehicles.loadDefault() },
       { label: "ui.debug.vehicle.spawnNew", action: () => lua.core_vehicles.spawnDefault() },
       { label: "ui.debug.vehicle.removeCurrent", action: () => lua.core_vehicles.removeCurrent() },
       { label: "ui.debug.vehicle.cloneCurrent", action: () => lua.core_vehicles.cloneCurrent() },
@@ -625,19 +588,13 @@ const controls = {
     toggleGroup_1: [
       { label: "ui.debug.activatePhysics", key: "physicsEnabled", onChange: () => lua.simTimeAuthority.togglePause() },
       { label: "ui.debug.debugSpawnEnabled", key: "debugSpawnEnabled", onChange: () => lua.core_vehicle_manager.toggleDebug() },
+      { label: "ui.debug.vehicleDebugInfo", key: "vehicleDebugInfoEnabled", onChange: () => lua.debug_vehicleDebug.toggleDebugEnabled() },
     ],
   },
   jbeamvis: {
-    buttonGroup_1: [
-      { label: "ui.debug.vehicle.toggleVis", action: () => api.activeObjectLua(`bdebug.toggleEnabled()`) },
-      { label: "ui.debug.vehicle.clearSettings", action: () => api.activeObjectLua(`bdebug.resetModes()`) },
-    ],
-    meshVisButtonGroup: [
-      { label: "0%", action: () => lua.core_vehicles.setMeshVisibility(0) },
-      { label: "25%", action: () => lua.core_vehicles.setMeshVisibility(0.25) },
-      { label: "50%", action: () => lua.core_vehicles.setMeshVisibility(0.5) },
-      { label: "75%", action: () => lua.core_vehicles.setMeshVisibility(0.75) },
-      { label: "100%", action: () => lua.core_vehicles.setMeshVisibility(1.0) },
+    controls_1: [
+      { label: "ui.debug.vehicle.toggleVis", component: "switch", model: jbeamVisEnabled, onChange: setJbeamVisEnabled },
+      { label: "ui.debug.vehicle.clearSettings", component: "button", accent: ACCENTS.attention, action: clearJbeamVisSettings },
     ],
   },
   terrain: {
@@ -650,6 +607,13 @@ const controls = {
 onMounted(async () => {
   geState.physicsEnabled = !(await lua.simTimeAuthority.getPause())
   geState.debugSpawnEnabled = await lua.core_vehicle_manager.getDebug()
+  geState.vehicleDebugInfoEnabled = await lua.debug_vehicleDebug.getDebugEnabled()
+  api.activeObjectLua("bdebug.isEnabled()", enabled => {
+    // don't clobber a value the user may have already toggled before the callback returned
+    if (jbeamVisInitialized) return
+    jbeamVisInitialized = true
+    jbeamVisEnabled.value = !!enabled
+  })
   api.activeObjectLua("bdebug.requestState()")
   lua.core_gamestate.requestGameState()
   lua.extensions.core_vehicle_partmgmt.sendPartsSelectorStateToUI()
@@ -676,11 +640,6 @@ const partsSelectedChanged = (part, value) => {
   lua.extensions.core_vehicle_partmgmt.partsSelectorChanged(partsState)
 }
 
-const partsSelectorChanged = () => {
-  applyState(true)
-  lua.extensions.core_vehicle_partmgmt.partsSelectorChanged(partsState)
-}
-
 const partsSelectedChecked = () => partsState.partsHighlightedIdxs.length === partsState.partsSorted.length
 
 const partsSelectedIndeterminate = () => {
@@ -700,16 +659,6 @@ const partsSelectedClicked = () => {
 
   applyState()
   lua.extensions.core_vehicle_partmgmt.partsSelectorChanged(partsState)
-}
-
-const syncSelectedPartsWithPartsList = () => api.activeObjectLua(`bdebug.syncSelectedPartsWithPartsList()`)
-const showOnlySelectedPartsMeshChanged = () => api.activeObjectLua(`bdebug.showOnlySelectedPartsMeshChanged()`)
-
-const reversePath = path => {
-  const parts = path.split("/")
-  const basename = parts[parts.length - 1]
-  const dirname = parts.slice(0, -1).reverse()
-  return "<strong>" + basename + "</strong>" + "\\" + dirname.join("\\")
 }
 
 const selectAllParts = computed({
@@ -749,6 +698,15 @@ const nodeTextModeItems = computed(() => {
 const currentNodeTextMode = computed(() => {
   if (!state.vehicle?.nodeTextModes) return null
   return state.vehicle.nodeTextModes[state.vehicle.nodeTextMode - 1]
+})
+
+const nodeDebugTextModeItems = computed(() => {
+  if (!state.vehicle?.nodeDebugTextModes) return []
+  return state.vehicle.nodeDebugTextModes.map((mode, index) => ({
+    value: index + 1,
+    // "off" is a built-in mode with a translation; dynamic type names are shown as-is
+    label: mode.name === "off" ? $translate.instant("vehicle.bdebug.nodeTextMode.off") : mode.name ?? "",
+  }))
 })
 
 const nodeVisModeItems = computed(() => {
@@ -824,7 +782,7 @@ events.on("VehicleFocusChanged", () => {
 })
 
 events.on("physicsStateChanged", state => (geState.physicsEnabled = !!state))
-events.on("debugSpawnChanged", state => (geState.debugSpawnEnabled = !!state))
+events.on("vehicleDebugInfoEnabledChanged", state => (geState.vehicleDebugInfoEnabled = !!state))
 events.on("GameStateUpdate", gamestate => (disableVehicleButtons.value = gamestate.state.toLowerCase().indexOf("scenario") > -1))
 </script>
 
@@ -832,37 +790,46 @@ events.on("GameStateUpdate", gamestate => (disableVehicleButtons.value = gamesta
 .veh-debug {
   width: 100%;
   height: 100%;
+  min-height: 0;
+  padding: 0.25rem;
   overflow: hidden auto;
 }
 
 .buttons {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   > * {
     flex: 1 1 45%;
+    --bng-button-max-width: none;
   }
-}
 
-.control-row {
-  display: flex;
-  align-items: center;
-  margin: 8px 0;
-  width: 100%;
-
-  .control-label {
-    &.indented {
-      text-indent: 30px;
+  > .bng-button {
+    &:last-child:nth-child(odd) {
+      flex-basis: 100%;
     }
   }
 }
 
-.control-label {
-  flex: 0 0 50%;
+.terrain-buttons {
+  > * {
+    flex: 1 1 100%;
+    --bng-button-max-width: none;
+  }
 }
 
-.control-input {
-  flex: 1;
+.jbeamvis-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  > * {
+    width: 100%;
+    --bng-button-max-width: none;
+  }
 }
+
+$child-indent: 1.5rem;
 
 .control-group {
   display: flex;
@@ -879,24 +846,42 @@ events.on("GameStateUpdate", gamestate => (disableVehicleButtons.value = gamesta
   }
 }
 
-.mesh-buttons {
-  display: flex;
-  flex: 1;
+.control-slider-row,
+.control-dropdown-row,
+.control-switch-row {
+  width: 100%;
 }
 
-.mesh-button {
-  min-width: unset !important;
-  flex: 0 0 auto;
+.control-row-switch {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 15px;
+
+  .control-slider-row {
+    flex: 1;
+  }
+}
+
+// Inset the whole child row (background, label and control) so conditionally
+// revealed controls read as children of the dropdown that toggles them.
+.indented {
+  margin-left: $child-indent;
+  width: calc(100% - #{$child-indent});
 }
 
 .mesh-visibility {
   margin-top: 16px;
 }
 
-.bng-short-select-item {
+.parts-selector {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   margin: 8px 0;
+
+  .bng-select-fullwidth {
+    width: 100%;
+  }
 }
 
 :deep() {
@@ -927,17 +912,5 @@ events.on("GameStateUpdate", gamestate => (disableVehicleButtons.value = gamesta
       background-color: currentColor;
     }
   }
-}
-
-.label-width {
-  width: 50%;
-}
-
-.dropdown-width {
-  width: 205px;
-}
-
-.switch-width {
-  width: 15%;
 }
 </style>

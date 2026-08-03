@@ -141,7 +141,8 @@ export default {
   max-width: 32em;
   .content {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
     align-content: baseline;
     justify-content: center;

@@ -1,37 +1,41 @@
 <!-- Confirmation Popup - a simple popup asking for confirmation of something -->
 <template>
   <div
+    v-bng-scoped-nav="popupScopeBinding"
     :class="['popup', 'popup-style-' + appearance]"
-    :bng-ui-scope="scopeName"
     v-bng-on-ui-nav:back,menu="handleCancelWithBack"
   >
     <div class="popup-content">
       <div class="popup-title" v-if="title">{{ title }}</div>
       <div class="popup-body" v-if="messageIsComponent"><component :is="message.component" v-bind="message.props" /></div>
-      <div class="popup-body" v-else v-html="message" />
+      <div class="popup-body" v-else><DynamicComponent :template="message" bbcode /></div>
       <div class="popup-buttons">
         <BngButton
-          v-for="(button, index) in buttons"
+          v-for="(button, index) in displayButtons"
           :key="index"
-          v-bng-ui-nav-focus="index === defaultButtonIndex ? 1000 : undefined"
+          v-bng-ui-nav-focus="popupActive && button === focusButton ? 1000 : undefined"
+          v-bng-focus-if="popupActive && button === focusButton"
+          :bng-scoped-nav-autofocus="popupActive && button === focusButton ? true : null"
           v-bind="buttonProps[index]"
-          @click="$emit('return', button.value)"
-          >{{ button.label }}</BngButton
+          @click="emit('return', button.value)"
         >
+          <template v-for="(part, partIndex) in buttonLabelParts[index]" :key="partIndex">
+            <BngBinding v-if="part.action" :action="part.action" show-unassigned />
+            <template v-else>{{ part.text }}</template>
+          </template>
+        </BngButton>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from "vue"
-import { BngButton } from "@/common/components/base"
-import { vBngOnUiNav, vBngUiNavFocus } from "@/common/directives"
-import { usePopupUINavScopeName } from "@/services/uiNav"
+import { computed, onMounted, useAttrs, watch } from "vue"
+import { BngBinding, BngButton } from "@/common/components/base"
+import { DynamicComponent } from "@/common/components/utility"
+import { vBngFocusIf, vBngOnUiNav, vBngScopedNav, vBngUiNavFocus } from "@/common/directives"
 import { useUINavBlocker } from "@/services/uiNavTracker"
-
-const navBlocker = useUINavBlocker()
-navBlocker.allowNavigationOnly()
+import { getButtonProps, hasRoles, isCancel, orderButtonsByRole, playCancelSound, resolveFocusButton, popupOrderDevWarn } from "../buttonRoles.js"
 
 const props = defineProps({
   appearance: String,
@@ -42,39 +46,76 @@ const props = defineProps({
   },
   title: String,
   buttons: Array,
+  // Opt-OUT of the canonical role engine. Defaults to false (canonical-capable);
+  // popup.js helpers pass `true` to freeze existing popups to legacy behavior.
+  unordered: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(["return"])
 
-const scopeName = usePopupUINavScopeName("_confirmPopup", props)
+const attrs = useAttrs()
+const scopeName = `_confirmPopup__${attrs.__id}`
+const keepPopupScopeActive = () => false
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: keepPopupScopeActive,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
-let defaultButtonIndex = props.buttons.findIndex(button => button.extras && button.extras.default)
-if (defaultButtonIndex === -1) defaultButtonIndex = 0
-const cancelButton = props.buttons.find(button => button.extras && button.extras.cancel)
+const navBlocker = useUINavBlocker()
+watch(() => props.popupActive, active => {
+  if (active) navBlocker.allowNavigationOnly()
+  else navBlocker.clear()
+}, { immediate: true })
 
-const exclude = ["default", "cancel"]
-const buttonProps = computed(() => {
-  const bp = []
-  for (const { extras } of props.buttons) {
-    if (extras) {
-      bp.push(Object.keys(extras).reduce(
-        (ex, key) => exclude.includes(key) ? ex : { ...ex, [key]: extras[key] },
-        {}
-      ))
-    } else {
-      bp.push({})
-    }
+// Roles only take effect when not opted-out AND the button set actually declares roles.
+const useRoles = computed(() => !props.unordered && hasRoles(props.buttons))
+const displayButtons = computed(() => (useRoles.value ? orderButtonsByRole(props.buttons) : props.buttons))
+const buttonLabelParts = computed(() => displayButtons.value.map(button => {
+  const label = String(button.label ?? "")
+  const parts = []
+  const actionToken = /\[action=([^\]]+)\]/gi
+  let textStart = 0
+  let match
+  while ((match = actionToken.exec(label)) !== null) {
+    if (match.index > textStart) parts.push({ text: label.slice(textStart, match.index) })
+    parts.push({ action: match[1] })
+    textStart = actionToken.lastIndex
   }
-  return bp
-})
+  if (textStart < label.length) parts.push({ text: label.slice(textStart) })
+  return parts
+}))
+const focusButton = computed(() => resolveFocusButton(displayButtons.value, useRoles.value))
+const cancelButton = props.buttons.find(button => isCancel(button))
+
+const buttonProps = computed(() => displayButtons.value.map(button => getButtonProps(button, useRoles.value)))
 
 const messageIsComponent = computed(() => props.message && typeof props.message === "object" && props.message.component)
 
-const handleCancelWithBack = () => emit("return", cancelButton ? cancelButton.value : null)
+let warnedNoCancel = false
+const handleCancelWithBack = () => {
+  if (!cancelButton && !warnedNoCancel) {
+    warnedNoCancel = true
+    popupOrderDevWarn(`${props.title || scopeName} (no cancel role)`)
+  }
+  if (cancelButton) {
+    playCancelSound(cancelButton)
+    emit("return", cancelButton.value)
+  }
+}
+
+onMounted(() => {
+  if (props.unordered && displayButtons.value.length >= 2) {
+    popupOrderDevWarn(props.title || scopeName)
+  }
+})
 </script>
 
 <script>
-import { popupPosition } from "@/services/popup"
+import { popupPosition } from "../options.js"
 
 export default {
   // export popup settings (optional)

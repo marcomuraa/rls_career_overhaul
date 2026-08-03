@@ -31,12 +31,12 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue"
+import { ref } from "vue"
 import { BngColorPicker, BngSwitch } from "@/common/components/base"
 
 const interpolate = ref(false)
 
-const colour = reactive({
+const colour = ref({
   hue: 0.5,
   saturation: 1.0,
   luminosity: 0.5,

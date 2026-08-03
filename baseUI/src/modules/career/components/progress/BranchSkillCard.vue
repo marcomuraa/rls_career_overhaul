@@ -4,7 +4,14 @@
     'locked': !branchData.unlocked,
     'half': isHalf,
 
-  }" @click="openBranchPage(branchKey)" :style="{ '--branch-color': branchColor, '--branch-accent-color': branchAccentColor }">
+  }"
+  :data-branch-id="branchKey"
+  :bng-scoped-nav-autofocus="autofocus ? 'true' : null"
+  v-bng-on-ui-nav:ok.asMouse.focusRequired
+  bng-nav-item
+  tabindex="0"
+  @click.stop="openBranchPage(branchKey)"
+  :style="{ '--branch-color': branchColor, '--branch-accent-color': branchAccentColor }">
 
     <div class="branch-details">
       <div class="indicator left"></div>
@@ -29,7 +36,6 @@
               class="main-stat-progress-bar"
               :skill="branchData"
               :showLevel="true"
-              :mode="branchData.isInDevelopment && !isHalf ? '' : ''"
             />
             <!--<div class="branch-name">{{ $ctx_t(branchData.name) }}</div>-->
           </div>
@@ -94,7 +100,8 @@
 <script setup>
 import { lua } from "@/bridge"
 import { BngCard, BngProgressBar, BngIcon, icons } from "@/common/components/base"
-import { onMounted, ref, computed } from "vue"
+import { vBngOnUiNav } from "@/common/directives"
+import { onMounted, ref, computed, nextTick } from "vue"
 import { getAssetURL } from "@/utils"
 import { AspectRatio } from "@/common/components/utility"
 import BranchSkillProgressBar from "../progress/BranchSkillProgressBar.vue"
@@ -105,9 +112,13 @@ const props = defineProps({
   displayMode: {
     type: String,
     default: 'card', // can be 'card' or 'row'
+  },
+  autofocus: {
+    type: Boolean,
+    default: false,
   }
 })
-const emit = defineEmits(["openBranchPage"])
+const emit = defineEmits(["openBranchPage", "ready"])
 
 const branchData = ref()
 
@@ -193,6 +204,8 @@ const getBackgroundColor = (color) => {
 
 onMounted(async () => {
   setup(await lua.career_modules_branches_landing.getBranchSkillCardData(props.branchKey))
+  await nextTick()
+  emit("ready", props.branchKey)
 })
 </script>
 
@@ -202,7 +215,7 @@ $backdrop-shape: polygon(26% 8%, 73% 8%, 92% 39%, 64% 100%, 19% 100%, 0 70%);
 .branch-skill-card {
   cursor: pointer;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   position: relative;
   border-radius: var(--bng-corners-2);
   height: 100%;
@@ -271,7 +284,7 @@ $backdrop-shape: polygon(26% 8%, 73% 8%, 92% 39%, 64% 100%, 19% 100%, 0 70%);
   .branch-details {
     flex: 1 1 auto;
     display: flex;
-    flex-flow: column;
+    flex-direction: column;
 
     .indicator {
       position: absolute;

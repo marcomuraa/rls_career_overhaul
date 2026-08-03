@@ -16,11 +16,11 @@ export function usePopupUINavScopeName(baseName, props) {
   const attrs = useAttrs()
   const scopeName = baseName + "__" + attrs.__id
 
-  useUINavScope(scopeName)
+  const { setup } = useUINavScope(scopeName)
 
   watch(
     () => props.popupActive,
-    () => props.popupActive && useUINavScope(scopeName)
+    val => val && setup()
   )
 
   return scopeName
@@ -38,8 +38,9 @@ export function usePopupUINavScopeName(baseName, props) {
  */
 export function useUINavScope(scope = undefined, restoreScopeOnUnmount = true) {
   const currentScope = ref(scope)
-  let oldScope,
-    scopeChanged = false
+  let oldScope
+  let scopeChanged = false
+  let isSet = false
 
   const setScope = newScope => {
     scopeChanged = true
@@ -50,10 +51,14 @@ export function useUINavScope(scope = undefined, restoreScopeOnUnmount = true) {
 
   const restoreOldScope = () => {
     const uiNavService = getUINavServiceInstance()
-    uiNavService.setActiveScope(oldScope)
+    if (uiNavService.activeScope === currentScope.value) {
+      uiNavService.setActiveScope(oldScope)
+    }
   }
 
-  onMounted(() => {
+  const setup = () => {
+    if (isSet) return
+    isSet = true
     const uiNavService = getUINavServiceInstance()
     oldScope = uiNavService.activeScope
     if (currentScope.value) {
@@ -61,7 +66,9 @@ export function useUINavScope(scope = undefined, restoreScopeOnUnmount = true) {
     } else {
       currentScope.value = oldScope
     }
-  })
+  }
+
+  onMounted(setup)
 
   onUnmounted(() => {
     if (scopeChanged && restoreScopeOnUnmount) {
@@ -75,6 +82,7 @@ export function useUINavScope(scope = undefined, restoreScopeOnUnmount = true) {
     get oldScope() {
       return oldScope
     },
+    setup,
   }
 }
 

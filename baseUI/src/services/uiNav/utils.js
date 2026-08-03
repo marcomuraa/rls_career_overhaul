@@ -51,24 +51,28 @@ export const normalizeEventDescriptor = eventDescriptor => {
   return descriptorTypes[typeof eventDescriptor] || false
 }
 
+/** Keys that participate in event-to-descriptor matching */
+const MATCHABLE_DESCRIPTOR_KEYS = new Set(["name", "value", "modified", "focusRequired", "extras"])
+
 /**
- * Check if event data matches a descriptor
+ * Check if event data matches a descriptor.
+ * Only keys in MATCHABLE_DESCRIPTOR_KEYS participate in matching;
+ * extra metadata on the descriptor (e.g. eventNames) is ignored.
  * @param {object} eventData - The event data
  * @param {object} descriptor - The descriptor (must be normalized)
  * @returns {boolean} - True if matched, False otherwise
  */
 export const eventMatchesDescriptor = (eventData, descriptor) => {
   for (let [item, value] of Object.entries(descriptor)) {
-    if (value !== undefined) {
-      if (item === "focusRequired") {
-        if (value && !value.contains(document.activeElement)) return false
-      } else {
-        if (!(item in eventData)) return false
-        if (typeof value === "function") {
-          if (!value(eventData[item])) return false
-        } else if (eventData[item] != value) {
-          return false
-        }
+    if (value === undefined || !MATCHABLE_DESCRIPTOR_KEYS.has(item)) continue
+    if (item === "focusRequired") {
+      if (!value.contains(document.activeElement)) return false
+    } else {
+      if (!(item in eventData)) return false
+      if (typeof value === "function") {
+        if (!value(eventData[item])) return false
+      } else if (eventData[item] != value) {
+        return false
       }
     }
   }

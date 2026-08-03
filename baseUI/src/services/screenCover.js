@@ -38,7 +38,12 @@ export async function startLoading(func) {
 export function linkLoadingScreenState(state) {
   loadingScreenStateWatcher?.()
   loadingScreenStateWatcher = watch(
-    [() => state.active, () => state.visible, () => state.fading, () => state.shown],
+    [
+      () => state.active,
+      () => state.visible,
+      () => state.fading,
+      () => state.shown,
+    ],
     ([active, visible, fading, shown]) => {
       loadingScreen.active = active
       loadingScreen.visible = visible

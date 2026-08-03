@@ -1,5 +1,5 @@
 <template>
-  <div class="content">
+  <div class="content" v-bng-scoped-nav="popupScopeBinding" v-bng-on-ui-nav:back,menu="closePopup">
     <div class="top-banner">
       <div class="top-banner-left">
         <div class="title">
@@ -160,10 +160,10 @@
     </div>
 
     <div class="buttons">
-      <BngButton class="gray-button bigger-button" accent="custom" @click="closePopup">
+      <BngButton class="gray-button bigger-button" :accent="ACCENTS.custom_old" @click="closePopup">
         Cancel
       </BngButton>
-      <BngButton class="save-button bigger-button" accent="custom" @click="onSwitchClick">
+      <BngButton class="save-button bigger-button" :accent="ACCENTS.custom_old" @click="onSwitchClick">
         Switch for
         <div v-if="props.insuranceData.netSwitchingCost < 0">
           <BngUnit :money="Math.abs(props.insuranceData.netSwitchingCost)" />
@@ -173,14 +173,12 @@
   </div>
 </template>
 
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
-
 <script setup>
-import { computed } from "vue"
-import { BngButton, BngIcon, icons, BngUnit } from "@/common/components/base"
+import { computed, useAttrs } from "vue"
+import { BngButton, BngIcon, icons, BngUnit, ACCENTS } from "@/common/components/base"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 import { lua, useBridge } from "@/bridge"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const { units } = useBridge()
 
@@ -196,10 +194,22 @@ const props = defineProps({
   driverScoreData: {
     type: Object,
     default: () => ({})
-  }
+  },
+  popupActive: Boolean
 })
 
 const emit = defineEmits(["return", "switch"])
+
+const attrs = useAttrs()
+const scopeName = `_changeInsuranceDetails__${attrs.__id}`
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const premiumSavingPercent = computed(() => {
   const multiplier = props.driverScoreData?.tier?.multiplier || 1.0

@@ -15,6 +15,7 @@
         <DynamicComponent :template="descriptionParsed" />
       </template>
     </span>
+    <TaskActionItems :action-items="actionItems" />
   </div>
 </template>
 
@@ -24,10 +25,15 @@ import { useSlots } from "vue"
 import { getAssetURL } from "@/utils"
 import { $content, $translate } from "@/services"
 import { DynamicComponent } from "@/common/components/utility"
+import TaskActionItems from "./TaskActionItems.vue"
 
 const props = defineProps({
   label: [String, Object],
   description: [String, Object],
+  actionItems: {
+    type: Array,
+    default: () => [],
+  },
   complete: Boolean,
   success: Boolean,
   settings: {
@@ -83,6 +89,7 @@ $textColor: #ffffff;
   flex-direction: column;
   width: 100%;
   padding: 0.5em;
+  padding-bottom: 0.25rem;
   border-radius: var(--bng-corners-1);
   overflow: hidden;
   flex-shrink: 0;
@@ -94,6 +101,7 @@ $textColor: #ffffff;
 
     > .label > .text {
       color: $goalSuccessColor;
+
     }
 
     > .description {
@@ -103,6 +111,7 @@ $textColor: #ffffff;
     > .label > .checkbox {
       mask-image: var(--checkbox-ok);
       -webkit-mask-image: var(--checkbox-ok);
+
     }
 
     &.animate {
@@ -137,13 +146,18 @@ $textColor: #ffffff;
     display: flex;
     align-items: center;
 
+
     > .checkbox {
       display: inline-block;
-      width: 1em;
-      height: 1em;
+      width: 1rem;
+      height: 1rem;
       margin-top: 0.1em;
       mask-image: var(--checkbox-empty);
       -webkit-mask-image: var(--checkbox-empty);
+      mask-size: 100% 100%;
+      -webkit-mask-size: 100% 100%;
+      mask-position: center;
+      -webkit-mask-position: center;
       -webkit-mask-repeat: no-repeat;
       mask-repeat: no-repeat;
       background: $textColor;
@@ -168,12 +182,16 @@ $textColor: #ffffff;
 
   > .description {
     margin-left: 1.8em;
-    font-family: "Noto Sans";
+    font-family: "Noto Sans", var(--fnt-defs);
     font-size: 1em;
     font-weight: 400;
     line-height: 1.5em;
     /* identical to box height, or 150% */
     letter-spacing: 0.01em;
+  }
+
+  > .action-items-row {
+    margin-left: 1.8em;
   }
 }
 

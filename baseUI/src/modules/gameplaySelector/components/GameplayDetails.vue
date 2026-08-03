@@ -1,19 +1,25 @@
 <template>
   <div class="gameplay-details" :class="{ 'inline': inline }">
-    <div class="details" v-bng-ui-nav-scroll.force bng-nav-scroll>
+    <div class="details" v-bng-ui-nav-scroll.force="isAuxillaryScopeActive" bng-nav-scroll>
       <div class="header-content" v-if="activeItemDetails?.headerTitle">
         <BngCardHeading type="none" class="header-title" v-if="showHeaderTitle">
           {{ activeItemDetails.headerTitle }}
         </BngCardHeading>
         <div class="preview" v-if="activeItemDetails?.preview">
           <AspectRatio class="preview-image" :ratio="'16:8'" :external-image="activeItemDetails.preview" :class="{ 'has-header-title': showHeaderTitle }">
-            <BngIcon
-              v-if="!inline"
-              class="favourite-icon"
-              :type="activeItemDetails?.isFavourite ? 'star' : 'starSecondary'"
-              @click="toggleFavourite(activeItem)"
-              :color="activeItemDetails?.isFavourite ? 'var(--bng-ter-yellow-50)' : 'var(--bng-cool-gray-100)'"
-            />
+            <div v-if="!inline" class="favourite-icon-container">
+              <BngBinding
+                :ui-event="'action_4'"
+                controller
+                class="favourite-icon-binding"
+              />
+              <BngIcon
+                class="favourite-icon"
+                :type="activeItemDetails?.isFavourite ? 'star' : 'starSecondary'"
+                @click="toggleFavourite"
+                :color="activeItemDetails?.isFavourite ? 'var(--bng-ter-yellow-50)' : 'var(--bng-cool-gray-100)'"
+              />
+            </div>
           </AspectRatio>
         </div>
         <!-- Tags section -->
@@ -34,7 +40,7 @@
 
       </div>
 
-      <template v-if="activeItemDetails?.buttonInfo?.length > 0 || activeItemDetails?.bottomTags?.length > 0">
+      <template v-if="hasVisibleSpecs || activeItemDetails?.buttonInfo?.length > 0 || activeItemDetails?.bottomTags?.length > 0">
         <template v-for="(specList, specListIndex) in activeItemDetails?.specifications" :key="specListIndex">
           <div class="specs-grid" v-if="specList.length > 0">
             <div class="specs-grid-container">
@@ -55,7 +61,7 @@
       </template>
     </div>
 
-    <div class="bottom-section" v-if="activeItemDetails?.buttonInfo?.length > 0 || buttonOverride" >
+    <div class="bottom-section" v-if="!hideBottomSection && (activeItemDetails?.buttonInfo?.length > 0 || buttonOverride)" >
       <div class="buttons-section">
         <template v-if="!buttonOverride">
           <template v-for="button in activeItemDetails.buttonInfo" :key="button.buttonId">
@@ -65,7 +71,8 @@
                 :accent="button.primary ? 'main' : 'secondary'"
                 :label="button.label"
                 :icon="button.icon"
-                @click="handleButtonClick(button.buttonId)" />
+                :disabled="button.disabled || disabled"
+                @click="handleButtonClick(button)" />
             </div>
           </template>
         </template>
@@ -76,7 +83,7 @@
               :accent="'main'"
               :label="buttonOverride.label"
               :icon="buttonOverride.icon"
-              @click="buttonOverride.click(activeItem)" />
+              @click="handleOverrideClick" />
           </div>
         </template>
       </div>
@@ -85,7 +92,9 @@
 </template>
 
 <script setup>
+import { computed } from "vue"
 import { BngButton, BngIcon, BngCardHeading } from "@/common/components/base"
+import BngBinding from "@/common/components/base/bngBinding.vue"
 import { AspectRatio } from "@/common/components/utility"
 import { vBngUiNavScroll } from "@/common/directives"
 
@@ -126,10 +135,54 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  hideBottomSection: {
+    type: Boolean,
+    default: false,
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+  isAuxillaryScopeActive: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const handleButtonClick = (buttonId) => {
-  props.executeButton(buttonId)
+const emit = defineEmits(["execute-button", "override-click"])
+
+// Specs render independently of buttonInfo/bottomTags - callers using
+// buttonOverride (oneshotRace wizard, freeroam level details) pass an empty
+// buttonInfo and would otherwise never show their specifications section.
+const hasVisibleSpecs = computed(() => {
+  const specs = props.activeItemDetails?.specifications
+  return Array.isArray(specs) && specs.some(specList => Array.isArray(specList) && specList.length > 0)
+})
+
+const handleButtonClick = (button) => {
+  if (props.disabled || button?.disabled) {
+    console.log("[GameplayDetails] button click blocked, in-progress or disabled")
+    return
+  }
+  // Parents wire exactly one of these in practice: the gameplay selector view
+  // listens to @execute-button, while freeroam-style consumers pass a prop
+  // executeButton from useGridSelector. We call both because the unused side
+  // is a noop default and this keeps the dual API working.
+  emit("execute-button", button.buttonId, button)
+  props.executeButton(button.buttonId, button)
+}
+
+const handleOverrideClick = () => {
+  emit("override-click", { activeItem: props.activeItem, buttonOverride: props.buttonOverride })
+  if (typeof props.buttonOverride?.click === "function") {
+    props.buttonOverride.click(props.activeItem)
+  }
+}
+
+const toggleFavourite = () => {
+  if (props.activeItem) {
+    props.toggleFavourite(props.activeItem)
+  }
 }
 
 </script>
@@ -140,7 +193,8 @@ const handleButtonClick = (buttonId) => {
   display: flex;
   flex-direction: column;
   color: white;
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .inline {
@@ -204,17 +258,27 @@ const handleButtonClick = (buttonId) => {
   }
 }
 
-.favourite-icon {
+.favourite-icon-container {
   position: absolute;
-  top: 0.5rem;
+  bottom: 0.5rem;
   left: 0.5rem;
-  font-size: 2.5rem;
-  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
   z-index: 2;
-  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.66);
+  border-radius: 0.5rem;
+  padding: 0.125rem 0.25rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   &:hover {
-    scale: 1.33;
+    scale: 1.15;
   }
+}
+.favourite-icon {
+  font-size: 1.5rem;
+}
+.favourite-icon-binding {
+  font-size: 0.75rem;
 }
 
 .header-content {

@@ -12,7 +12,6 @@
           @clear-all="clearAllFilters"
         />
         <template v-if="(activeFilters.length > 0 || searchText) && !onlyCommonFilters && detailsMode !== 'filter'">
-
           <BngPill
             v-for="(filter, index) in activeFilters"
             :key="`${filter.propName}-${filter.propValue}-${index}`"
@@ -45,6 +44,7 @@ import { BngButton, BngIcon, BngInput, BngPill, icons } from '@/common/component
 import SearchBar from './SearchBar.vue'
 import { storeToRefs } from 'pinia'
 import { ref, watch, onMounted } from 'vue'
+import logger from "@/services/logger"
 
 const props = defineProps({
   store: {
@@ -85,7 +85,7 @@ onMounted(() => {
 const removeFilter = (propName, propValue) => {
   // Don't remove if the filter is locked
   if (isFilterLocked(propName)) {
-    console.log('Cannot remove locked filter:', propName)
+    logger.debug("FilterPanel.lockedFilterRemoveIgnored", propName)
     return
   }
   emit('focus-item', 'filters')

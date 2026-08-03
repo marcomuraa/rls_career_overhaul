@@ -1,5 +1,4 @@
 // Logger service
-const isDevMode = process.env.NODE_ENV === "development"
 
 const DEBUG = 0b0001,
   INFO = 0b0010,
@@ -18,7 +17,7 @@ const consoleLogProvider = {
   },
 }
 
-let level = (isDevMode && DEBUG) | INFO | WARN | ERROR,
+let level = (__BNG_DEV__ && DEBUG) | INFO | WARN | ERROR,
   providersInUse = [consoleLogProvider]
 
 const STACK_TRACE = Symbol("Stack trace")
@@ -55,7 +54,7 @@ const logger = {
   ERROR,
   setProviders: (...providers) => (providersInUse = providers),
   set level(val) {
-    return (level = val)
+    level = val
   },
   get level() {
     return level

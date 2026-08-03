@@ -1,6 +1,11 @@
 <template>
-  <BngCard class="filterCard" :class="{ disabled: disabled.disabled }"
-    @click.stop="cargoOverviewStore.selectFilter([filter.value])">
+  <BngCard
+    class="filterCard"
+    :class="{ disabled: disabled.disabled }"
+    v-bind="{ 'bng-nav-item': true, tabindex: 1 }"
+    v-bng-sound-class="disabled.disabled ? '' : 'bng_click_hover_generic'"
+    v-bng-on-ui-nav:ok.focusRequired.asMouse
+    @click.stop="onSelect">
 
 
     <BngCardHeading class="card-heading" >
@@ -54,6 +59,7 @@ import { ref, computed, onMounted } from "vue"
 import { BngCard, BngCardHeading, BngPropVal, BngButton, BngIcon, icons } from "@/common/components/base"
 import { getAssetURL } from "@/utils"
 import { AspectRatio } from "@/common/components/utility"
+import { vBngOnUiNav, vBngSoundClass } from "@/common/directives"
 import { useCargoOverviewStore } from "../../stores/cargoOverviewStore";
 import TutorialButton from "@/modules/career/components/TutorialButton.vue";
 import { lua } from "@/bridge";
@@ -75,26 +81,55 @@ onMounted(() => {
 
 })
 
+const onSelect = () => {
+  if (disabled.value.disabled) return
+  cargoOverviewStore.selectFilter([props.filter.value])
+}
+
 const openHowTo = () => {
   for(let key of props.filter.howTo.pages){
-    lua.career_modules_linearTutorial.introPopup(key, true)
+    lua.career_modules_tutorialPopups.introPopup(key, true)
   }
 }
 </script>
 
 <style scoped lang="scss">
+@use "@/styles/modules/mixins" as *;
+
 $col-warn: #d77;
 
 .filterCard {
+  $f-offset: 0.25rem;
+  $rad: var(--bng-corners-2);
+
+  position: relative;
   height: auto;
   width: 13em;
-  background-color:var(--bng-ter-blue-gray-600);
-  overflow:hidden;
-  &:hover {
-    background-color:var(--bng-ter-blue-gray-300);
-  }
+  background-color: var(--bng-ter-blue-gray-600);
+  overflow: visible;
+  box-sizing: border-box;
+  border: solid 2px transparent;
   display: flex;
   pointer-events: auto;
+
+  @include modify-focus($rad, $f-offset);
+
+  :deep(.card-cnt) {
+    overflow: hidden;
+    border-radius: inherit;
+  }
+
+  &[bng-nav-item]:not(.disabled) {
+    cursor: pointer;
+  }
+
+  &:not(.disabled) {
+    &:hover,
+    &:focus,
+    &.focus-visible {
+      background-color: var(--bng-ter-blue-gray-300);
+    }
+  }
 
   .card-heading-container {
     position:absolute;

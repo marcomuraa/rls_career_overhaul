@@ -98,7 +98,7 @@ const iconType = computed(() => {
   }
   .time-container {
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     font-family: var(--fnt-mono);
     font-weight: 800;
     .zero {

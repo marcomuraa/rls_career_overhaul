@@ -10,6 +10,14 @@
     }"
     :ui-event="uiEvent"
   >
+    <!-- control is not assigned, fallback to N/A Icon -->
+    <BngIcon
+      v-if="(!viewerVariants || viewerVariants.length === 0) && showUnassigned"
+      class="bng-binding-icon n-a"
+      :type="icons.NA"
+      :color="iconColor"
+    />
+    <span v-if="!viewerVariants || viewerVariants.length === 0" class="unassigned-text">&nbsp;{{ unassignedText }}</span>
     <span
       v-for="(viewerObjs, index) in viewerVariants"
       :key="index"
@@ -20,12 +28,12 @@
     >
       <template v-for="(viewerObj, index) in viewerObjs" :key="index">
         <!-- control uses a generic representation -->
-        <kbd v-if="viewerObj && viewerObj.controlSegments">
+        <kbd v-if="viewerObj?.controlSegments">
           <span v-for="(seg, i) in viewerObj.controlSegments" :key="i" :class="seg.class">{{ seg.value }}</span>
         </kbd>
         <!-- control uses a dedicated icon -->
         <BngIcon
-          v-else-if="viewerObj && viewerObj.special"
+          v-else-if="viewerObj?.special"
           class="bng-binding-icon"
           :type="icons[viewerObj.ownIcon]"
           :color="iconColor"
@@ -38,10 +46,11 @@
           :color="iconColor"
         />
         <span v-if="index < viewerObjs.length - 1" class="combo-separator">+</span>
+        <!-- <span v-else style="white-space: pre; font-size: 8px; color: #0f0;">{{ viewerObj.special }}</span> -->
       </template>
     </span>
+
   </span>
-  <!-- <span v-else>{{ props }}</span> -->
 </template>
 
 <script setup>
@@ -59,6 +68,7 @@ const { showIfController, lastControllersSignature } = storeToRefs(Controls)
 const props = defineProps({
   action: String,
   showUnassigned: Boolean,
+  alwaysShowUnassigned: Boolean, // overrides showUnassigned, allows to ignore simplemenu condition
   device: [String, Array],
   deviceKey: String,
   dark: Boolean,
@@ -85,6 +95,7 @@ const iconColor = computed(() => iconColors[props.dark ? "dark" : "light"])
 const iconColorInverted = computed(() => iconColors[props.dark ? "light" : "dark"])
 
 const controllerOnly = computed(() => props.controller || $simplemenu.value)
+const showUnassigned = computed(() => props.alwaysShowUnassigned || (props.showUnassigned && !$simplemenu.value))
 
 const MULTI_ID = "[PLUS]" // this is a special case for multi-control keyboard bindings
 const MULTI_LABEL = "+" // iconfont glyph
@@ -163,7 +174,7 @@ const display = computed(() => {
       res = showIfController.value
     }
   }
-  return res || props.showUnassigned
+  return res || showUnassigned.value
 })
 
 defineExpose({
@@ -300,7 +311,7 @@ kbd {
 }
 
 .bng-binding-icon {
-  font-size: 2em;
+  --bng-icon-size: 1.5em;
   line-height: 1em;
   display: inline-block;
   vertical-align: baseline;
@@ -315,23 +326,26 @@ kbd {
 .combo-binding {
   position: relative;
   display: inline-flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
-  border-radius: var(--bng-corners-1);
-  border: 1px solid #0008;
+  border-radius: var(--bng-corners-2);
+  border: 2px solid #fff8;
   &.binding-theme-light {
-    border-color: #fff8;
+    border-color: #0008;
   }
   > kbd {
     margin-top: round(0.1em, 1px);
     margin-bottom: round(0.1em, 1px);
     border: none;
+    border-radius: var(--bng-corners-1);
   }
   .combo-separator {
     font-family: "bngIcons", var(--fnt-mono);
-    font-size: 0.6em;
-    margin-left: 0.25em;
-    margin-right: 0.25em;
   }
+}
+
+.unassigned-text {
+  font-style: italic;
 }
 </style>

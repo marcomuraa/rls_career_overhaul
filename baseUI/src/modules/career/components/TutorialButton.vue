@@ -1,17 +1,21 @@
 <template>
-  <BngButton ref="buttonRef" class="tut-btn" :icon="icon" @click.stop="clickHandler"
-    :class="{blink : !seen}" v-bng-tooltip="!text ? 'View tutorial for this section' : undefined"
+  <BngButton
+    v-bng-tooltip="!text ? $t('ui.career.tutorialButton.viewSectionTooltip') : undefined"
+    :class="{blink : !seen}"
+    :icon="icon"
+    class="tut-btn"
+    @click.stop="clickHandler"
     >
-    <!--:class="{ blink: !seen }"-->
     <span v-if="text">{{ text }}</span>
   </BngButton>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
-import { BngButton, icons } from "@/common/components/base";
-import { vBngTooltip } from "@/common/directives";
-import { lua } from "@/bridge";
+import { ref } from "vue"
+import { BngButton, icons } from "@/common/components/base"
+import { vBngTooltip } from "@/common/directives"
+import { lua } from "@/bridge"
+
 const props = defineProps({
   text: {
     type: String,
@@ -22,28 +26,19 @@ const props = defineProps({
     default: () => icons.questionmark
   },
   pages: {
-    type: Object,
-    default: [],
+    type: Array,
+    default: () => [],
   }
 });
 
-const buttonRef = ref(null);
-let animationInterval = null;
 const seen = ref(true)
 
 function clickHandler() {
   for(let key of props.pages){
-    lua.career_modules_linearTutorial.introPopup(key, true)
+    lua.career_modules_tutorialPopups.introPopup(key, true)
   }
-  seen.value = true;
+  seen.value = true
 }
-
-onMounted(() => {
-  //lua.career_modules_linearTutorial.wasIntroPopupsSeen(Object.values(props.pages)).then((s) => {seen.value = s;})
-});
-
-onUnmounted(() => {
-});
 </script>
 
 <style scoped lang="scss">

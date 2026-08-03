@@ -183,7 +183,7 @@ $colors: (
 
   /* base off-black and off-white */
   "bng-off-black": oklch(17% 0 0),
-  "bng-off-white": oklch(92.5% 0 0),
+  "bng-off-white": oklch(94% 0 0),
   "bng-off-white-brighter": oklch(97% 0 0),
 );
 
@@ -192,7 +192,8 @@ $colors: (
     $red: color.channel($color, "red", $space: rgb);
     $green: color.channel($color, "green", $space: rgb);
     $blue: color.channel($color, "blue", $space: rgb);
-    --#{$name}: #{$color};
+    // --#{$name}: #{$color};
+    --#{$name}: #{color.to-space($color, rgb)};
     --#{$name}-rgb: #{$red}, #{$green}, #{$blue};
   }
 
@@ -204,4 +205,6 @@ $colors: (
   --bng-black-o4: rgba(0, 0, 0, 0.4);
   --bng-black-o2: rgba(0, 0, 0, 0.2);
   --bng-orange-400: var(--bng-orange-b400);
+  --bng-orange: var(--bng-orange-b400);
+  --zorder_index_fullscreen_default: 0;
 }

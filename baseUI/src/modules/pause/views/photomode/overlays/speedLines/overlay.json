@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "ui.photomode.overlay.builtin.speedLines",
+  "author": "BeamNG",
+  "layers": [
+    {
+      "height": "100%",
+      "image": "speedLines.svg",
+      "imageFit": "cover",
+      "width": "100%",
+      "x": "0%",
+      "y": "0%"
+    }
+  ]
+}

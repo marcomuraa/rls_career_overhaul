@@ -120,7 +120,7 @@ const goToBigMap = () => emit("goToBigMap", props.mission)
 
       color: white;
       display: flex;
-      flex-flow: column;
+      flex-direction: column;
 
       > .go-to-bigmap-label {
         display: hidden;
@@ -157,7 +157,7 @@ const goToBigMap = () => emit("goToBigMap", props.mission)
 
       > .rewards {
         // display: flex;
-        // flex-flow: column;
+        // flex-direction: column;
         display: grid;
         gap: 0.25rem;
         grid-template-columns: 1fr auto;
@@ -172,7 +172,8 @@ const goToBigMap = () => emit("goToBigMap", props.mission)
 
         .mission-rewards {
           display: flex;
-          flex-flow: row wrap;
+          flex-direction: row;
+          flex-wrap: wrap;
           flex: 1 0 auto;
           grid-column: 1;
           &.money {
@@ -184,7 +185,7 @@ const goToBigMap = () => emit("goToBigMap", props.mission)
 
         > .mission-stars {
           display: flex;
-          flex-flow: row;
+          flex-direction: row;
           & > * {
             margin-right: 0.25rem;
             margin-bottom: 0.25rem;

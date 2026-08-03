@@ -2,108 +2,94 @@
   <div class="center-wrap">
     <div class="primary">
       <MenuButton
-        bng-scoped-nav-autofocus
         size="big"
         icon-id="keys1"
         :bg-img="IMG_PATH + 'experiences.jpg'"
-        @click="emit('changeView', 'discover')"
         :tag="$t('ui.playmodes.new')"
+        sound-class="bng_main_primary"
+        v-bng-route-target="'menu.discover'"
+        bng-scoped-nav-autofocus
       >{{ $tt("ui.playmodes.quickStartExperiences") }}</MenuButton>
       <MenuButton
         size="big"
         icon-id="road"
         :bg-img="IMG_PATH + 'freeroam.jpg'"
-        @click="navigate('menu.freeroamWizard', { step: defaultWizardStep })"
+        sound-class="bng_main_primary"
+        v-bng-route-target="defaultWizardRoute"
       >{{ $tt("ui.playmodes.freeroam") }}</MenuButton>
       <MenuButton
-        v-if="!$simplemenu.value"
-        appear-disabled
         size="big"
         icon-id="cup"
         :bg-img="IMG_PATH + 'career.jpg'"
+        sound-class="bng_main_primary"
+        v-bng-route-target.id="'career.profiles'"
+        :tag="isSimpleMenu ? undefined : $t('ui.career.experimental.name')"
         @click="careerPrompt()"
-        :tag="$t('ui.playmodes.comingSoon')" tag-orange
       >{{ $tt("ui.playmodes.career") }}</MenuButton>
       <MenuButton
         size="big-stacked"
         icon-id="BNGFolder"
         :bg-img="IMG_PATH + 'others.jpg'"
-        @click="emit('changeView', 'others')"
+        sound-class="bng_main_primary"
+        v-bng-route-target="'menu.others'"
       >{{ $tt("ui.mainmenu.more") }}</MenuButton>
     </div>
-    <!--
-    <div class="secondary" v-if="discover.loaded">
-      <Shelf ref="elShelf" v-model="discover.lastSelectedIndex" :limit="7" fade>
-        <MenuButton
-          v-for="card in discover.allCards" :key="card.discoverId"
-          size="medium" no-blur
-          :disabled="!discover.enabled"
-          :bg-img-abs="card.image"
-          @click="elShelf?.isSelected($event) && card.onClick()"
-          @mouseenter="card.onHover"
-          @mouseleave="card.onMouseLeave"
-          @focus="card.onFocus"
-          @blur="card.onBlur"
-          :enlarge-on-hover="true"
-          darkened-image
-          :text-icon-prefix="!!card.icon"
-          :style="{ '--button-height': '4.5em' }"
-          :tag="$ctx_t(card.tag)"
-        >{{ $tt(card.name) }}</MenuButton>
-      </Shelf>
-    </div>
-    -->
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from "vue"
+import { nextTick, computed, inject, ref, unref } from "vue"
 import { ACCENTS } from "@/common/components/base"
-import { Shelf } from "@/common/components/utility"
-import { vBngUiNavFocus } from "@/common/directives"
+import { vBngRouteTarget } from "@/common/directives"
 import MenuButton from "../components/MenuButton.vue"
 import { $translate } from "@/services"
 import { openExperimental } from "@/services/popup"
 import { useSettings } from "@/services/settings"
-//import { useDiscoverStore } from "../discover.js"
+import { useBridge } from "@/bridge"
 
-const props = defineProps({
-  firstTime: Boolean,
-})
+const { lua } = useBridge()
 
-const emit = defineEmits(["changeView"])
-
-//const discover = useDiscoverStore()
-const elShelf = ref(null)
+const $simplemenu = inject("$simplemenu", ref(false))
+const isSimpleMenu = computed(() => unref($simplemenu))
 
 const IMG_PATH = "images/mainmenu/"
 
 const settings = useSettings()
-const defaultWizardStep = computed(() => {
-  return settings.getValue('freeroamSetupDefaultStep') || 'level'
+const WIZARD_ROUTE_BY_STEP = Object.freeze({
+  level: "menu.freeroamLevels",
+  vehicle: "menu.freeroamLevels.vehicles",
+  options: "menu.freeroamLevels.vehicles.options",
+  multiplayer: "menu.freeroamLevels.vehicles.options.multiplayer",
+})
+const defaultWizardRoute = computed(() => {
+  const configuredStep = settings.getValue("freeroamSetupDefaultStep") || "level"
+
+  if (isSimpleMenu.value && configuredStep === "multiplayer") {
+    return WIZARD_ROUTE_BY_STEP.level
+  }
+
+  return WIZARD_ROUTE_BY_STEP[configuredStep] || WIZARD_ROUTE_BY_STEP.level
 })
 
-// this should be in sync with main menu
-const firstTime = ref(props.firstTime)
-onMounted(() => {
-  firstTime.value && setTimeout(() => firstTime.value = false, 1500)
-  //discover.loadDiscoverCards()
-})
-
-const navigate = (state, params = undefined) => nextTick(() => window.bngVue.gotoGameState(state, { params: params }))
+const navigate = (state, params = undefined) => nextTick(() => lua.extensions.ui_router.navigate(state, params || null, null))
 
 async function careerPrompt() {
+  if (isSimpleMenu.value) {
+    navigate("career.profiles")
+    return
+  }
+
   if (await openExperimental(
     $translate.instant("ui.career.experimentalTitle"),
     $translate.instant("ui.career.experimentalPrompt"),
     [
-      { label: $translate.instant("ui.common.no"), value: false, isCancel: true, extras: { accent: ACCENTS.secondary } },
+      { label: $translate.instant("ui.common.no"), value: false, extras: { cancel: true, accent: ACCENTS.secondary } },
       // { label: "Enter and don't show this again", value: true },
-      { label: $translate.instant("ui.career.experimentalAgree"), value: true, default: true },
+      { label: $translate.instant("ui.career.experimentalAgree"), value: true, extras: { default: true } },
     ],
   ))
     // navigate("menu.career")
-    navigate("profiles")
+    navigate("career.profiles")
 }
 </script>
 
@@ -115,14 +101,16 @@ $rem: calc-ui-rem();
 .center-wrap {
   align-self: center;
   display: flex;
-  flex-flow: column nowrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   align-items: stretch;
   margin: 0 calc-ui-rem(15);
 }
 
 .primary {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: center;
   min-width: calc-ui-rem(64);
   margin-bottom: calc-ui-rem(2);
@@ -156,7 +144,8 @@ $rem: calc-ui-rem();
   :deep(.mainmenu-button) {
     height: auto;
     display: inline-flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
     overflow: hidden;
     > * {

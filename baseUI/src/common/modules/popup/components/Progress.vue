@@ -1,6 +1,10 @@
 <!-- Progress Popup - a simple popup asking for showing a modal progress bar to the user -->
 <template>
-  <div :class="['popup']" :bng-ui-scope="scopeName" v-bng-on-ui-nav:back,menu="handleCancelWithBack">
+  <div
+    v-bng-scoped-nav="popupScopeBinding"
+    :class="['popup']"
+    v-bng-on-ui-nav:back,menu="handleCancelWithBack"
+  >
     <div class="popup-content">
       <div class="popup-title" v-if="title">{{ title }}</div>
       <div class="popup-body">
@@ -15,11 +19,13 @@
       </div>
       <div class="popup-buttons">
         <BngButton
-          v-if="buttons && buttons.length"
-          v-for="(button, index) in buttons"
+          v-for="(button, index) in displayButtons"
           :key="index"
-          v-bind="{ ...(index == defaultButtonIndex && { id: DEFAULT_BUTTON_ID }), ...button.extras }"
-          @click="$emit('return', typeof button.value == 'function' ? button.value(text) : button.value)">
+          v-bng-ui-nav-focus="popupActive && button === focusButton ? 1000 : undefined"
+          v-bng-focus-if="popupActive && button === focusButton"
+          :bng-scoped-nav-autofocus="popupActive && button === focusButton ? true : null"
+          v-bind="buttonProps[index]"
+          @click="emitButtonValue(button)">
           {{ button.label }}
         </BngButton>
       </div>
@@ -28,22 +34,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
+import { computed, ref, useAttrs, watch } from "vue"
 import { BngButton, BngProgressBar } from "@/common/components/base"
-import { vBngOnUiNav } from "@/common/directives"
-import { usePopupUINavScopeName } from "@/services/uiNav"
-import { uniqueId } from "@/services/uniqueId"
+import { vBngFocusIf, vBngOnUiNav, vBngScopedNav, vBngUiNavFocus } from "@/common/directives"
 import { useUINavBlocker } from "@/services/uiNavTracker"
-
-const navBlocker = useUINavBlocker()
-navBlocker.allowOnly(["focus_u", "focus_d", "focus_l", "focus_r", "back", "menu", "ok"])
+import { getButtonProps, isCancel, playCancelSound, resolveFocusButton } from "../buttonRoles.js"
 
 const emit = defineEmits(["return"])
-const DEFAULT_BUTTON_ID = uniqueId("___DEFAULT", "_")
 
 const props = defineProps({
   title: String,
   message: String,
+  popupActive: Boolean,
   buttons: Array,
   indeterminate: Boolean,
   min: {
@@ -70,31 +72,53 @@ const props = defineProps({
   tunnel: Object,
 })
 
-const defaultButtonIndex = props.buttons.findIndex(button => button.extras && button.extras.default)
-const cancelButton = props.buttons.find(button => button.extras && button.extras.cancel)
+const displayButtons = computed(() => props.buttons || [])
+const focusButton = computed(() => resolveFocusButton(displayButtons.value, false))
+const cancelButton = computed(() => displayButtons.value.find(button => isCancel(button)))
+const buttonProps = computed(() => displayButtons.value.map(button => getButtonProps(button, false)))
 
-if (~defaultButtonIndex) {
-  onMounted(() => {
-    document.querySelector(`#${DEFAULT_BUTTON_ID}`).focus()
-  })
-}
+const popupNavEvents = ["focus_u", "focus_d", "focus_l", "focus_r", "back", "menu", "ok"]
+const navBlocker = useUINavBlocker()
+watch(() => props.popupActive, active => {
+  if (active) navBlocker.allowOnly(popupNavEvents)
+  else navBlocker.clear()
+}, { immediate: true })
 
-const scopeName = usePopupUINavScopeName("_progressPopup", props)
+const attrs = useAttrs()
+const scopeName = `_progressPopup__${attrs.__id}`
+const keepPopupScopeActive = () => false
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: keepPopupScopeActive,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const progressValue = ref(props.initialValue)
 const msg = ref(props.message)
 
-const handleCancelWithBack = e => {
-  props.cancellable && close()
+const emitButtonValue = button => {
+  emit("return", typeof button.value === "function" ? button.value() : button.value)
 }
 
-const close = () => emit("return", cancelButton ? cancelButton.value : null)
+const handleCancelWithBack = () => {
+  if (props.cancellable) {
+    if (cancelButton.value) playCancelSound(cancelButton.value)
+    close()
+  }
+}
 
-props.tunnel.update = (value, message = undefined) => {
+const close = () => emit("return", cancelButton.value ? cancelButton.value.value : null)
+
+const updateProgress = (value, message = undefined) => {
   progressValue.value = +value
   if (message !== undefined) msg.value = message
 }
 
+props.tunnel.update = updateProgress
+props.tunnel.flushPendingUpdate?.(updateProgress)
 props.tunnel.done = close
 props.tunnel.ready = true
 

@@ -1,4 +1,5 @@
 import { isVisibleFast, isVisible, isOccluded as isNodeOccluded, dispatchKey } from "../utils/DOM.js"
+import { perfClearCurrentEvent, perfEnd, perfEndEvent, perfLog, perfMark, perfSetCurrentEvent, perfStart } from "./uiNav/perf.js"
 export { isVisibleFast }
 
 export const NAVIGABLE_ELEMENTS_SELECTOR =
@@ -18,7 +19,32 @@ export const NO_CHILD_NAV_ATTR = "bng-no-child-nav"
 export const NAV_PRIORITY_CONTAINER_ATTR = "bng-nav-priority-container"
 export const NAV_PRIORITY_ATTR = "bng-nav-priority-item" // TODO: unused atm, implement later
 
+const USE_LEGACY_CLASS = false // kind of used on old screens like bus routes. TODO: remove
 const MENU_NAVIGATION_CLASS = "menu-navigation"
+
+const OBSERVE_ATTRS = [
+  "class",
+  "style",
+  "hidden",
+  "disabled",
+  NO_NAV_ATTR,
+  NO_CHILD_NAV_ATTR,
+  NAV_PRIORITY_CONTAINER_ATTR,
+  "bng-nav-scroll",
+  "bng-nav-scroll-force",
+  "href",
+  "ng-click",
+  "ui-sref",
+  "is-bng-panel",
+  "bng-nav-item",
+  "bng-all-clicks",
+  "bng-all-clicks-no-nav",
+]
+const IGNORE_CLASSES = new Set([
+  "focus-visible",
+  "no-focus-visible",
+  MENU_NAVIGATION_CLASS,
+])
 
 const IGNORE_TAGS = ["HTML", "BODY"]
 
@@ -73,14 +99,24 @@ const UI_SCALAR_EVENT_ACTIONS = {
   [SCALAR_EVENT_V]: AXIS_V,
 }
 
+// D-pad navigation is converted into the same scalar axis model as stick input.
+// This is the canonical dpad -> scalar mapping: -1/1 values feed the shared
+// trigger, latch, repeat, and direction resolution pipeline below.
+const UI_DIRECTION_EVENT_SCALAR_INPUTS = {
+  focus_l: { axis: AXIS_H, value: -1 },
+  focus_r: { axis: AXIS_H, value: 1 },
+  focus_u: { axis: AXIS_V, value: 1 },
+  focus_d: { axis: AXIS_V, value: -1 },
+}
+
 const UI_NAV_EVENT_ACTIONS = {
   "focus_u": "up",
   "focus_d": "down",
   "focus_l": "left",
   "focus_r": "right",
   "ok": "confirm",
-  "tab_l": "tab_l",
-  "tab_r": "tab_r",
+  // "tab_l": "tab_l",
+  // "tab_r": "tab_r",
 }
 
 export const MONITORED_UI_NAV_EVENTS = [
@@ -89,15 +125,63 @@ export const MONITORED_UI_NAV_EVENTS = [
   // ...Object.keys(UI_SCROLL_EVENT_ACTIONS),
 ]
 
-const THUMBSTICK_DEADZONE = 0.5 // set to 0 to use default deadzone set in options
-const THUMBSTICK_INITIAL_DELAY = 1000
-const THUMBSTICK_REPEAT_DELAY = 250
+const NAV_TRIGGER_THRESHOLD = 0.5
+// Scalar hysteresis: once a scalar axis (stick) is engaged above the trigger
+// threshold it stays engaged until the magnitude drops below this lower release
+// threshold. This prevents jitter around the trigger threshold from tearing
+// down and recreating the press, which would otherwise cause repeated moves.
+const NAV_RELEASE_THRESHOLD = 0.35
+const NAV_REPEAT_THRESHOLD = 0.9
+const THUMBSTICK_INITIAL_DELAY = 500
+const THUMBSTICK_REPEAT_DELAY = 200
+
+// Session-aware repeat state.
+// `sessionKey` is an input-specific identity (e.g. "discrete:focus_d" or
+// "scalar:vertical:-1") so discrete dpad and scalar stick presses never share
+// the same repeat session. `pressId` is a monotonically increasing generation
+// token captured by each scheduled repeat callback, so a stale timer that
+// outlives its press (release, session takeover, clear) becomes a no-op.
+let pressGeneration = 0
 
 const thumbstickState = {
-  time: 0,
-  axis: null,
-  value: 0,
-  isHolding: false
+  timer: null,
+  sessionKey: null,
+  pressId: 0,
+  repeatIntent: null,
+  repeatAction: null,
+  restrictTo: null,
+}
+
+// Optional hook to re-resolve the navigation boundary (`restrictTo`) right
+// before each scheduled repeat tick. This lets consumers (e.g. scoped-nav)
+// refresh the boundary dynamically as focus moves, instead of reusing the
+// stale boundary captured when the repeat session started. A single resolver
+// is stored so re-registration during reloads stays idempotent.
+let repeatRestrictToResolver = null
+
+// Register (or clear) the repeat boundary resolver. The resolver is called as
+// `resolver({ intent, fallbackRestrictTo, activeElement })` and may return a
+// boundary element to constrain the next repeat tick; returning a falsy value
+// keeps the captured `fallbackRestrictTo`.
+export function setRepeatRestrictToResolver(resolver) {
+  repeatRestrictToResolver = typeof resolver === "function" ? resolver : null
+}
+
+function resolveRepeatRestrictTo(intent, fallbackRestrictTo) {
+  if (!repeatRestrictToResolver) return fallbackRestrictTo
+  try {
+    const resolved = repeatRestrictToResolver({
+      intent,
+      fallbackRestrictTo,
+      activeElement: typeof document !== "undefined" ? document.activeElement : null,
+    })
+    return resolved || fallbackRestrictTo
+  } catch (err) {
+    // DEV_ONLY >>
+    console.warn("[crossfire] repeatRestrictToResolver threw", err)
+    // << DEV_ONLY
+    return fallbackRestrictTo
+  }
 }
 
 const lastScalarValue = {
@@ -105,21 +189,240 @@ const lastScalarValue = {
   vertical: 0
 }
 
+// Per-axis input ownership. While an axis is held by one input kind
+// ("scalar" stick or "discrete" dpad), events from the other kind on the same
+// axis are consumed but never navigate, reset latch state, or retrigger repeat.
+// Ownership is claimed on the first active press and released when the owning
+// kind sends its release (value 0 / below trigger threshold).
+const axisOwner = {
+  horizontal: null,
+  vertical: null
+}
+
+function getInputKind(intent) {
+  return intent?.scalar ? "scalar" : "discrete"
+}
+
+// DEV_ONLY >>
+// Short-lived diagnostic tracing for the focus-nav repeat/latch pipeline (GE: UI nav repeat).
+// Disabled by default. Toggle/inspect from the console:
+//   window.uiNav.trace.enable()   // start capturing
+//   window.uiNav.trace.dump()     // print captured entries as a table
+//   window.uiNav.trace.log        // raw ring buffer
+//   window.uiNav.trace.reset()    // clear buffer
+//   window.uiNav.trace.disable()  // stop capturing
+const navTrace = {
+  enabled: false,
+  echo: true, // also console.debug each entry while enabled
+  log: [],
+  max: 300,
+}
+// << DEV_ONLY
+
 const TRACKER_ID = "crossfire" // for UiNavTracker
 
+// Layout cache
+let layoutGeneration = 0
+let rectCache = null
+let layoutMutationObserver = null
+let layoutResizeObserver = null
+let observedLayoutRoot = null
+let layoutWindowListenersBound = false
+
+function invalidateRectCache() {
+  layoutGeneration += 1
+  rectCache = null
+}
+
+function getObservedClassTokens(value = "") {
+  const tokens = value.split(/\s+/).filter(Boolean)
+  return tokens.filter(token => !IGNORE_CLASSES.has(token)).sort().join(" ")
+}
+
+function isIgnoredClassMutation(mutation) {
+  if (mutation.type !== "attributes" || mutation.attributeName !== "class") return false
+  const oldClass = getObservedClassTokens(mutation.oldValue || "")
+  const newClass = getObservedClassTokens(mutation.target.getAttribute("class") || "")
+  return oldClass === newClass
+}
+
+function shouldInvalidateRectCache(mutation) {
+  return mutation.type === "childList" || !isIgnoredClassMutation(mutation)
+}
+
+function invalidateRectCacheForMutations(mutations) {
+  if (mutations.some(shouldInvalidateRectCache)) invalidateRectCache()
+}
+
+function flushLayoutMutationRecords() {
+  if (!layoutMutationObserver) return
+  const mutations = layoutMutationObserver.takeRecords()
+  if (mutations.length > 0) invalidateRectCacheForMutations(mutations)
+}
+
+function ensureLayoutObservers(root = document.body) {
+  if (!root || observedLayoutRoot === root) return
+
+  observedLayoutRoot?.removeEventListener("scroll", invalidateRectCache, true)
+  layoutMutationObserver?.disconnect()
+  layoutResizeObserver?.disconnect()
+  observedLayoutRoot = root
+
+  if (typeof MutationObserver === "function") {
+    layoutMutationObserver = new MutationObserver(invalidateRectCacheForMutations)
+    layoutMutationObserver.observe(root, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: OBSERVE_ATTRS,
+    })
+  }
+
+  if (typeof ResizeObserver === "function") {
+    layoutResizeObserver = new ResizeObserver(invalidateRectCache)
+    layoutResizeObserver.observe(root)
+  }
+
+  root.addEventListener("scroll", invalidateRectCache, true)
+
+  if (!layoutWindowListenersBound) {
+    window.addEventListener("resize", invalidateRectCache)
+    window.visualViewport?.addEventListener("resize", invalidateRectCache)
+    layoutWindowListenersBound = true
+  }
+
+  invalidateRectCache()
+}
+
+function getActivePriorityContainer() {
+  return document.activeElement?.closest?.(`[${NAV_PRIORITY_CONTAINER_ATTR}]`) || null
+}
+
+function getCachedRectLinks(root, forceAll, activePriorityContainer) {
+  if (
+    rectCache &&
+    rectCache.root === root &&
+    rectCache.forceAll === forceAll &&
+    rectCache.activePriorityContainer === activePriorityContainer &&
+    rectCache.generation === layoutGeneration
+  ) {
+    return rectCache.links
+  }
+  return null
+}
+
+function setCachedRectLinks(root, forceAll, activePriorityContainer, links) {
+  rectCache = {
+    root,
+    forceAll,
+    activePriorityContainer,
+    generation: layoutGeneration,
+    links,
+  }
+}
+
+function getDirectionFromAxisValue(axis, value) {
+  if (!axis || value === 0) return null
+
+  const adjustedValue = axis === AXIS_V ? -value : value
+  if (axis === AXIS_H) return adjustedValue > 0 ? DIR.RIGHT : DIR.LEFT
+  return adjustedValue > 0 ? DIR.DOWN : DIR.UP
+}
+
+function getAxisStepValue(axis, value) {
+  if (!axis || value === 0) return 0
+  return (axis === AXIS_V ? -value : value) > 0 ? 1 : -1
+}
+
+export function getUINavNavigationIntent(detail, options = {}) {
+  if (!detail || typeof detail.name !== "string") return null
+
+  const triggerThreshold = options.triggerThreshold ?? NAV_TRIGGER_THRESHOLD
+  const releaseThreshold = options.releaseThreshold ?? NAV_RELEASE_THRESHOLD
+  const repeatThreshold = options.repeatThreshold ?? NAV_REPEAT_THRESHOLD
+  const scalarAxis = UI_SCALAR_EVENT_ACTIONS[detail.name]
+  if (scalarAxis) {
+    const value = Number(detail.value) || 0
+    const magnitude = Math.abs(value)
+    // Hysteresis: while this scalar axis is already engaged, hold it active down
+    // to the lower release threshold. Otherwise require the full trigger
+    // threshold to engage. This stops threshold jitter from re-triggering.
+    const activeThreshold = options.scalarEngaged === true ? releaseThreshold : triggerThreshold
+    const active = value !== 0 && (activeThreshold <= 0 || magnitude > activeThreshold)
+    return {
+      eventName: detail.name,
+      perfId: detail.perfId,
+      axis: scalarAxis,
+      value,
+      magnitude,
+      axisStepValue: active ? getAxisStepValue(scalarAxis, value) : 0,
+      direction: active ? getDirectionFromAxisValue(scalarAxis, value) : null,
+      active,
+      repeatEligible: active && magnitude >= repeatThreshold,
+      scalar: true,
+    }
+  }
+
+  const directionInput = UI_DIRECTION_EVENT_SCALAR_INPUTS[detail.name]
+  if (!directionInput) return null
+
+  const active = detail.value === 1
+  return {
+    eventName: detail.name,
+    perfId: detail.perfId,
+    axis: directionInput.axis,
+    value: active ? directionInput.value : 0,
+    magnitude: active ? 1 : 0,
+    axisStepValue: active ? getAxisStepValue(directionInput.axis, directionInput.value) : 0,
+    direction: active ? getDirectionFromAxisValue(directionInput.axis, directionInput.value) : null,
+    active,
+    repeatEligible: active,
+    scalar: false,
+  }
+}
+
 export function focusOnElement(elem) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.focusOnElement", {
+    tagName: elem?.tagName,
+    className: elem?.className,
+  })
+  // << DEV_ONLY
+
   // note: contentEditable can have many values, so to definitely enable focus-visible we're going to force-change it in any case
   // TODO: check and update to use setAttribute instead of directly accessing the property
   const contentEditable = elem.contentEditable
   const tabIndex = elem.tabIndex
-  elem.contentEditable = true
-  elem.tabIndex = 0
-  elem.focus()
-  elem.tabIndex = tabIndex
-  elem.contentEditable = contentEditable
+  if (!contentEditable) elem.contentEditable = true
+  if (tabIndex !== 0) elem.tabIndex = 0
+  // DEV_ONLY >>
+  perfMark(null, "crossfire.focusOnElement.focus")
+  // << DEV_ONLY
+  elem.focus({ preventScroll: true })
+  // DEV_ONLY >>
+  perfMark(null, "crossfire.focusOnElement.restore")
+  // << DEV_ONLY
+  if (tabIndex > -1) elem.tabIndex = tabIndex
+  if (contentEditable !== true) elem.contentEditable = contentEditable
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    activeTagName: document.activeElement?.tagName,
+    focused: document.activeElement === elem,
+  })
+  // << DEV_ONLY
 }
 
-function getNavigableElements(root = null, forceAll = false) {
+export function getNavigableElements(root = null, forceAll = false) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.getNavigableElements", {
+    hasRoot: !!root,
+    forceAll,
+  })
+  // << DEV_ONLY
+
   let res = [...(root || document.body).querySelectorAll(NAVIGABLE_ELEMENTS_SELECTOR)]
   if (!forceAll) {
     res = res.filter(elem => {
@@ -130,6 +433,11 @@ function getNavigableElements(root = null, forceAll = false) {
     })
   }
   //console.log('getNavigateableElements', res)
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    count: res.length,
+  })
+  // << DEV_ONLY
   return res
 }
 
@@ -137,7 +445,7 @@ function getNavigableElements(root = null, forceAll = false) {
 export function isNavigable(elem, forceAll = false) {
   if (!elem) return false
   if (IGNORE_TAGS.includes(elem.nodeName || elem.tagName)) return false
-  if (elem.classList.contains(MENU_NAVIGATION_CLASS)) return true
+  if (USE_LEGACY_CLASS && elem.classList.contains(MENU_NAVIGATION_CLASS)) return true
   const parent = elem.parentNode
   if (!parent) return false
   const children = getNavigableElements(parent, forceAll)
@@ -148,6 +456,7 @@ export { isNavigable as isNavigatable }
 
 
 export function uncollectRects() {
+  if (!USE_LEGACY_CLASS) return
   const ns = getNavigableElements()
   for (let node of ns) {
     node.classList.remove(MENU_NAVIGATION_CLASS)
@@ -157,23 +466,61 @@ export function uncollectRects() {
 let warnPrioNesting = window.beamng && !window.beamng.shipping
 
 export function collectRects(direction, parent, forceAll = false) {
-  const links = {}
-  if (direction) {
-    links[direction] = []
-  } else {
-    links.up = []
-    links.down = []
-    links.left = []
-    links.right = []
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.collectRects", {
+    direction,
+    hasParent: !!parent,
+    forceAll,
+  })
+  // << DEV_ONLY
+
+  const root = parent || document.body
+  ensureLayoutObservers(document.body)
+  flushLayoutMutationRecords()
+
+  const activePriorityContainer = getActivePriorityContainer()
+  const cachedLinks = getCachedRectLinks(root, forceAll, activePriorityContainer)
+  if (cachedLinks) {
+    // DEV_ONLY >>
+    perfMark(null, "crossfire.collectRects.cacheHit", {
+      direction,
+      generation: layoutGeneration,
+    })
+    perfEnd(perfToken, {
+      direction,
+      cacheHit: true,
+      up: cachedLinks.up.length,
+      down: cachedLinks.down.length,
+      left: cachedLinks.left.length,
+      right: cachedLinks.right.length,
+    })
+    // << DEV_ONLY
+    return cachedLinks
+  }
+
+  const links = {
+    up: [],
+    down: [],
+    left: [],
+    right: [],
   }
   const prioNodes = new WeakSet()
-  const ns = getNavigableElements(parent, forceAll)
+  const ns = getNavigableElements(root, forceAll)
+  let availableCount = 0
+  // DEV_ONLY >>
+  perfMark(null, "crossfire.collectRects.measureCandidates", {
+    candidates: ns.length,
+    direction,
+  })
+  // << DEV_ONLY
   for (let node of ns) {
     // prevent invisible navigation
     if (!isAvailable(node)) {
-      node.classList.remove(MENU_NAVIGATION_CLASS)
+      if (USE_LEGACY_CLASS) node.classList.remove(MENU_NAVIGATION_CLASS)
       continue
     }
+    availableCount += 1
     let rectNode = node
     // check priorities
     const prioNode = node.closest(`[${NAV_PRIORITY_CONTAINER_ATTR}]`)
@@ -189,8 +536,7 @@ export function collectRects(direction, parent, forceAll = false) {
         }
       }
       // prevent rect override if we're already inside of a priority container
-      const active = document.activeElement
-      if (!active || !prioNode.contains(active)) {
+      if (prioNode !== activePriorityContainer) {
         // TODO: check if container has priority item defined and remove from prioNodes if `node` is not the one
         rectNode = prioNode
       }
@@ -199,23 +545,41 @@ export function collectRects(direction, parent, forceAll = false) {
     // calculate
     const rect = rectNode.getBoundingClientRect() // TODO: cache these (read=all of these DOM calls, as they force a reflow=expensive), as they are super expensive
     // prevent offscreen navigation
-    if (rect.right < 0 || rect.bottom < 0 || rect.left > screen.width || rect.top > screen.height) {
-      node.classList.remove(MENU_NAVIGATION_CLASS)
+    if (rect.right < 0 || rect.bottom < 0 || rect.left > window.screen.width || rect.top > window.screen.height) {
+      if (USE_LEGACY_CLASS) node.classList.remove(MENU_NAVIGATION_CLASS)
       continue
     }
-    node.classList.add(MENU_NAVIGATION_CLASS)
-    node.tabIndex = 0 // make element focusable
+    if (USE_LEGACY_CLASS && !node.classList.contains(MENU_NAVIGATION_CLASS)) node.classList.add(MENU_NAVIGATION_CLASS)
+    if (node.tabIndex !== 0) node.tabIndex = 0 // make element focusable
     const lnk = { dom: node, rect }
-    if (links.up) links.up.push(lnk)
-    if (links.down) links.down.push(lnk)
-    if (links.left) links.left.push(lnk)
-    if (links.right) links.right.push(lnk)
+    links.up.push(lnk)
+    links.down.push(lnk)
+    links.left.push(lnk)
+    links.right.push(lnk)
   }
+  // DEV_ONLY >>
+  perfMark(null, "crossfire.collectRects.sort", {
+    available: availableCount,
+    direction,
+  })
+  // << DEV_ONLY
   if (links.up) links.up.sort((a, b) => a.rect.top - b.rect.top)
   if (links.down) links.down.sort((a, b) => a.rect.bottom - b.rect.bottom)
   if (links.left) links.left.sort((a, b) => a.rect.left - b.rect.left)
   if (links.right) links.right.sort((a, b) => a.rect.right - b.rect.right)
+  setCachedRectLinks(root, forceAll, activePriorityContainer, links)
   // console.log(direction ? links[direction] : links)
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    direction,
+    candidates: ns.length,
+    available: availableCount,
+    up: links.up?.length,
+    down: links.down?.length,
+    left: links.left?.length,
+    right: links.right?.length,
+  })
+  // << DEV_ONLY
   return links
 }
 
@@ -269,11 +633,68 @@ function getDistanceFast(curr, goal, direction, usePerpendicular = false) {
 
 
 export function navigate(links, direction, activeOverride) {
-  return links[direction] ? navigateNext(links[direction], direction, activeOverride) : false
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.navigate", {
+    direction,
+    linkCount: links[direction]?.length || 0,
+    hasActiveOverride: !!activeOverride,
+  })
+  // << DEV_ONLY
+
+  const result = links[direction] ? navigateNext(links[direction], direction, activeOverride) : false
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    direction,
+    result: !!result,
+  })
+  // << DEV_ONLY
+  return result
+}
+
+export function getNextNavigableInDirection(direction, restrictTo = undefined, activeOverride = null) {
+  if (!direction) return null
+  const links = collectRects(direction, restrictTo)
+  return findNext(links[direction] || [], direction, activeOverride).nearestLink || null
+}
+
+export function wouldNavigateOutside(restrictTo, direction, activeOverride = null) {
+  if (!restrictTo || !direction) return true
+  const nearestLink = getNextNavigableInDirection(direction, restrictTo, activeOverride)
+  return !nearestLink || !restrictTo.contains(nearestLink.dom)
+}
+
+/**
+ * Wrap-around helper. Focuses the navigable item on the opposite edge of `container` for the given direction.
+ * @param {HTMLElement} container
+ * @param {DIR} direction
+ * @returns {HTMLElement|false}
+ */
+export function focusWrapEdge(container, direction) {
+  if (!container || !direction) return false
+  const links = collectRects(direction, container)
+  const list = links[direction]
+  if (!list || list.length === 0) return false
+  // links[direction] is sorted along that direction's axis (see collectRects).
+  // The opposite edge is the far end for up/left, and the near end for down/right.
+  const target = direction === DIR.UP || direction === DIR.LEFT ? list[list.length - 1] : list[0]
+  if (!target || !container.contains(target.dom) || target.dom === document.activeElement) return false
+  focusOnElement(target.dom)
+  scrollFix(target, direction)
+  return target.dom
 }
 
 
 function navigateNext(links, direction, activeOverride = null) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.navigateNext", {
+    direction,
+    linkCount: links.length,
+    hasActiveOverride: !!activeOverride,
+  })
+  // << DEV_ONLY
+
   const active = activeOverride || document.activeElement
 
   if (active.nodeName === "BODY" || active.nodeName === "DIALOG") {
@@ -295,6 +716,13 @@ function navigateNext(links, direction, activeOverride = null) {
       focusOnElement(firstLink.dom)
       scrollFix(firstLink, direction)
     })
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction,
+      bodyFallback: true,
+      result: true,
+    })
+    // << DEV_ONLY
     return true
   }
 
@@ -321,6 +749,13 @@ function navigateNext(links, direction, activeOverride = null) {
     (active.nodeName === "INPUT" && active.type === "range" && (direction === DIR.LEFT || direction === DIR.RIGHT))
   ) {
     fireKey(active, direction)
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction,
+      firedKey: true,
+      result: true,
+    })
+    // << DEV_ONLY
     return true
   }
 
@@ -330,6 +765,13 @@ function navigateNext(links, direction, activeOverride = null) {
     // console.log("Focussing on a button:", nearestLink)
     focusOnElement(nearestLink.dom)
     fixScroll?.()
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction,
+      nearestTagName: nearestLink.dom?.tagName,
+      result: true,
+    })
+    // << DEV_ONLY
     return nearestLink.dom
   } else {
     // patch for stuck md elements
@@ -342,15 +784,38 @@ function navigateNext(links, direction, activeOverride = null) {
             el.parentNode.removeChild(el)
           } catch (err) { }
         }
-        return navigateNext(links, direction, activeOverride)
+        const result = navigateNext(links, direction, activeOverride)
+        // DEV_ONLY >>
+        perfEnd(perfToken, {
+          direction,
+          clearedBackdrops: mdBackdrops.length,
+          result: !!result,
+        })
+        // << DEV_ONLY
+        return result
       }
     }
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction,
+      result: false,
+    })
+    // << DEV_ONLY
     return false
   }
 }
 
 
 export function findNext(links, direction, activeOverride = null) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.findNext", {
+    direction,
+    linkCount: links.length,
+    hasActiveOverride: !!activeOverride,
+  })
+  // << DEV_ONLY
+
   const active = activeOverride || document.activeElement
   let activeRect = active.getBoundingClientRect()
   let fixScroll = true
@@ -391,6 +856,12 @@ export function findNext(links, direction, activeOverride = null) {
   const start = dir === 1 ? 0 : len - 1
   let minDistance = Infinity
   let nearestLink = null
+  // DEV_ONLY >>
+  perfMark(null, "crossfire.findNext.scan", {
+    direction,
+    linkCount: len,
+  })
+  // << DEV_ONLY
   for (let i = start; 0 <= i && i < len; i += dir) {
     // don't navigate to current element again
     if (links[i].dom === active) continue
@@ -400,6 +871,15 @@ export function findNext(links, direction, activeOverride = null) {
       nearestLink = links[i]
     }
   }
+
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    direction,
+    linkCount: len,
+    hasNearest: !!nearestLink,
+    minDistance: isFinite(minDistance) ? minDistance : null,
+  })
+  // << DEV_ONLY
 
   return {
     nearestLink,
@@ -467,6 +947,7 @@ export function navigateScroll(axis, amount) {
     navScrolling.running = Object.keys(set).length > 0
     if (navScrolling.running) {
       area.parent.scrollTo({ ...set, behavior: "instant" })
+      invalidateRectCache()
       document.dispatchEvent(new CustomEvent("mdtooltiphide")) // to hide opened tooltips (see angular-material.js)
       window.requestAnimationFrame(scrl)
     }
@@ -508,6 +989,15 @@ function isScrollListening(axis = undefined) {
 
 
 function findScrollable(link, axis, thumbstick) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.findScrollable", {
+    axis,
+    thumbstick: !!thumbstick,
+    tagName: link?.dom?.tagName,
+  })
+  // << DEV_ONLY
+
   // default axis is vertical
   if (axis !== AXIS_V && axis !== AXIS_H) axis = AXIS_V
   const opts = axis === AXIS_H
@@ -554,7 +1044,15 @@ function findScrollable(link, axis, thumbstick) {
   }
   scrollCatch(axis, !!parent)
   drawScrollHint()
-  if (!parent) return null
+  if (!parent) {
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      axis,
+      result: false,
+    })
+    // << DEV_ONLY
+    return null
+  }
   let start = 0
   const styles = document.defaultView.getComputedStyle(parent, null)
   // autoscrolling misbehaves? check if position style is defined here
@@ -586,7 +1084,7 @@ function findScrollable(link, axis, thumbstick) {
   //   elem.style[axis === AXIS_H ? "borderRight" : "borderBottom"] =
   //   "2px dashed magenta"
   /// /DEBUG
-  return {
+  const result = {
     parent,
     moveby: opts.moveby,
     readby: opts.readby,
@@ -596,19 +1094,52 @@ function findScrollable(link, axis, thumbstick) {
     finish: fullsize - size,
     forced,
   }
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    axis,
+    result: true,
+    forced,
+    fullsize,
+    size,
+  })
+  // << DEV_ONLY
+  return result
 }
 
 
 // scrolls the items into a narrower view
 export function scrollFix(link, direction) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(null, "crossfire.scrollFix", {
+    direction,
+    tagName: link?.dom?.tagName,
+  })
+  // << DEV_ONLY
+
   const area = findScrollable(link, direction === DIR.UP || direction === DIR.DOWN ? AXIS_V : AXIS_H)
   if (!area) {
     // find if there are something else for thumbstick scroll
     if (document.querySelector(`[${SCROLL_ATTR}], [${SCROLL_FORCE_ATTR}]`))
       findScrollable(link, direction === DIR.LEFT || direction === DIR.RIGHT ? AXIS_V : AXIS_H)
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction,
+      result: false,
+    })
+    // << DEV_ONLY
     return
   }
-  if (area.forced) return // prevent scrolling forced area with focus on a different element
+  if (area.forced) {
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction,
+      forced: true,
+      result: false,
+    })
+    // << DEV_ONLY
+    return // prevent scrolling forced area with focus on a different element
+  }
   let mov = -1
   if (direction === DIR.UP || direction === DIR.DOWN) {
     if (link.rect.top < area.bounds[0]) mov = Math.max(area.parent.scrollTop - area.bounds[0] + link.rect.top, area.start)
@@ -618,7 +1149,17 @@ export function scrollFix(link, direction) {
     else if (link.rect.right > area.bounds[1]) mov = Math.min(area.parent.scrollLeft - area.bounds[1] + link.rect.right, area.finish)
   }
   // console.log(JSON.stringify({direction, /*fullheight, height, top, pad,*/ scrolled: area.parent.scrollTop, area.bounds, l_top: link.rect.top, l_bottom: link.rect.bottom, movy}, null, 2))
-  if (mov > -1) area.parent.scrollTo({ [area.moveby]: mov, behavior: "instant" }) // smooth|instant
+  if (mov > -1) {
+    area.parent.scrollTo({ [area.moveby]: mov, behavior: "instant" }) // smooth|instant
+    invalidateRectCache()
+  }
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    direction,
+    moved: mov > -1,
+    moveTo: mov > -1 ? mov : null,
+  })
+  // << DEV_ONLY
 }
 
 
@@ -628,11 +1169,18 @@ function fireKey(element, direction) {
 }
 
 // Helper function to clear the timer
-function clearThumbstickTimer() {
+function clearThumbstickTimer(axis = null) {
+  if (axis && thumbstickState.repeatIntent?.axis !== axis) return
   if (thumbstickState.timer) {
     clearTimeout(thumbstickState.timer)
     thumbstickState.timer = null
   }
+  // Invalidate any in-flight repeat callback that captured the previous pressId.
+  thumbstickState.pressId = ++pressGeneration
+  thumbstickState.sessionKey = null
+  thumbstickState.repeatIntent = null
+  thumbstickState.repeatAction = null
+  thumbstickState.restrictTo = null
 }
 
 // TODO: finalize event repeater
@@ -671,28 +1219,326 @@ function processThumbstickMovement(axis, value, restrictTo) {
 
 let lastTime = 0, lastStack = ""
 
+// Stable, input-specific identity for a repeat session. Discrete dpad events
+// and scalar stick events are kept in separate sessions so they cannot
+// hijack each other's repeat timer on the same axis/direction.
+function getNavigationRepeatKey(intent) {
+  if (!intent || !intent.axis || !intent.axisStepValue) return null
+  return intent.scalar
+    ? `scalar:${intent.axis}:${intent.axisStepValue}`
+    : `discrete:${intent.eventName}`
+}
+
+// DEV_ONLY >>
+// Records one decision in the repeat/latch pipeline.
+// `type` is one of: "received" | "immediate" | "latched" | "release" | "repeat" | "conflict".
+// "conflict" means the event was consumed because another input kind (scalar
+// stick vs discrete dpad) currently owns the same axis.
+function traceNav(type, intent, detail = null, extra = {}) {
+  if (!navTrace.enabled) return
+  const axis = intent?.axis ?? null
+  const entry = {
+    t: Math.round((performance?.now ? performance.now() : Date.now()) * 100) / 100,
+    type,
+    name: detail?.name ?? intent?.eventName ?? null,
+    value: detail?.value ?? intent?.value ?? null,
+    axis,
+    axisStepValue: intent?.axisStepValue ?? null,
+    scalar: intent?.scalar ?? null,
+    repeatEligible: intent?.repeatEligible ?? null,
+    direction: intent?.direction ?? null,
+    repeatKey: getNavigationRepeatKey(intent),
+    activeRepeatKey: thumbstickState.sessionKey,
+    pressId: thumbstickState.pressId ?? null,
+    lastScalarValue: axis ? lastScalarValue[axis] : null,
+    hasTimer: !!thumbstickState.timer,
+    perfId: intent?.perfId ?? detail?.perfId ?? null,
+    ...extra,
+  }
+  navTrace.log.push(entry)
+  if (navTrace.log.length > navTrace.max) navTrace.log.shift()
+  if (navTrace.echo) console.debug(`[UINavTrace] ${type}`, entry)
+}
+// << DEV_ONLY
+
+function performNavigationIntent(intent, restrictTo) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(intent?.perfId, "crossfire.performNavigationIntent", {
+    direction: intent?.direction,
+    restrictTo: !!restrictTo,
+    scalar: !!intent?.scalar,
+  })
+  // << DEV_ONLY
+
+  if (!intent?.direction) {
+    // DEV_ONLY >>
+    perfEnd(perfToken, { result: false })
+    // << DEV_ONLY
+    return false
+  }
+  const links = collectRects(intent.direction, restrictTo)
+  const result = navigate(links, intent.direction)
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    direction: intent.direction,
+    result: !!result,
+  })
+  // << DEV_ONLY
+  return true
+}
+
+function scheduleNavigationRepeat(intent, restrictTo, isFirstRepeat = false, repeatAction = performNavigationIntent) {
+  const sessionKey = getNavigationRepeatKey(intent)
+  if (!sessionKey || !intent.repeatEligible) {
+    clearThumbstickTimer(intent?.axis)
+    return
+  }
+
+  if (thumbstickState.sessionKey !== sessionKey) {
+    // A different input takes over: drop the previous session (which also
+    // invalidates its pending pressId) and restart from the initial delay.
+    clearThumbstickTimer()
+    isFirstRepeat = true
+  } else if (thumbstickState.timer) {
+    // Same session is already counting down: refresh the captured intent but
+    // do not restart the delay or mint a new press token.
+    thumbstickState.repeatIntent = intent
+    thumbstickState.repeatAction = repeatAction
+    thumbstickState.restrictTo = restrictTo
+    return
+  }
+
+  const pressId = ++pressGeneration
+  thumbstickState.sessionKey = sessionKey
+  thumbstickState.pressId = pressId
+  thumbstickState.repeatIntent = intent
+  thumbstickState.repeatAction = repeatAction
+  thumbstickState.restrictTo = restrictTo
+  thumbstickState.timer = setTimeout(() => {
+    // Token-safe: only fire if this press session is still the active one.
+    if (thumbstickState.pressId !== pressId || thumbstickState.sessionKey !== sessionKey) return
+
+    const repeatIntent = thumbstickState.repeatIntent
+    const repeatAction = thumbstickState.repeatAction
+    const repeatRestrictTo = resolveRepeatRestrictTo(repeatIntent, thumbstickState.restrictTo)
+    thumbstickState.timer = null
+
+    if (!repeatIntent?.repeatEligible) {
+      clearThumbstickTimer()
+      return
+    }
+
+    if (typeof repeatAction === "function") {
+      // DEV_ONLY >>
+      traceNav("repeat", repeatIntent, null, { restrictTo: !!repeatRestrictTo })
+      // << DEV_ONLY
+      repeatAction(repeatIntent, repeatRestrictTo)
+      scheduleNavigationRepeat(repeatIntent, repeatRestrictTo, false, repeatAction)
+    } else {
+      axisOwner[repeatIntent.axis] = null
+      lastScalarValue[repeatIntent.axis] = 0
+      clearThumbstickTimer(repeatIntent.axis)
+    }
+  }, isFirstRepeat ? THUMBSTICK_INITIAL_DELAY : THUMBSTICK_REPEAT_DELAY)
+}
+
+export function consumeUINavNavigationIntent(detail, options = {}) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(detail?.perfId, "crossfire.consumeUINavNavigationIntent", {
+    name: detail?.name,
+    value: detail?.value,
+    restrictTo: !!options.restrictTo,
+  })
+  // << DEV_ONLY
+
+  // This mutates latch/repeat state. Use getUINavNavigationIntent() for read-only
+  // guards such as scoped-nav boundary checks or escape policies.
+  // Apply scalar hysteresis: if this axis is currently held by a scalar (stick)
+  // session, evaluate the intent against the lower release threshold so jitter
+  // around the trigger threshold doesn't release and re-press the axis.
+  const hysteresisAxis = UI_SCALAR_EVENT_ACTIONS[detail.name]
+  const scalarEngaged =
+    !!hysteresisAxis && axisOwner[hysteresisAxis] === "scalar" && lastScalarValue[hysteresisAxis] !== 0
+  const intent = getUINavNavigationIntent(detail, { ...options, scalarEngaged })
+  if (!intent) {
+    // DEV_ONLY >>
+    perfEnd(perfToken, { result: "no-intent" })
+    // << DEV_ONLY
+    return null
+  }
+
+  const kind = getInputKind(intent)
+
+  if (!intent.active) {
+    // A release from a non-owning input kind must not tear down the owner's
+    // latch/repeat session on this axis. Ignore it as a pure consume.
+    if (axisOwner[intent.axis] && axisOwner[intent.axis] !== kind) {
+      // DEV_ONLY >>
+      traceNav("conflict", intent, detail, { phase: "release", owner: axisOwner[intent.axis] })
+      // << DEV_ONLY
+      // DEV_ONLY >>
+      perfEnd(perfToken, {
+        direction: intent.direction,
+        active: false,
+        consumeOnly: true,
+        conflict: true,
+      })
+      // << DEV_ONLY
+      return { ...intent, consumeOnly: true }
+    }
+    // DEV_ONLY >>
+    traceNav("release", intent, detail)
+    // << DEV_ONLY
+    axisOwner[intent.axis] = null
+    lastScalarValue[intent.axis] = 0
+    clearThumbstickTimer(intent.axis)
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction: intent.direction,
+      active: false,
+      consumeOnly: true,
+    })
+    // << DEV_ONLY
+    return { ...intent, consumeOnly: true }
+  }
+
+  // Another input kind currently owns this axis: consume without navigating,
+  // resetting latch state, or retriggering repeat until that owner releases.
+  if (axisOwner[intent.axis] && axisOwner[intent.axis] !== kind) {
+    // DEV_ONLY >>
+    traceNav("conflict", intent, detail, { phase: "active", owner: axisOwner[intent.axis] })
+    // << DEV_ONLY
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction: intent.direction,
+      active: true,
+      consumeOnly: true,
+      conflict: true,
+    })
+    // << DEV_ONLY
+    return { ...intent, consumeOnly: true }
+  }
+
+  axisOwner[intent.axis] = kind
+
+  if (lastScalarValue[intent.axis] === intent.axisStepValue) {
+    // DEV_ONLY >>
+    traceNav("latched", intent, detail)
+    // << DEV_ONLY
+    scheduleNavigationRepeat(intent, options.restrictTo, false, options.repeatAction || null)
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      direction: intent.direction,
+      active: true,
+      latched: true,
+      consumeOnly: true,
+    })
+    // << DEV_ONLY
+    return { ...intent, consumeOnly: true, latched: true }
+  }
+
+  // DEV_ONLY >>
+  traceNav("immediate", intent, detail)
+  // << DEV_ONLY
+  lastScalarValue[intent.axis] = intent.axisStepValue
+  scheduleNavigationRepeat(intent, options.restrictTo, true, options.repeatAction || null)
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    direction: intent.direction,
+    active: true,
+    scalar: intent.scalar,
+    repeatEligible: intent.repeatEligible,
+  })
+  // << DEV_ONLY
+  return intent
+}
+
+function handleNavigationIntent(intent, restrictTo) {
+  let perfToken = null
+  // DEV_ONLY >>
+  perfToken = perfStart(intent?.perfId, "crossfire.handleNavigationIntent", {
+    direction: intent?.direction,
+    consumeOnly: !!intent?.consumeOnly,
+    restrictTo: !!restrictTo,
+  })
+  // << DEV_ONLY
+
+  if (!intent) {
+    // DEV_ONLY >>
+    perfEnd(perfToken, { result: false })
+    // << DEV_ONLY
+    return false
+  }
+  if (intent.consumeOnly) {
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      result: true,
+      consumeOnly: true,
+    })
+    // << DEV_ONLY
+    return true
+  }
+
+  performNavigationIntent(intent, restrictTo)
+  // DEV_ONLY >>
+  perfEnd(perfToken, {
+    direction: intent.direction,
+    result: true,
+  })
+  // << DEV_ONLY
+  return true
+}
+
 export function handleUINavEvent(e, restrictTo = undefined) {
   const d = e.detail
+  // DEV_ONLY >>
+  traceNav("received", null, d, { restrictTo: !!restrictTo })
+  // << DEV_ONLY
   // const globalAngularRootScope = window.globalAngularRootScope
   let handled = false
-
-  // handle scalar thumbstick input
-  if (d.name in UI_SCALAR_EVENT_ACTIONS) {
-    const axis = UI_SCALAR_EVENT_ACTIONS[d.name]
-    const value = d.value
-    if (value !== 0 && THUMBSTICK_DEADZONE > 0 && Math.abs(value) > THUMBSTICK_DEADZONE) {
-      const adjustedValue = (axis === AXIS_V ? -value : value) > 0 ? 1 : -1
-      const direction = axis === AXIS_H
-        ? (adjustedValue > 0 ? DIR.RIGHT : DIR.LEFT)
-        : (adjustedValue > 0 ? DIR.DOWN : DIR.UP)
-
-      if (lastScalarValue[axis] !== adjustedValue) {
-        lastScalarValue[axis] = adjustedValue
-        navigate(collectRects(direction, restrictTo), direction)
-      }
-    } else {
-      lastScalarValue[axis] = 0
+  let perfId = d.perfId
+  let ownsPerfEvent = false
+  // DEV_ONLY >>
+  if (!perfId) {
+    perfId = perfLog(d.name, "crossfire:direct-entry", {
+      value: d.value,
+      restrictTo: !!restrictTo,
+    })
+    if (perfId) {
+      d.perfId = perfId
+      ownsPerfEvent = true
     }
+  }
+  perfSetCurrentEvent(perfId)
+  perfMark(perfId, "crossfire.handleUINavEvent:start", {
+    restrictTo: !!restrictTo,
+    value: d.value,
+  })
+  // << DEV_ONLY
+
+  // Default navigation path: both analog stick scalar events and dpad focus
+  // events go through the shared scalar-normalized pipeline.
+  const navigationIntent = consumeUINavNavigationIntent(d, { restrictTo, repeatAction: performNavigationIntent })
+  if (navigationIntent) {
+    handled = handleNavigationIntent(navigationIntent, restrictTo)
+  }
+
+  if (handled && UI_DIRECTION_EVENT_SCALAR_INPUTS[d.name]) {
+    // DEV_ONLY >>
+    perfMark(perfId, "crossfire.handleUINavEvent:end", {
+      handled,
+      defaultPrevented: e.defaultPrevented,
+      dpad: true,
+    })
+    if (ownsPerfEvent) perfEndEvent(perfId, { handled, direct: true })
+    perfClearCurrentEvent(perfId)
+    // << DEV_ONLY
+    return handled
+  }
+
+  if (handled && d.name in UI_SCALAR_EVENT_ACTIONS) {
     handled = true
   }
 
@@ -707,18 +1553,7 @@ export function handleUINavEvent(e, restrictTo = undefined) {
       case "down":
       case "left":
       case "right":
-        if (d.value == 1) {
-          /// in case you will find crossfire skipping elements, try to uncomment this
-          // const time = Date.now()
-          // const stack = new Error().stack
-          // if (time - lastTime < 50) {
-          //   console.log("too fast!", time - lastTime, "\nprev:", lastStack, "\nnew:", stack)
-          // }
-          // lastStack = stack
-          // lastTime = time
-          navigate(collectRects(action, restrictTo), action)
-          handled = true
-        }
+        // Already handled by the normalized navigation path above.
         break
 
       // Click
@@ -770,4 +1605,53 @@ export function handleUINavEvent(e, restrictTo = undefined) {
     e.preventDefault()
   }
 
+  // DEV_ONLY >>
+  perfMark(perfId, "crossfire.handleUINavEvent:end", {
+    handled,
+    defaultPrevented: e.defaultPrevented,
+  })
+  if (ownsPerfEvent) perfEndEvent(perfId, { handled, direct: true })
+  perfClearCurrentEvent(perfId)
+  // << DEV_ONLY
 }
+
+// DEV_ONLY >>
+function dumpNavTrace(limit = navTrace.max) {
+  const rows = navTrace.log.slice(-limit)
+  console.table(rows.map(({ t, type, name, value, axis, axisStepValue, scalar, repeatEligible, repeatKey, activeRepeatKey, pressId, lastScalarValue, hasTimer }) => ({
+    t,
+    type,
+    name,
+    value,
+    axis,
+    axisStepValue,
+    scalar,
+    repeatEligible,
+    repeatKey,
+    activeRepeatKey,
+    pressId,
+    lastScalarValue,
+    hasTimer,
+  })))
+  return rows
+}
+
+window.uiNav = window.uiNav || {}
+window.uiNav.trace = {
+  get log() { return navTrace.log },
+  get enabled() { return navTrace.enabled },
+  enable(echo = true) {
+    navTrace.enabled = true
+    navTrace.echo = !!echo
+    console.debug(`[UINavTrace] enabled (echo=${navTrace.echo})`)
+  },
+  disable() {
+    navTrace.enabled = false
+    console.debug("[UINavTrace] disabled")
+  },
+  reset() {
+    navTrace.log.length = 0
+  },
+  dump: dumpNavTrace,
+}
+// << DEV_ONLY

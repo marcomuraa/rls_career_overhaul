@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { UINavService } from "@/services/uiNav"
 import { DOM_UI_NAVIGATION_EVENT, UI_SCOPE_ATTR } from "@/services/uiNav/constants"
-import Emitter from "tiny-emitter"
+import Emitter from "eventemitter3"
 
 describe("UINavService Event Handling Tests", () => {
   let eventBus

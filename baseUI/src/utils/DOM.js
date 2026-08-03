@@ -6,6 +6,7 @@ function isRef(r) {
 export const isVisibleFast = node => !!(node.offsetWidth && node.offsetHeight)
 
 export function isVisible(node, _style = null) {
+  if (typeof node.getClientRects !== "function" || node.getClientRects().length === 0) return false
   let tmp = node
   if (!_style) _style = document.defaultView.getComputedStyle(tmp, null)
   while (tmp.tagName !== "HTML") {

@@ -1,18 +1,23 @@
 <template>
-  <div
+  <LayoutMenu
     class="layer-materials-view"
-    bng-ui-scope="layer-materials-scope"
-    v-bng-ui-nav-label:context="'Apply'"
-    v-bng-ui-nav-label:action_2="'[Hold]Precise'"
-    v-bng-ui-nav-label:back,menu="'Back'"
-    v-bng-on-ui-nav:action_2.up="handleAction2"
-    v-bng-on-ui-nav:action_2.down="handleAction2"
-    v-bng-on-ui-nav:back,menu="goBack"
-    v-bng-on-ui-nav:context="saveChanges">
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    :show-breadcrumb-back-button="true"
+    heading="Materials"
+    @breadcrumb-click="onBreadcrumbClick"
+    @breadcrumb-back="onBreadcrumbBack">
+    <div
+      class="main-view-content"
+      v-bng-ui-nav-label:context="'Apply'"
+      v-bng-ui-nav-label:action_2="'[Hold]Precise'"
+      v-bng-ui-nav-label:back,menu="'Back'"
+      v-bng-on-ui-nav:action_2.up="handleAction2"
+      v-bng-on-ui-nav:action_2.down="handleAction2"
+      v-bng-on-ui-nav:back,menu="goBack"
+      v-bng-on-ui-nav:context="saveChanges">
       <div class="inspector-container">
         <LayerInspectorBase v-bng-blur :heading="'Materials'" class="">
           <div class="materials-inspector">
@@ -20,32 +25,26 @@
               <div class="setting-item-name">Color</div>
               <BngColorPicker v-bng-ui-nav-focus="0" v-model="color" :step="colorPickerStep" @change="onColorChanged" />
               <div class="color-values-container" bng-no-child-nav>
-                <BngInput prefix="h" v-model="inputHue" type="number" />
-                <BngInput prefix="s" v-model="inputSat" type="number" />
-                <BngInput prefix="b" v-model="inputLum" type="number" />
+                <BngInput bng-no-child-nav="true" bng-no-nav="true" prefix="h" v-model="inputHue" type="number" no-spinners :show-external-button="false" no-scope  />
+                <BngInput bng-no-child-nav="true" bng-no-nav="true" prefix="s" v-model="inputSat" type="number" no-spinners :show-external-button="false" no-scope  />
+                <BngInput bng-no-child-nav="true" bng-no-nav="true" prefix="b" v-model="inputLum" type="number" no-spinners :show-external-button="false" no-scope />
               </div>
             </div>
             <BngDivider />
             <div class="materials-setting-item">
               <div class="setting-item-name">Metallic Intensity</div>
-              <div class="slider-text-container">
-                <BngInput bng-no-nav v-model="metallicIntensity" type="number" :min="0" :max="100" :step="slidersStep" />
-                <BngSlider v-model="metallicIntensity" :min="0" :max="100" :step="slidersStep" />
-              </div>
+              <BngSlider v-model="metallicIntensity" :min="0" :max="100" :step="slidersStep" with-input />
             </div>
             <BngDivider />
             <div class="materials-setting-item">
               <div class="setting-item-name">Roughness Intensity</div>
-              <div class="slider-text-container">
-                <BngInput bng-no-nav v-model="roughnessIntensity" type="number" :min="0" :max="100" :step="slidersStep" />
-                <BngSlider v-model="roughnessIntensity" :min="0" :max="100" :step="slidersStep" />
-              </div>
+              <BngSlider v-model="roughnessIntensity" :min="0" :max="100" :step="slidersStep" with-input />
             </div>
           </div>
         </LayerInspectorBase>
       </div>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script>
@@ -53,23 +52,32 @@ const BLOCKED_UI_EVENTS = ["tab_l", "tab_r", "action_2", "rotate_h_cam", "rotate
 </script>
 
 <script setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { useInfoBar } from "@/services/infoBar"
-import { useUINavScope } from "@/services/uiNav"
 import { useUINavBlocker } from "@/services/uiNavTracker"
 import { vBngOnUiNav, vBngUiNavLabel, vBngBlur, vBngUiNavFocus } from "@/common/directives"
 import { BngColorPicker, BngDivider, BngInput, BngSlider } from "@/common/components/base"
-import { useEditorHeaderStore } from "@/modules/liveryEditor/stores"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
+import { LayoutMenu } from "@/common/layouts"
 import { lua, useBridge } from "@/bridge"
 import { openConfirmation } from "@/services/popup"
 import Paint from "@/utils/paint"
 import LayerInspectorBase from "../components/layerSettings/LayerInspectorBase.vue"
+import { useLiveryBreadcrumbNavigation } from "@/modules/liveryEditor/composables/useLiveryBreadcrumbNavigation"
 
-const headerStore = useEditorHeaderStore()
 const infobar = useInfoBar()
 const uiNavBlocker = useUINavBlocker()
-const uiNav = useUINavScope("layer-materials-scope")
+
+const { breadcrumbItems, onBreadcrumbClick, onBreadcrumbBack } = useLiveryBreadcrumbNavigation({
+  handleBack: () => {
+    goBack()
+    return true
+  },
+  handleNavigate: async item => {
+    if (!item?.routeName || item.abstract || item.decorator) return true
+    if (await confirmLeave()) await lua.extensions.ui_router.navigate(item.routeName, item.params)
+    return true
+  },
+})
 
 const { events } = useBridge()
 
@@ -131,10 +139,6 @@ watch(
   value => updateMaterialProperties({ roughnessIntensity: value })
 )
 
-onBeforeMount(() => {
-  headerStore.setPreheader(["Materials"])
-})
-
 onMounted(async () => {
   infobar.visible = true
   infobar.showSysInfo = true
@@ -174,28 +178,31 @@ function handleAction2(element) {
   isPreciseActive.value = element.detail.value === 1
 }
 
-function goBack(event) {
-  if (screenState.openedDialog) return
+// Confirm leaving the materials screen, discarding unsaved changes. Returns true
+// when the caller should proceed with navigation (cleanup already performed).
+async function confirmLeave() {
+  if (screenState.openedDialog) return false
 
   screenState.openedDialog = "exit"
+  const res = await openConfirmation("Exit", "Exit and lose changes?")
+  screenState.openedDialog = null
 
-  openConfirmation("Exit", "Exit and lose changes?").then(res => {
-    if (res) {
-      const luaRes = lua.extensions.ui_liveryEditor_layerEdit.cancelChanges()
-      luaRes.then(() => {
-        window.bngVue.gotoGameState("LiveryDecals")
-      })
-    }
-    screenState.openedDialog = null
+  if (!res) return false
+  await lua.extensions.ui_liveryEditor_layerEdit.cancelChanges()
+  return true
+}
+
+function goBack(event) {
+  event?.stopPropagation?.()
+  confirmLeave().then(proceed => {
+    if (proceed) lua.extensions.ui_router.navigate("livery.editor.decals", null, { preferredScope: "actions-drawer" })
   })
-
-  event.stopPropagation()
 }
 
 function saveChanges() {
   const res = lua.extensions.ui_liveryEditor_layerEdit.saveChanges()
   res.then(() => {
-    window.bngVue.gotoGameState("LiveryDecals")
+    lua.extensions.ui_router.navigate("livery.editor.decals", null, { preferredScope: "actions-drawer" })
   })
 }
 </script>
@@ -256,6 +263,7 @@ $infobarHeight: 4rem;
 .color-values-container {
   display: flex;
   align-items: center;
+  padding-top: 0.5rem;
 
   > * {
     flex: 1 1 auto;

@@ -1,6 +1,6 @@
 <!-- rewardsPills for displaying a list of rewards -->
 <template>
-  <div class="rewards-pills-container">
+  <div class="reward-pill rewards-pills-container">
     <div class="pill" :style="{backgroundColor: backgroundColor, filter: highlight ? 'brightness(350%)' : ''}">
       <BngUnit
         v-bind="{ [icon ? 'beamXP' : attributeKey]: rewardAmount }"
@@ -33,17 +33,17 @@ const props = defineProps({
 .rewards-pills-container {
   display: flex;
   align-items: baseline;
-  flex-flow: row wrap;
-  margin: -0.125rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin: var(--reward-pill-container-margin, -0.125rem);
   .pill {
     display: flex;
     border-radius: var(--bng-corners-2);
-    margin: 0.125rem;
-    padding: 0rem 0.4rem 0.1rem 0.2rem;
+    margin: var(--reward-pill-margin, 0.125rem);
+    padding: var(--reward-pill-padding, 0rem 0.4rem 0.1rem 0.2rem);
     .reward-icon {
-      padding-top: 0.15rem;
-      padding-right: 0.2rem;
-      font-weight: 400;
+      padding-top: var(--reward-pill-icon-padding-top, 0.15rem);
+      padding-right: var(--reward-pill-icon-padding-right, 0.2rem);
     }
   }
 }

@@ -2,35 +2,24 @@
   <div
     v-show="visible"
     class="info-bar"
-    :class="{ 'info-bar-solid': solidBar }"
     bng-no-nav="true"
-    v-bng-blur="solidBar && !SysInfo.mainMenuBackgroundRequired.value"
   >
 
     <div v-if="showSysInfo" class="info-bar-stats">
-      <BngIcon style="--bng-icon-size: 1.25em; padding: 0;" :type="SysInfo.online ? icons.globeSimplified : icons.globeSimpleNotSign" v-bng-tooltip:top="SysInfo.online ? 'Online' : 'Offline'" />
-      <template v-for="(info, key) in SysInfo.serviceProviders.value">
-        <span v-if="SysInfo.serviceProvidersOnline.value[key]">
-          <BngImageAsset :src="`images/mainmenu/${key}icon.png`" />
-          {{ info.playerName }}
-          <BngIcon style="--bng-icon-size: 1.25em; padding: 0;" v-if="info.branch && info.branch !== 'public'" :type="icons.branch" v-bng-tooltip:top="'Branch: ' + info.branch" />
-          {{ info.branch && info.branch !== "public" ? info.branch : "" }}
-        </span>
-      </template>
-      <span v-if="SysInfo.online || SysInfo.serviceProvidersOnline.value.any" class="divider" />
-      <span @click="toggleBuildInfo">
-        <span v-if="!showBuildInfo">Alpha v.{{ SysInfo.versionSimple }}</span>
-        <template v-else>
-          <span class="sysinfo">Alpha v.{{ SysInfo.version }}</span>
-          <span class="sysinfo">{{ SysInfo.buildInfo }}</span>
-        </template>
-      </span>
+      <BngOnlineStatus :online="SysInfo.online" />
+      <BngServiceProvidersUser
+        v-if="!hideServiceProvidersUser"
+        :service-providers="SysInfo.serviceProviders.value"
+        :service-providers-online="SysInfo.serviceProvidersOnline.value"
+      />
+      <span v-if="!hideServiceProvidersUser && (SysInfo.online.value || SysInfo.serviceProvidersOnline.value.any)" class="divider" />
+      <BngVersionBuildInfo :branch="activeBranch" :version-simple="SysInfo.versionSimple" :version="SysInfo.version" :build-info="SysInfo.buildInfo" />
     </div>
 
     <div class="spacer"></div>
 
-    <div v-if="hints.length" class="info-bar-buttons" bng-no-child-nav="true">
-      <Hint v-for="item in hints" :key="item.id" :data="item" />
+    <div v-if="hints.length" v-show="hintsDisplayed" class="info-bar-buttons" bng-no-child-nav="true">
+      <Hint v-for="item in hints" :key="item.id" :data="item" ref="hintRefs" />
     </div>
 
   </div>
@@ -41,32 +30,37 @@ import { ref, computed } from "vue"
 import { useRoute } from "vue-router"
 import SysInfo from "@/services/sysInfo"
 import { useInfoBar } from "@/services/infoBar"
-import { BngIcon, icons, BngImageAsset } from "@/common/components/base"
-import { vBngBlur, vBngTooltip } from "@/common/directives"
+import { BngOnlineStatus, BngServiceProvidersUser, BngVersionBuildInfo } from "@/common/components/base"
 import Hint from "../components/Hint.vue"
 import { storeToRefs } from "pinia"
 
 const infoBarObj = useInfoBar()
-const { visible, showSysInfo, withAngular, hints } = storeToRefs(infoBarObj)
+const { visible, showSysInfo: storeShowSysInfo, hints } = storeToRefs(infoBarObj)
 
-const showBuildInfo = ref(false)
+const showSysInfo = computed(() => route.meta?.infoBar?.showSysInfo !== undefined ? route.meta.infoBar.showSysInfo : storeShowSysInfo.value)
 
-const toggleBuildInfo = () => showBuildInfo.value = !showBuildInfo.value
+const activeBranch = computed(() => {
+  const provs = SysInfo.serviceProviders.value
+  const online = SysInfo.serviceProvidersOnline.value
+  if (!provs || !online) return ""
+
+  for (const [key, info] of Object.entries(provs)) {
+    if (online[key] && info && info.branch) return info.branch
+  }
+
+  return ""
+})
 
 const route = useRoute()
-const solidBar = computed(() => {
-  if (route.name !== "menu.mainmenu") {
-    return withAngular.value
-  } else {
-    return !SysInfo.mainMenuBackgroundRequired.value
-  }
-})
+const hideServiceProvidersUser = computed(() => route.meta?.infoBar?.hideServiceProvidersUser === true)
+const hintRefs = ref([])
+const hintsDisplayed = computed(() => hintRefs.value.some(ref => ref.displayed))
 </script>
 
 <style lang="scss" scoped>
 $height: 2.9em;
 $bg-grad: transparent 1.05rem, #f60 1.15rem 1.4rem, var(--info-grad-bg) 1.5rem;
-$bg-grad-pad: 1.2rem;
+$bg-grad-pad: 1.75rem;
 
 .info-bar {
   position: absolute;
@@ -81,11 +75,6 @@ $bg-grad-pad: 1.2rem;
     overflow: hidden;
   }
   --info-grad-bg: var(--bng-black-o6);
-  &.info-bar-solid {
-    bottom: 0;
-    background-color: var(--bng-black-o6);
-    --info-grad-bg: transparent;
-  }
 
   .spacer {
     flex: 1 0 0;
@@ -109,17 +98,14 @@ $bg-grad-pad: 1.2rem;
     display: flex;
     flex-direction: row;
     align-items: center;
+    gap:0.5em;
     // border-left: 4px solid #f60;
-    border-top-left-radius: var(--bng-corners-1);
-    border-bottom-left-radius: var(--bng-corners-1);
+    border-top-left-radius: var(--bng-corners-2);
+    border-bottom-left-radius: var(--bng-corners-2);
     background-image: linear-gradient(-67deg, $bg-grad);
     .sysinfo {
       font-size: 0.8em;
     }
-  }
-
-  .info-bar-solid .info-bar-stats {
-    border-left: none;
   }
 
   .info-bar-buttons {
@@ -130,8 +116,8 @@ $bg-grad-pad: 1.2rem;
     align-items: center;
     padding-right: 1em;
     background-image: linear-gradient(113deg, $bg-grad);
-    border-top-right-radius: var(--bng-corners-1);
-    border-bottom-right-radius: var(--bng-corners-1);
+    border-top-right-radius: var(--bng-corners-2);
+    border-bottom-right-radius: var(--bng-corners-2);
     span > span {
       padding: 0.5em 0;
     }

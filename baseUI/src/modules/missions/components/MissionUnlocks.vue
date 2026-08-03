@@ -22,6 +22,8 @@
             v-if="!elem.hidden"
             class="clickable-card"
             :mission="elem.formatted"
+            :showStartableIcons="false"
+            :showHintIcon="false"
           />
         </template>
       </div>
@@ -86,6 +88,7 @@ defineExpose({
 
 .clickable-card {
   cursor: pointer;
+  min-height: 4rem;
 
   &:hover {
     filter: brightness(1.1);

@@ -8,22 +8,22 @@
           class="message"
           :class="item.messageClass">
           <div v-if="item.isTyping" class="above">
-            <span class="spinner" aria-label="Typing"></span>
-            Typing...
+            <span class="spinner" :aria-label="$translate.instant('ui.career.negotiation.status.typing')"></span>
+            {{ $translate.instant("ui.career.negotiation.status.typing") }}
           </div>
           <div v-else-if="item.negotiationStatus === 'failed'" class="red">
-            <BngIcon type="abandon" /> Negotiation failed!
+            <BngIcon type="abandon" /> {{ $translate.instant("ui.career.negotiation.negotiationFailedExclaim") }}
           </div>
           <div v-else-if="item.negotiationStatus === 'accepted'" class="green">
-            <BngIcon type="checkmark" :color="'var(--bng-add-green-400)'" /> Accepted!
+            <BngIcon type="checkmark" :color="'var(--bng-add-green-400)'" /> {{ $translate.instant("ui.career.negotiation.acceptedExclaim") }}
           </div>
           <!-- this only applies to my first message-->
           <div v-else-if="item.offerStatus" class="above">
             <template v-if="item.offerStatus === 'initial'">
-              {{ !props.amISelling ?  'Initial offer' : 'Asking Price' }}
+              {{ !props.amISelling ? $translate.instant("ui.career.negotiation.initialOffer") : $translate.instant("ui.career.negotiation.askingPrice") }}
             </template>
             <template v-else>
-              Counter offer
+              {{ $translate.instant("ui.career.negotiation.counterOffer") }}
             </template>
           </div>
           <div v-else-if="item.negotiationStatus" class="above">
@@ -41,6 +41,7 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted } from "vue"
 import { BngIcon, BngUnit } from "@/common/components/base"
+import { $translate } from "@/services/translation"
 
 const props = defineProps({
   offerHistory: {
@@ -66,19 +67,19 @@ const offerChatContainer = ref(null)
 const statusTextFromStatus = (status) => {
   switch (String(status || '')) {
     case 'counterOffer':
-      return 'Counter offer'
+      return $translate.instant("ui.career.negotiation.status.counterOffer")
     case 'counterOfferLastChance':
-      return 'Last chance counter offer'
+      return $translate.instant("ui.career.negotiation.status.counterOfferLastChance")
     case 'accepted':
-      return 'Accepted'
+      return $translate.instant("ui.career.negotiation.status.accepted")
     case 'failed':
-      return 'Negotiation failed'
+      return $translate.instant("ui.career.negotiation.status.failed")
     case 'refused':
-      return 'Offer refused'
+      return $translate.instant("ui.career.negotiation.status.refused")
     case 'initial':
-      return !props.amISelling ? 'Asking Price' : 'Initial offer'
+      return !props.amISelling ? $translate.instant("ui.career.negotiation.askingPrice") : $translate.instant("ui.career.negotiation.initialOffer")
     case 'thinking':
-      return 'Thinking'
+      return $translate.instant("ui.career.negotiation.status.thinking")
     default:
       return ''
   }

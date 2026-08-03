@@ -149,7 +149,7 @@ const steps = computed(() => props.steps.map((step, idx) => {
           color: var(--bng-off-white);
           background: var(--step-number-bg);
           border-radius: 0.125rem;
-          font-family: 'Noto Sans Mono', monospace;
+          font-family: 'Noto Sans Mono', var(--fnt-mono);
           font-size: 1.5rem;
           font-weight: 400;
           line-height: 1.5rem;
@@ -179,7 +179,7 @@ const steps = computed(() => props.steps.map((step, idx) => {
         width: 100%;
         padding: 0.25rem 1rem 0.5rem 0;
         color: var(--step-label-color);
-        font-family: 'Noto Sans', sans-serif;
+        font-family: 'Noto Sans', var(--fnt-defs);
         font-size: 1rem;
         font-weight: 400;
         line-height: 1.25rem;

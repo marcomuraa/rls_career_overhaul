@@ -35,7 +35,7 @@
         <MenuButton
           size="medium"
           icon-id="stopwatchArrows02"
-          @click="navigate('menu.quickraceOverview')"
+          @click="navigate('menu.quickraceWizard')"
         >{{ $tt("ui.playmodes.quickrace") }}</MenuButton>
         <MenuButton
           size="medium"
@@ -47,12 +47,12 @@
         <MenuButton
           size="medium"
           icon-id="bus"
-          @click="navigate('menu.busRoutes')"
+          @click="navigate('menu.busRouteWizard')"
         >{{ $tt("ui.playmodes.bus") }}</MenuButton>
         <MenuButton
           size="medium"
           icon-id="lightrunner"
-          @click="navigate('menu.lightrunnerOverview')"
+          @click="navigate('menu.lightrunnerWizard')"
         >{{ $tt("ui.playmodes.lightRunner") }}</MenuButton>
         <MenuButton
           size="medium"
@@ -60,13 +60,6 @@
           icon-id="autobahn"
           @click="startTrackBuilder()"
         >{{ $tt("ui.playmodes.trackBuilder") }}</MenuButton>
-        <MenuButton
-          appear-disabled
-          size="medium"
-          icon-id="raceFlag"
-          @click="rallyDisclaimer()"
-          :tag="$t('ui.playmodes.comingSoon')" tag-dark-orange
-        >{{ $tt("ui.playmodes.rally") }}</MenuButton>
         <MenuButton
           appear-disabled
           size="medium"
@@ -79,11 +72,6 @@
           icon-id="movieCamera"
           @click="navigate('menu.replay')"
         >{{ $tt("ui.dashboard.replay") }}</MenuButton>
-        <MenuButton
-          size="medium"
-          icon-id="chartBars"
-          @click="navigate('menu.options.stats')"
-        >{{ $tt("ui.statspage.title") }}</MenuButton>
         <MenuButton
           v-if="!SysInfo.mainMenuBackgroundRequired.value"
           size="medium"
@@ -153,19 +141,7 @@ async function careerPrompt() {
     ],
   ))
     // navigate("menu.career")
-    navigate("profiles")
-}
-
-async function rallyDisclaimer() {
-  if (await openExperimental(
-    $translate.instant("ui.rally.experimentalTitle"),
-    $translate.instant("ui.rally.experimentalPrompt"),
-    [
-      { label: $translate.instant("ui.common.back"), value: false, extras: { cancel: true, accent: ACCENTS.secondary } },
-      { label: $translate.instant("ui.common.understood"), value: true, extras: { default: true } },
-    ],
-  ))
-    navigate("menu.rally")
+    navigate("career.profiles")
 }
 
 function runAction(action) {
@@ -196,7 +172,8 @@ $rem: calc-ui-rem();
 .center-wrap {
   align-self: center;
   display: flex;
-  flex-flow: column nowrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   align-items: stretch;
   margin: 0 calc-ui-rem(15);
   max-width: 100%;
@@ -204,7 +181,8 @@ $rem: calc-ui-rem();
 
 .buttons {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: flex-start;
   min-width: calc-ui-rem(64);
@@ -218,7 +196,8 @@ $rem: calc-ui-rem();
   .primary {
     flex: 0 0 auto;
     display: flex;
-    flex-flow: column nowrap;
+    flex-direction: column;
+    flex-wrap: nowrap;
     .big-button {
       --button-height: 14em;
     }
@@ -232,7 +211,8 @@ $rem: calc-ui-rem();
     width: max-content;
     position: relative;
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     justify-content: start;
     max-width: calc($button-width * $buttons-per-row + 1em * $buttons-per-row);
     --button-height: 6.75em;

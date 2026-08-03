@@ -28,7 +28,8 @@ const actions = computed(() => [
 <style lang="scss" scoped>
 .controller-demo {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 1em;
   > * {
     width: 40em;

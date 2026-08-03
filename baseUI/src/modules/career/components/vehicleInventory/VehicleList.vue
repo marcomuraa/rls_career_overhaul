@@ -1,19 +1,27 @@
 <template>
   <div class="vehicle-list-container" v-bng-disabled="!vehicleInventoryStore">
-    <VehicleTileRow class="vehicle-list-item" v-if="listStatus" :data="{ _message: listStatus }" :layout="itemLayout" v-bng-disabled />
-    <VehicleTileRow class="vehicle-list-item" v-else v-for="vehicle in listView" :key="vehicle.id"
-      :data="vehicle" :layout="itemLayout" :selected="vehSelected && vehSelected.id === vehicle.id"
+    <div v-if="listStatus" class="vehicle-list-empty">{{ listStatus }}</div>
+    <VehicleTileRow class="vehicle-list-item"
+      v-else v-for="vehicle in listView"
+      :key="vehicle.id"
+      :data="vehicle"
+      :layout="itemLayout"
+      :selected="vehSelected && vehSelected.id === vehicle.id"
       :is-tutorial="vehicleInventoryStore && vehicleInventoryStore.vehicleInventoryData.tutorialActive"
       :money="vehicleInventoryStore ? vehicleInventoryStore.vehicleInventoryData.playerMoney : 0"
       v-bng-disabled="vehicle.disabled"
-      tabindex="0" bng-nav-item v-bng-on-ui-nav:ok.asMouse.focusRequired
-      v-bng-popover:right-start.click="popId" @click="!vehicle.disabled && select(vehicle, $event)" />
+      v-bng-on-ui-nav:ok.asMouse.focusRequired
+      v-bng-popover:right-start.click="singleFunction ? null : popId"
+      tabindex="0"
+      bng-nav-item
+      @click="!vehicle.disabled && select(vehicle, $event)"
+    />
 
     <BngPopoverMenu :name="popId" focus @hide="selectedVehId = null">
       <template v-for="(buttonData, index) in vehicleInventoryStore.vehicleInventoryData.chooseButtonsData" :key="index">
         <BngButton v-if="buttonData.repairRequired && vehSelected && vehSelected.needsRepair && !vehicleInventoryStore.vehicleInventoryData.tutorialActive"
           :accent="ACCENTS.menu" disabled>
-          {{ buttonData.buttonText }} (Needs repair)
+          {{ buttonData.buttonText }} ({{ $translate.instant("ui.condition.needsRepair") }})
         </BngButton>
         <BngButton v-else-if="vehSelected && isFunctionAvailable(vehSelected, buttonData)"
           :accent="ACCENTS.menu"
@@ -27,7 +35,7 @@
         :accent="ACCENTS.menu"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="confirmReturnVehicle()">
-        Return loaned vehicle
+        {{ $translate.instant("ui.career.inventory.button.returnLoanedVehicle") }}
       </BngButton>
       <BngButton
         v-if="vehSelected && vehSelected.delayReason === 'repair'"
@@ -35,7 +43,7 @@
         :disabled="vehSelected.expediteRepairCost > vehicleInventoryStore.vehicleInventoryData.playerMoney"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="confirmExpediteRepair(vehSelected)">
-        Expedite Repair
+        {{ $translate.instant("ui.career.inventory.button.expediteRepair") }}
         <BngUnit :money="vehSelected.expediteRepairCost" />
       </BngButton>
       <BngButton
@@ -44,7 +52,7 @@
         :disabled="!vehSelected.repairPermission.allow"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="openRepairMenu()">
-        Repair
+        {{ $translate.instant("ui.career.shared.pathRepair") }}
       </BngButton>
       <BngButton
         v-if="vehSelected && vehicleInventoryStore.vehicleInventoryData.buttonsActive.storingEnabled && !vehSelected.inStorage"
@@ -52,7 +60,7 @@
         :disabled="!vehSelected.storePermission.allow"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="storeVehicle()">
-        Put in storage
+        {{ $translate.instant("ui.career.inventory.button.putInStorage") }}
       </BngButton>
       <BngButton
         v-if="vehSelected && vehicleInventoryStore.vehicleInventoryData.buttonsActive.favoriteEnabled"
@@ -60,7 +68,7 @@
         :disabled="!vehSelected.favoritePermission.allow || vehSelected.favorite"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="setFavoriteVehicle()">
-        Set as Favorite
+        {{ $translate.instant("ui.career.inventory.button.setFavorite") }}
       </BngButton>
       <BngButton
         v-if="vehSelected"
@@ -68,14 +76,14 @@
         :disabled="!vehSelected.licensePlateChangePermission.allow"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="personalizeLicensePlate(vehSelected)">
-        Personalize license plate
+        {{ $translate.instant("ui.career.inventory.button.personalizeLicensePlate") }}
       </BngButton>
       <BngButton
         v-if="vehSelected"
         :accent="ACCENTS.menu"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="renameVehicle()">
-        Rename vehicle
+        {{ $translate.instant("ui.career.inventory.button.renameVehicle") }}
       </BngButton>
       <BngButton
         v-if="vehSelected && vehicleInventoryStore.vehicleInventoryData.buttonsActive.sellEnabled && !vehSelected.listedForSale"
@@ -83,7 +91,7 @@
         :disabled="!vehSelected.sellPermission.allow"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="listVehicleForSaleFromContextMenu()">
-        List vehicle for sale
+        {{ $translate.instant("ui.career.inventory.button.listVehicleForSale") }}
       </BngButton>
       <BngButton
         v-if="vehSelected && vehicleInventoryStore.vehicleInventoryData.buttonsActive.sellEnabled && vehSelected.listedForSale"
@@ -91,30 +99,29 @@
         :disabled="!vehSelected.sellPermission.allow"
         v-bng-on-ui-nav:ok.focusRequired.asMouse
         @click="lookAtVehicleListing()">
-        Go to vehicle listing
+        {{ $translate.instant("ui.career.inventory.button.goToVehicleListing") }}
       </BngButton>
     </BngPopoverMenu>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onUnmounted } from "vue"
+import { ref, computed, nextTick } from "vue"
 import { lua, useBridge } from "@/bridge"
+import { useEvents } from "@/services/events"
 import { BngButton, BngPopoverMenu, BngUnit, ACCENTS } from "@/common/components/base"
 import { vBngDisabled, vBngPopover, vBngOnUiNav } from "@/common/directives"
-import VehicleTileRow from "./VehicleTileRow.vue"
 import { useVehicleInventoryStore } from "../../stores/vehicleInventoryStore"
 import { openConfirmation, openPrompt, openFormDialog } from "@/services/popup"
 import { $translate } from "@/services/translation"
 import { usePopover } from "@/services/popover"
 import { uniqueId } from "@/services/uniqueId"
+import VehicleTileRow from "./VehicleTileRow.vue"
 import ListVehicleDialog from "./ListVehicleDialog.vue"
-import { useLibStore } from "@/services"
-import router from "@/router"
 
 const { units } = useBridge()
 
-const { $game } = useLibStore()
+const events = useEvents()
 const popover = usePopover()
 const popId = uniqueId("veh_options")
 const popHide = () => popover.hide(popId)
@@ -139,9 +146,9 @@ const cantPayLicensePlate = computed(() =>
 
 const listStatus = computed(() =>
   !vehicleInventoryStore
-  ? "Please wait..."
+  ? $translate.instant("ui.career.vehicleShopping.pleaseWait")
   : !Array.isArray(vehicleInventoryStore.filteredVehicles) || vehicleInventoryStore.filteredVehicles.length === 0
-  ? "You don't currently own any vehicles"
+  ? $translate.instant("ui.career.inventory.noVehiclesOwned")
   : null
 )
 
@@ -236,7 +243,7 @@ const lookAtVehicleListing = () => {
 const confirmReturnVehicle = async () => {
   const vehicle = vehSelected.value
   popHide()
-  const res = await openConfirmation("", `Do you want to return this loaned vehicle to the owner?`, [
+  const res = await openConfirmation("", $translate.instant("ui.career.inventory.confirm.returnLoanedVehicle"), [
     { label: $translate.instant("ui.common.yes"), value: true, extras: { default: true } },
     { label: $translate.instant("ui.common.no"), value: false, extras: { accent: ACCENTS.secondary } },
   ])
@@ -247,12 +254,12 @@ const personalizeLicensePlate = async () => {
   const vehicle = vehSelected.value
   popHide()
   updateCareerStatusData()
-  const res = await openPrompt("Enter your new license plate text:", "Personalize License Plate",
+  const res = await openPrompt($translate.instant("ui.career.inventory.prompt.licensePlateText"), $translate.instant("ui.career.inventory.prompt.personalizeLicensePlateTitle"),
   {
     maxLength: 10, defaultValue: vehicle.config.licenseName,
     buttons: [
       { label: $translate.instant("ui.common.cancel"), value: false, extras: { cancel: true, accent: ACCENTS.secondary } },
-      { label: $translate.instant("ui.common.okay") + ` (Cost: ${units.beamBucks(300)})`, value: text => text, extras: {
+      { label: `${$translate.instant("ui.common.okay")} ${$translate.instant("ui.career.inventory.prompt.cost", { cost: units.beamBucks(300) })}`, value: text => text, extras: {
         disabled: cantPayLicensePlate,
         accent: ACCENTS.primary
       } },
@@ -263,7 +270,7 @@ const personalizeLicensePlate = async () => {
       })
       return licensePlateTextValid.value
     } ,
-    errorMessage: "Invalid character in license plate text",
+    errorMessage: $translate.instant("ui.career.inventory.error.invalidLicensePlateCharacter"),
     disableWhenInvalid: true,
   })
 
@@ -277,7 +284,7 @@ const confirmExpediteRepair = async () => {
   const vehicle = vehSelected.value
   popHide()
   let price = vehicle.expediteRepairCost
-  const res = await openConfirmation("", `Do you want to expedite the repair for ${units.beamBucks(price)}?`, [
+  const res = await openConfirmation("", $translate.instant("ui.career.inventory.confirm.expediteRepair", { price: units.beamBucks(price) }), [
     { label: $translate.instant("ui.common.yes"), value: true, extras: { default: true } },
     { label: $translate.instant("ui.common.no"), value: false, extras: { accent: ACCENTS.secondary } },
   ])
@@ -313,7 +320,7 @@ const buyInsurance = (insuranceId) => {
 const renameVehicle = async () => {
   const vehicle = vehSelected.value
   popHide()
-  const res = await openPrompt("Enter new vehicle name:", "Rename Vehicle",
+  const res = await openPrompt($translate.instant("ui.career.inventory.prompt.renameVehicleText"), $translate.instant("ui.career.inventory.prompt.renameVehicleTitle"),
   {
     maxLength: 30, defaultValue: vehicle.niceName,
     buttons: [
@@ -328,7 +335,7 @@ const renameVehicle = async () => {
       })
       return vehicleNameValid.value
     } ,
-    errorMessage: "Invalid characters in vehicle name",
+    errorMessage: $translate.instant("ui.career.inventory.error.invalidVehicleName"),
     disableWhenInvalid: true,
   })
 
@@ -347,40 +354,38 @@ const listVehicleForSale = async (vehicle) => {
     price: Math.max(50, Math.round((vehicle.value || 0) / 50) * 50),
   }
   const formValidator = model => {
-    if (!Number.isFinite(model.price) || model.price <= 0) return { error: true, message: "Enter a valid positive price" }
+    if (!Number.isFinite(model.price) || model.price <= 0) return { error: true, message: $translate.instant("ui.career.inventory.error.invalidListingPrice") }
     return { error: false }
   }
   const res = await openFormDialog(
     ListVehicleDialog,
     formModel,
     formValidator,
-    "List a Vehicle for Sale",
+    $translate.instant("ui.career.inventory.dialog.listVehicleForSale"),
     undefined,
     undefined,
     "90rem"
   )
-  if (!res || !res.value) return
+  if (!res || !res.value) return false
   await lua.career_modules_marketplace.listVehicles([{ inventoryId: vehicle.id, value: res.formData.price }])
+  return true
 }
 
 const listVehicleForSaleFromContextMenu = async () => {
   const vehicle = vehSelected.value
-  await listVehicleForSale(vehicle)
+  const listed = await listVehicleForSale(vehicle)
+  if (!listed) return
   lua.career_modules_marketplace.openMenu(vehicleInventoryStore.vehicleInventoryData.originComputerId)
 }
 
 const listVehicleForSaleFromMarketplaceMenu = async (vehicle) => {
   await listVehicleForSale(vehicle)
-  router.back()
+  // lua.extensions.ui_router.back()
 }
 
-$game.events.on('addListing', (data) => {
+events.on('addListing', (data) => {
   const vehicle = listView.value.find(v => v.id === data.inventoryId)
   listVehicleForSaleFromMarketplaceMenu(vehicle)
-})
-
-onUnmounted(() => {
-  $game.events.off('addListing')
 })
 
 
@@ -405,6 +410,14 @@ onUnmounted(() => {
   max-width: 100%;
 }
 
-
+.vehicle-list-empty {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--bng-cool-gray-200);
+}
 
 </style>

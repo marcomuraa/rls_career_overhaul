@@ -8,6 +8,10 @@ export default [
     name: "refueling",
     component: RefuellingInterface,
     meta: {
+      infoBar: {
+        visible: true,
+        showSysInfo: false,
+      },
       uiApps: {
         shown: false,
         //layout: "tasklist",

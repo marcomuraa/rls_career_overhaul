@@ -27,6 +27,10 @@
  *    `v-bng-click="{clickCallback: helloFn, holdCallback: hiFn, holdDelay: 400, repeatInterval: 100}"` complete configuration properties.
  */
 
+import { lua } from "@/bridge"
+import { uniqueId } from "@/services/uniqueId"
+import { playSoundEvent, setEventMute } from "@/services/soundManager"
+
 /**
  * `binding.value` but predictably formatted
  * @typedef {object} ClickBinding
@@ -50,6 +54,7 @@
 const
   DEFAULT_HOLD_DELAY = 400,
   DEFAULT_REPEAT_INTERVAL = 100,
+  DEFAULT_HOLD_SOUND_CLASS = "bng_hold_activate",
   HOLD_CSS_TIME_VAR = "--hold-time",
   HOLD_START_CSS_CLASS = "hold-start",
   HOLD_ACTIVE_CSS_CLASS = "hold-active",
@@ -64,6 +69,10 @@ const
 let curId = 0
 /** @type {object<string,ClickData>} */
 const datas = {}
+
+function isButtonLikeElement(element) {
+  return element?.tagName === "BUTTON" || element.matches?.(".bng-button, [role=\"button\"]")
+}
 
 /**
  * Create or update the element and data.
@@ -107,6 +116,7 @@ function update(element, binding) {
  * @param {HTMLElement} element An element
  */
 function remove(element) {
+  setEventMute(element, "click", false)
   const id = element[ELEMENT_ID]
   if (!id) return
   const data = datas[id]
@@ -143,6 +153,8 @@ export default {
   mounted: (el, binding) => {
 
     const data = update(el, binding)
+    const soundManagedByClick = isButtonLikeElement(el)
+    setEventMute(el, "click", soundManagedByClick)
 
     // this function should be checked on new CEF
     // on current one, it returns { button: 0, buttons: 0 } for LMB which is incorrect, it should be { button: 0, buttons: 1 }
@@ -153,6 +165,25 @@ export default {
 
     let tmrHoldActive
 
+    const playClickSoundEvent = () => {
+      if (!soundManagedByClick) return
+      playSoundEvent(el, "click", { ignoreMute: true })
+    }
+
+    const holdSoundClass = soundManagedByClick && canInvokeEventType(EVENT_HOLD)
+      ? (typeof data.binding.holdSoundClass === "string" ? data.binding.holdSoundClass : DEFAULT_HOLD_SOUND_CLASS)
+      : null
+    const holdSoundInstanceId = typeof data.binding.holdSoundInstanceId === "string"
+      ? data.binding.holdSoundInstanceId
+      : uniqueId("bng-click-hold")
+    const playHoldSoundEvent = eventName => {
+      if (!holdSoundClass) return
+      lua.ui_audio.playEventSound(holdSoundClass, eventName, holdSoundInstanceId)
+    }
+
+    let holdStarted = false
+    let holdFinished = false
+
     updateEvents(data.id, {
       mousedown: e => {
         if (!approveEvent(e)) return
@@ -161,9 +192,15 @@ export default {
         clearTimeout(tmrHoldActive)
         tmrHoldActive = setTimeout(() => el.classList.toggle(HOLD_ACTIVE_CSS_CLASS, true), 0)
         el.classList.toggle(HOLD_COMPLETED_CSS_CLASS, false)
+        holdStarted = false
+        holdFinished = false
         // set default event to 'click' if allowed
         canInvokeEventType(EVENT_CLICK) && (detectedEventType = EVENT_CLICK)
-        canInvokeEventType(EVENT_HOLD) && startHoldDelayTimer(e)
+        if (canInvokeEventType(EVENT_HOLD)) {
+          holdStarted = true
+          playHoldSoundEvent("start")
+          startHoldDelayTimer(e)
+        }
       },
       mouseup: e => {
         if (!approveEvent(e)) return
@@ -172,14 +209,20 @@ export default {
         el.classList.toggle(HOLD_ACTIVE_CSS_CLASS, false)
         clearTimeout(tmrHoldActive)
         stopHoldDelayTimer()
+        if (holdStarted && !holdFinished && detectedEventType !== EVENT_CLICK) {
+          playHoldSoundEvent("cancel")
+        }
         switch (detectedEventType) {
           case EVENT_CLICK:
+            playClickSoundEvent()
             doAction(EVENT_CLICK, e)
             break
           case EVENT_HOLD:
             stopHoldTimer()
             break
         }
+        holdStarted = false
+        holdFinished = false
         detectedEventType = null
       },
       mouseleave: () => {
@@ -193,6 +236,11 @@ export default {
             stopHoldTimer()
             break
         }
+        if (holdStarted && !holdFinished) {
+          playHoldSoundEvent("cancel")
+        }
+        holdStarted = false
+        holdFinished = false
         detectedEventType = null
       },
       blur: () => data.events.mouseleave(),
@@ -208,7 +256,9 @@ export default {
       stopHoldDelayTimer()
       holdDelayTimer = setTimeout(() => {
         el.classList.toggle(HOLD_COMPLETED_CSS_CLASS, true)
+        holdFinished = true
         detectedEventType = EVENT_HOLD
+        playHoldSoundEvent("complete")
         startHoldTimer(e)
       }, data.binding.holdDelay)
     }
@@ -263,7 +313,10 @@ export default {
     }
   },
 
-  updated: update,
+  updated: (el, binding) => {
+    update(el, binding)
+    setEventMute(el, "click", isButtonLikeElement(el))
+  },
   beforeUnmount: remove,
   // see also BngOnUiNavFocus.js directive that calls mounted/unmounted
 }

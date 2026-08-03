@@ -1,13 +1,15 @@
 // Library of wrappers for Lua function calls
 
-import { useBridge } from "../index.js"
 import LuaFunctionSignatures from "../LuaFunctionSignatures.js"
 
-let api
-const loadAPI = () => api || ({ api } = useBridge())
+import { Any, Integer, Optional } from "./luaTypes.js"
 
-export const Any = i => i
-export const Integer = i => +i | 0
+let api
+let bridgeProvider = () => { throw new Error("Lua: bridge provider not set (import @/bridge first)") }
+export const setBridgeProvider = fn => (bridgeProvider = fn)
+const loadAPI = () => api || ({ api } = bridgeProvider())
+
+export { Any, Integer, Optional }
 
 const argTransformers = {
   Any,
@@ -86,6 +88,19 @@ function normaliseTypes(types, paramCount) {
   return [types]
 }
 
+function getRequiredArgCount(argTypes) {
+  let requiredCount = argTypes.length
+  while (requiredCount > 0 && argTypes[requiredCount - 1].optional) {
+    requiredCount--
+  }
+  return requiredCount
+}
+
+function getArgTransformer(argType) {
+  const type = argType && argType.optional ? argType.type : argType
+  return (type && argTransformers[type.name]) || Any
+}
+
 /**
  * Runs a named Lua function with the given arguments
  *
@@ -99,18 +114,19 @@ function normaliseTypes(types, paramCount) {
  */
 export function run(funcName, args, { argTypes = Array(args.length).fill(Any), mockResponse }) {
   loadAPI()
-  if (args.length < argTypes.length)
-    throw new Error(
-      `Wrong number of required arguments (${args.length}) provided for Lua function '${funcName}' which takes ${argTypes.length ? `${argTypes.length}` : "none"}`
+  const requiredArgCount = getRequiredArgCount(argTypes)
+  if (args.length < requiredArgCount || args.length > argTypes.length)
+    console.warn(
+      `Lua signature mismatch for '${funcName}': got ${args.length} argument(s), signature expects ${requiredArgCount}-${argTypes.length}. Proceeding with provided arguments.`
     )
 
   let transformedArgs
   if (api.isMock && mockResponse) {
-    transformedArgs = args.map((arg, i) => (argTypes[i] && argTransformers[argTypes[i].name] || Any)(arg))
+    transformedArgs = args.map((arg, i) => getArgTransformer(argTypes[i])(arg))
     return runMocked(mockResponse, transformedArgs)
   }
 
-  transformedArgs = args.map((arg, i) => serialize((argTypes[i] && argTransformers[argTypes[i].name] || Any)(arg)))
+  transformedArgs = args.map((arg, i) => serialize(getArgTransformer(argTypes[i])(arg)))
   return runRaw(`${funcName}(${transformedArgs})`)
 }
 

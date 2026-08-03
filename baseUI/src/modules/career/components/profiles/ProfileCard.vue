@@ -1,24 +1,22 @@
 <template>
   <BngCard
-    v-bng-scoped-nav="{ canDeactivate, canBubbleEvent }"
+    v-bng-scoped-nav="{ scopeId, canDeactivate, canBubbleEvent }"
     v-bng-sound-class="'bng_hover_generic'"
     v-bng-disabled="internalDisabled"
     :backgroundImage="preview"
     :footerStyles="cardFooterStyles"
     :hideFooter="!expanded && !isManage"
-    :class="{ 'profile-card-active': active, 'manage-active': isManage, 'profile-outdated': incompatibleVersion }"
+    :class="{ 'profile-card-active': active, 'manage-active': isManage, 'profile-outdated': incompatibleVersion, 'profile-disabled': disabled }"
     :animateFooterDelay="expanded ? '0s' : '0.1s'"
     animateFooterType="slide"
     class="profile-card"
-    @activate="onScopeChanged(true)"
-    @deactivate="onScopeChanged(false)"
     @focusin.self="onFocused(true)"
     @focusout.self="onFocused(false)"
     @mouseover="onHover(true)"
     @mouseleave="onHover(false)">
     <div class="profile-card-cover">
       <div class="profile-card-container">
-        <div class="profile-card-title">{{ $ctx_t(id) }}</div>
+        <div class="profile-card-title">{{ $ctx_t(displayName) }}</div>
         <div v-if="!isManage" class="profile-card-date">
           <span v-if="active">{{ $ctx_t("ui.career.nowplaying") }}</span>
           <span v-else>{{ $ctx_t("ui.career.lastplayed") }} {{ lastPlayedDescription }}</span>
@@ -120,11 +118,18 @@ import { timeSpan } from "@/utils/datetime"
 import { lua } from "@/bridge"
 import { PROFILE_NAME_MAX_LENGTH } from "../../stores/profilesStore"
 import ProfileStatus from "./ProfileStatus.vue"
+import { useScopedNav } from "@/services/scopedNav/api"
+
+const scopedNav = useScopedNav()
 
 const props = defineProps({
   id: {
     type: String,
     required: true,
+  },
+  displayName: {
+    type: String,
+    default: "",
   },
   date: {
     type: String,
@@ -155,7 +160,9 @@ const props = defineProps({
 
 const emit = defineEmits(["card:activate", "load", "rename"])
 
-const isActivated = ref(false)
+const scopeId = computed(() => `profile-card-${props.id}`)
+const profileDisplayName = computed(() => props.displayName || props.id)
+const isActivated = computed(() => scopedNav.current.value?.id === scopeId.value)
 const isManage = ref(false)
 const currentMenu = ref(null)
 const expanded = ref(false)
@@ -179,10 +186,6 @@ watch(
     })
   }
 )
-
-const onScopeChanged = value => {
-  isActivated.value = value
-}
 
 const cardFooterStyles = {
   "background-color": "hsla(217, 22%, 12%, 1)",
@@ -231,7 +234,7 @@ function updatedExpanded() {
 
 function enableManage(enable = true) {
   nextTick(() => (isManage.value = enable))
-  if (enable && !isActivated.value) isActivated.value = true
+  if (enable && !isActivated.value) scopedNav.activateScope(scopeId.value)
   emit("card:activate", enable)
 }
 
@@ -251,8 +254,8 @@ function goBack() {
 const saveName = ref(props.id)
 
 const deleteProfile = () => {
-  lua.career_saveSystem.removeSaveSlot(props.id)
-  lua.career_career.sendAllCareerSaveSlotsData()
+  lua.career_saveSystem.removeProfile(props.id)
+  lua.career_career.sendAllCareerProfilesData()
 }
 
 const updateProfileName = () => emit("rename", saveName.value)
@@ -307,7 +310,18 @@ const updateProfileName = () => emit("rename", saveName.value)
     background-color: #808080 !important;
     background-blend-mode: luminosity;
   }
+
+  &.profile-disabled {
+    .profile-card-cover {
+      opacity: 0.5;
+    }
+    .profile-card-content {
+      opacity: 0.5;
+    }
+  }
+
 }
+
 
 .profile-card[disabled="disabled"] {
   pointer-events: none;
@@ -359,7 +373,7 @@ const updateProfileName = () => emit("rename", saveName.value)
 .profile-card-content {
   display: flex;
   flex: 0.0001 1 auto;
-  flex-flow: column;
+  flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
   // padding: 0 1em 1em;

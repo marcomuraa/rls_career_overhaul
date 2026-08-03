@@ -1,12 +1,12 @@
 <template>
   <AspectRatio v-bng-sound-class="'bng_click_generic'" @click="goToMilestones()" :ratio="'4:3'">
     <div class="content-wrapper">
-      <BngCardHeading style="color: white" type="ribbon">Recent Milestones</BngCardHeading>
+      <BngCardHeading style="color: white" type="ribbon">{{ $translate.instant("ui.career.milestones.preview.recent") }}</BngCardHeading>
       <div class="cards-container">
         <MilestoneCard v-for="entry in milestones.slice(0, 5)" :milestone="entry" :isCondensed="true" />
       </div>
 
-      <BngButton style="position: absolute; bottom: 1em; right: 1em" tabindex="1" :accent="ACCENTS.text" @click="goToMilestones()">Go to Milestones</BngButton>
+      <BngButton style="position: absolute; bottom: 1em; right: 1em" tabindex="1" :accent="ACCENTS.text" @click="goToMilestones()">{{ $translate.instant("ui.career.milestones.preview.goToMilestones") }}</BngButton>
     </div>
   </AspectRatio>
 </template>
@@ -38,7 +38,7 @@ const start = () => {
 }
 
 function goToMilestones() {
-  window.bngVue.gotoGameState("milestones")
+  window.bngVue.gotoGameState("pause.milestones")
 }
 
 onMounted(start)

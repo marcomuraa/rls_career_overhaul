@@ -32,7 +32,8 @@ const tooltip = ref(false)
 <style scoped>
 div {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: baseline;
 }

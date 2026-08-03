@@ -61,7 +61,7 @@ function attachListeners(el, modifiers) {
       el.addEventListener(eventName, el.__popover.toggleHandler)
     })
     TOGGLE_EVENTS.forEach(eventName => {
-      window.addEventListener(eventName, el.__popover.clickOutside)
+      window.addEventListener(eventName, el.__popover.clickOutside, true)
     })
   } else {
     HOVER_SHOW_EVENTS.forEach(eventName => el.addEventListener(eventName, el.__popover.showHandler))
@@ -75,7 +75,7 @@ function removeListeners(el) {
       el.removeEventListener(eventName, el.__popover.toggleHandler)
     })
     TOGGLE_EVENTS.forEach(eventName => {
-      window.removeEventListener(eventName, el.__popover.clickOutside)
+      window.removeEventListener(eventName, el.__popover.clickOutside, true)
     })
   }
 

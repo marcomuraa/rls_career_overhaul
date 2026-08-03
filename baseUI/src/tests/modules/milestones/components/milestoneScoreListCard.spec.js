@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
-import MilestoneScoreListCard from '@/modules/milestones/components/MilestoneScoreListCard'
-import MilestoneScoreCard from '@/modules/milestones/components/MilestoneScoreCard'
+import MilestoneScoreListCard from '@/modules/milestones/components/MilestoneScoreListCard.vue'
+import MilestoneScoreCard from '@/modules/milestones/components/MilestoneScoreCard.vue'
 import { MilestoneType } from '@/modules/milestones/milestoneTypes'
 
 describe('MilestoneScoreListCard.vue Test', () => {

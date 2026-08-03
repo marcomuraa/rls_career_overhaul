@@ -1,5 +1,5 @@
 <template>
-  <div class="popup-content">
+  <div v-bng-scoped-nav="popupScopeBinding" v-bng-on-ui-nav:back,menu="closePopup" class="popup-content">
     <div class="popup-header">
       <span class="header-title">Uninsured Vehicles</span>
     </div>
@@ -23,11 +23,12 @@
         <template #rightContent>
           <BngButton
             class="add-coverage-button bigger-button"
-            accent="custom"
-            @click="openAddCoverage(vehicle)"
+            :accent="ACCENTS.custom_old"
+            :disabled="vehicle.needsRepair"
+            @click="!vehicle.needsRepair && openAddCoverage(vehicle)"
           >
             <BngIcon class="button-icon" :type="icons.shieldCheckmark" />
-            Add Coverage
+            {{ vehicle.needsRepair ? $t("ui.career.insurance.uninsured.addCoverageNeedsRepair") : $t("ui.career.insurance.uninsured.addCoverage") }}
           </BngButton>
         </template>
       </InsuranceVehTile>
@@ -40,7 +41,7 @@
     </div>
 
     <div class="closeButton">
-      <BngButton class="close-button" accent="custom" @click="closePopup">
+      <BngButton class="close-button" :accent="ACCENTS.custom_old" @click="closePopup">
         Back
       </BngButton>
     </div>
@@ -48,8 +49,10 @@
 </template>
 
 <script setup>
-import { BngIcon, icons, BngButton, BngUnit } from "@/common/components/base"
+import { computed, useAttrs } from "vue"
+import { BngIcon, icons, BngButton, ACCENTS } from "@/common/components/base"
 import { ChooseInsuranceMain, InsuranceVehTile } from "@/modules/career/components"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 import { addPopup } from "@/services/popup"
 
 const props = defineProps({
@@ -57,7 +60,19 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  popupActive: Boolean,
 })
+
+const attrs = useAttrs()
+const scopeName = `_uninsuredVehicles__${attrs.__id}`
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const emit = defineEmits(["return"])
 

@@ -137,7 +137,8 @@ onUnmounted(() => stopWatcher())
 <style lang="scss" scoped>
 .dropdemo {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   > * {
     flex: 0 1 30%;
     width: 30%;

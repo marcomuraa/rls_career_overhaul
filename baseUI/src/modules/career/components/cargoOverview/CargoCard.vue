@@ -71,7 +71,7 @@
         v-if="detailed && isMoving"
         class="buttons-disabled-reason"
         :class="{'disabled-load-actions': !card.enabled || !showButtons,'footer-detailed': detailed}">
-        <BngPropVal class="prop" :iconType="icons.info" :keyLabel="''" :valueLabel="'Cannot modify cargo while any vehicle is moving.'" />
+        <BngPropVal class="prop" :iconType="icons.info" :keyLabel="''" :valueLabel="$tt('ui.career.cargoCard.cannotModifyWhileMoving')" />
       </div>
       <div
         class="load-actions-wrapper"
@@ -98,7 +98,7 @@
                 :class="detailed ? '' : 'button-load'"
                 :accent="ACCENTS.secondary"
                 :icon-right="icons.undo"
-                :label="detailed ? 'Clear load' : ''"
+                :label="detailed ? $tt('ui.career.cargoCard.clearLoad') : ''"
                 @click="cargoOverviewStore.clearLoad(card)"
                 :disabled="isMoving"
                 tabindex="0" />
@@ -107,7 +107,7 @@
                 :class="detailed ? '' : 'button-load'"
                 :accent="ACCENTS.secondary"
                 :icon-right="icons.wrench"
-                :label="detailed ? 'Custom load' : ''"
+                :label="detailed ? $tt('ui.career.cargoCard.customLoad') : ''"
                 @click="cargoOverviewStore.loadCargoCustom(card)"
                 :disabled="isMoving"
                 tabindex="0" />
@@ -116,7 +116,7 @@
                 :class="detailed ? '' : 'button-load'"
                 :accent="ACCENTS.main"
                 :icon-right="icons.arrowLargeRight"
-                :label="detailed ? 'Load all' : ''"
+                :label="detailed ? $tt('ui.career.cargoCard.loadAll') : ''"
                 @click="cargoOverviewStore.loadCargoAuto(card)"
                 :disabled="isMoving"
                 tabindex="0" />
@@ -127,7 +127,7 @@
                   :class="detailed ? '' : 'button-load'"
                   :accent="ACCENTS.attention"
                   :icon-right="icons.undo"
-                  :label="detailed ? 'Clear Load' : ''"
+                  :label="detailed ? $tt('ui.career.cargoCard.clearLoad') : ''"
                   @click="cargoOverviewStore.clearLoad(card)"
                   :disabled="isMoving"
                   tabindex="0" />
@@ -137,7 +137,7 @@
                   :class="detailed ? '' : 'button-load'"
                   :accent="ACCENTS.attention"
                   :icon-right="icons.trashBin1"
-                  :label="detailed ? 'Throw Away' : ''"
+                  :label="detailed ? $tt('ui.career.cargoCard.throwAway') : ''"
                   @click="cargoOverviewStore.throwAway(card)"
                   :disabled="isMoving"
                   tabindex="0" />
@@ -147,7 +147,7 @@
                 :class="detailed ? '' : 'button-load'"
                 :accent="ACCENTS.primary"
                 :icon-right="icons.wrench"
-                :label="detailed ? 'Custom load' : ''"
+                :label="detailed ? $tt('ui.career.cargoCard.customLoad') : ''"
                 @click="cargoOverviewStore.loadCargoCustom(card)"
                 :disabled="isMoving"
                 tabindex="0" />
@@ -157,7 +157,7 @@
                 :class="detailed ? '' : 'button-load'"
                 :accent="ACCENTS.primary"
                 :icon-right="icons.wrench"
-                :label="detailed ? 'Custom Load' : ''"
+                :label="detailed ? $tt('ui.career.cargoCard.customLoad') : ''"
                 @click="cargoOverviewStore.modifyMaterialLoad(card)"
                 :disabled="isMoving"
                 tabindex="0" />
@@ -170,7 +170,7 @@
               :class="detailed ? '' : 'button-load'"
               :accent="ACCENTS.main"
               :icon="icons.wrench"
-              :label="detailed ? 'Custom load' : ''"
+              :label="detailed ? $tt('ui.career.cargoCard.customLoad') : ''"
               @click="cargoOverviewStore.loadStorageCustom(card)"
               :disabled="isMoving"
               tabindex="0" />
@@ -179,7 +179,7 @@
               :class="detailed ? '' : 'button-load'"
               :accent="ACCENTS.main"
               :icon="icons.keys1"
-              :label="detailed ? 'Accept Job' : ''"
+              :label="detailed ? $tt('ui.career.cargoCard.acceptJob') : ''"
               @click="cargoOverviewStore.loadOffer(card)"
               :disabled="isMoving"
               tabindex="0" />
@@ -188,7 +188,7 @@
               :class="detailed ? '' : 'button-load'"
               :accent="ACCENTS.attention"
               :icon="icons.undo"
-              :label="detailed ? 'Decline Job' : ''"
+              :label="detailed ? $tt('ui.career.cargoCard.declineJob') : ''"
               @click="cargoOverviewStore.loadOffer(card)"
               :disabled="isMoving"
               tabindex="0" />
@@ -198,7 +198,7 @@
               :class="detailed ? '' : 'button-load'"
               :accent="ACCENTS.main"
               :icon="icons.keys1"
-              :label="detailed ? 'Accept Loaner' : ''"
+              :label="detailed ? $tt('ui.career.cargoCard.acceptLoaner') : ''"
               @click="cargoOverviewStore.loadLoaner(card)"
               :disabled="isMoving"
               tabindex="0" />
@@ -207,7 +207,7 @@
               :class="detailed ? '' : 'button-load'"
               :accent="ACCENTS.attention"
               :icon="icons.undo"
-              :label="detailed ? 'Decline Loaner' : ''"
+              :label="detailed ? $tt('ui.career.cargoCard.declineLoaner') : ''"
               @click="cargoOverviewStore.loadLoaner(card)"
               :disabled="isMoving"
               tabindex="0" />
@@ -218,7 +218,7 @@
               :class="detailed ? '' : 'button-load'"
               :accent="ACCENTS.attention"
               :icon="icons.trashBin1"
-              :label="detailed ? 'Abandon Job' : ''"
+              :label="detailed ? $tt('ui.career.cargoCard.abandonJob') : ''"
               @click="cargoOverviewStore.abandonOffer(card)"
               :disabled="isMoving"
               tabindex="0" />
@@ -227,7 +227,7 @@
               :class="detailed ? '' : 'button-load'"
               :accent="ACCENTS.attention"
               :icon="icons.trashBin1"
-              :label="detailed ? 'Return Loaner' : ''"
+              :label="detailed ? $tt('ui.career.cargoCard.returnLoaner') : ''"
               @click="cargoOverviewStore.returnLoaner(card.id)"
               :disabled="isMoving"
               tabindex="0" />
@@ -275,7 +275,7 @@
       </div>
 
       <div v-if="card.showAmountSelector">
-        Selected Amount: {{ card.amountSelector }}
+        {{ $ctx_t({ txt: "ui.career.cargoCard.selectedAmount", context: { amount: card.amountSelector } }) }}
         <BngSlider class="slider" :min="0" :max="card.maxCount" :step="1" v-model="card.amountSelector" @valueChanged="onAmountSelectorChanged"> </BngSlider>
       </div>
 
@@ -288,13 +288,13 @@
           </div>
           <div class="timer-value" v-if="card.remainingTime && (focus === 'none' || !focus) && !hideModsAndTimer">
             <template v-if="card.remainingTime.type === 'preLoad'">
-              <div class="orange">Time for delivery: {{ formatTime(card.remainingTime.time, 2) }}</div>
+              <div class="orange">{{ $ctx_t({ txt: "ui.career.cargoCard.timeForDelivery", context: { time: formatTime(card.remainingTime.time, 2) } }) }}</div>
             </template>
             <template v-if="card.remainingTime.type === 'untilDelayed'">
-              Time until delivery is Delayed: {{ formatTime(card.remainingTime.time, 2) }}
+              {{ $ctx_t({ txt: "ui.career.cargoCard.timeUntilDelayed", context: { time: formatTime(card.remainingTime.time, 2) } }) }}
             </template>
-            <template v-if="card.remainingTime.type === 'untilLate'"> Time until delivery is Late: {{ formatTime(card.remainingTime.time, 2) }} </template>
-            <template v-if="card.remainingTime.type === 'late'"> Delivery is late </template>
+            <template v-if="card.remainingTime.type === 'untilLate'">{{ $ctx_t({ txt: "ui.career.cargoCard.timeUntilLate", context: { time: formatTime(card.remainingTime.time, 2) } }) }}</template>
+            <template v-if="card.remainingTime.type === 'late'">{{ $tt("ui.career.cargoCard.deliveryIsLate") }}</template>
           </div>
         </template>
 
@@ -314,6 +314,9 @@ import { computed } from "vue"
 import { AspectRatio } from "@/common/components/utility"
 import { $translate } from "@/services/translation"
 import { formatTime } from "@/utils/datetime"
+
+const $tt = $translate.instant
+const $ctx_t = $translate.contextTranslate
 
 // Define emits for event handling
 const emit = defineEmits(["cargoHovered", "onAmountSelectorChanged"])
@@ -378,10 +381,10 @@ const isLoadingFacilityCard = computed(() => {
 })
 
 const context = computed(() => {
-  if (!props.card.enabled) return "Locked"
-  if (props.card.isFacilityCard) return "Available"
-  if (props.card.transientMoveCounts > 0 || props.card.spawnWhenCommitingCargo || props.card._transientMaterialMoveAmount) return "Assigned"
-  return "Loaded"
+  if (!props.card.enabled) return $tt("ui.career.cargoCard.contextLocked")
+  if (props.card.isFacilityCard) return $tt("ui.career.cargoCard.contextAvailable")
+  if (props.card.transientMoveCounts > 0 || props.card.spawnWhenCommitingCargo || props.card._transientMaterialMoveAmount) return $tt("ui.career.cargoCard.contextAssigned")
+  return $tt("ui.career.cargoCard.contextLoaded")
 })
 
 const isMoving = computed(() => {
@@ -412,7 +415,7 @@ const chevronProp = computed(() => {
     return card.spawnWhenCommitingCargo
       ? {
           class: "amount-load",
-          valueLabel: "Accepted",
+          valueLabel: $tt("ui.career.cargoCard.accepted"),
           iconType: icons.fastTravel,
         }
       : undefined
@@ -420,7 +423,10 @@ const chevronProp = computed(() => {
     return card._transientMaterialMoveAmount > 0 || props.alwaysShowLoadingWrapper
       ? {
           class: card._transientMaterialMoveAmount == 0 ? "amount-load no-load" : "amount-load",
-          valueLabel: card._transientMaterialMoveAmount + "L / " + card.storage.storedVolume + "L",
+          valueLabel: $ctx_t({
+            txt: "ui.career.cargoCard.storageVolumeLoad",
+            context: { loading: card._transientMaterialMoveAmount, stored: card.storage.storedVolume },
+          }),
         }
       : undefined
   }
@@ -461,8 +467,6 @@ const cargoProps = computed(() => {
   const card = props.card
   const detailed = props.detailed
   const focus = props.focus
-  const $tt = $translate.instant
-  const $ctx_t = $translate.contextTranslate
   const hideProps = props.hideProps
 
 
@@ -485,8 +489,8 @@ const cargoProps = computed(() => {
     if (!card.disableReason) {
       res.push({
         iconType: icons.lockClosed,
-        keyLabel: detailed ? "Locked..?" : "",
-        valueLabel: detailed ? "Not enabled but no disablereason given!" : "Locked..?",
+        keyLabel: detailed ? $tt("ui.career.cargoCard.lockedUnknown") : "",
+        valueLabel: detailed ? $tt("ui.career.cargoCard.notEnabledNoReason") : $tt("ui.career.cargoCard.lockedUnknown"),
         class: "full-width",
         iconColor: "var(--bng-add-red-300)",
       })
@@ -494,8 +498,8 @@ const cargoProps = computed(() => {
       if (card.disableReason.type === "noSpace") {
         res.push({
           iconType: icons.info,
-          keyLabel: detailed ? "No Space" : "",
-          valueLabel: detailed ? (card.disableReason.label ? card.disableReason.label : "Not enough space to load this.") : "No Space",
+          keyLabel: detailed ? $tt("ui.career.cargoCard.noSpace") : "",
+          valueLabel: detailed ? (card.disableReason.label ? card.disableReason.label : $tt("ui.career.cargoCard.notEnoughSpace")) : $tt("ui.career.cargoCard.noSpace"),
           class: "full-width red",
           iconColor: "var(--bng-add-red-300)",
         })
@@ -503,16 +507,16 @@ const cargoProps = computed(() => {
       if (card.disableReason.type === "expired") {
         res.push({
           iconType: icons.info,
-          keyLabel: detailed ? "Expired" : "",
-          valueLabel: detailed ? (card.disableReason.label ? card.disableReason.label : "This offer is already expired.") : "Expired",
+          keyLabel: detailed ? $tt("ui.career.cargoCard.expired") : "",
+          valueLabel: detailed ? (card.disableReason.label ? card.disableReason.label : $tt("ui.career.cargoCard.offerExpired")) : $tt("ui.career.cargoCard.expired"),
           class: "full-width ",
         })
       }
       if (card.disableReason.type === "limit") {
         res.push({
           iconType: icons.info,
-          keyLabel: detailed ? "Limit reached" : "",
-          valueLabel: detailed ? (card.disableReason.label ? card.disableReason.label : "You cannot deliver more cars at the same time.") : "Limit reached",
+          keyLabel: detailed ? $tt("ui.career.cargoCard.limitReached") : "",
+          valueLabel: detailed ? (card.disableReason.label ? card.disableReason.label : $tt("ui.career.cargoCard.deliveryLimitReached")) : $tt("ui.career.cargoCard.limitReached"),
           class: "full-width red",
           iconColor: "var(--bng-add-red-300)",
         })
@@ -526,7 +530,7 @@ const cargoProps = computed(() => {
       res.push({
         iconType: icons[card.unlockInfo.icon],
         valueLabel: detailed ? $ctx_t(card.unlockInfo.longLabel) : "",
-        keyLabel: detailed ? (locked ? "Locked" : "") : $ctx_t(card.unlockInfo.shortLabel),
+        keyLabel: detailed ? (locked ? $tt("ui.career.cargoCard.locked") : "") : $ctx_t(card.unlockInfo.shortLabel),
         class: "full-width " + (locked ? "red" : ""),
         iconColor: locked ? "var(--bng-add-red-300)" : "",
       })
@@ -540,7 +544,7 @@ const cargoProps = computed(() => {
     for (let task of card.nextTasks) {
       res.push({
         iconType: icons[task.checked ? "checkboxOn" : "checkboxOff"],
-        keyLabel: detailed ? "Next Task" : "",
+        keyLabel: detailed ? $tt("ui.career.cargoCard.nextTask") : "",
         valueLabel: task.label,
         class: "full-width",
       })
@@ -549,7 +553,7 @@ const cargoProps = computed(() => {
   if (card.locationName && (!focus || focus === "location" || detailed)) {
     res.push({
       iconType: icons.locationSource,
-      keyLabel: detailed ? "Location" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.location") : "",
       valueLabel: detailed ? card.locationNameLong : card.locationName,
       class: "full-width",
     })
@@ -557,7 +561,7 @@ const cargoProps = computed(() => {
   if (card.destinationName && (!focus || focus === "destination" || detailed)) {
     res.push({
       iconType: icons.locationDestination,
-      keyLabel: detailed ? "Destination" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.destination") : "",
       valueLabel: detailed ? card.destinationNameLong : card.destinationName,
       class: "full-width",
     })
@@ -565,7 +569,7 @@ const cargoProps = computed(() => {
   if (card.locations && (!focus || focus === "destination") && !detailed) {
     res.push({
       iconType: icons.mapPoint,
-      valueLabel: card.locations.length + " possible Destinations",
+      valueLabel: $ctx_t({ txt: "ui.career.cargoCard.possibleDestinations", context: { count: card.locations.length } }),
       class: "full-width",
     })
   }
@@ -573,15 +577,15 @@ const cargoProps = computed(() => {
     if (card.locations.length == 1) {
       res.push({
         iconType: icons.locationDestination,
-        keyLabel: "Destination",
+        keyLabel: $tt("ui.career.cargoCard.destination"),
         valueLabel: card.locations[0].name,
         class: "full-width",
       })
     } else {
       res.push({
         iconType: icons.location2,
-        keyLabel: "Multiple Destinations",
-        valueLabel: "Deliver this cargo to any of the possible destinations.",
+        keyLabel: $tt("ui.career.cargoCard.multipleDestinations"),
+        valueLabel: $tt("ui.career.cargoCard.deliverToAnyDestination"),
         class: "full-width",
       })
       let destinationsList = []
@@ -592,7 +596,7 @@ const cargoProps = computed(() => {
       destinationsList = destinationsList.map(str => str.replace(/ /g, " "))
       res.push({
         iconType: icons.mapPoint,
-        keyLabel: "Possible Destinations",
+        keyLabel: $tt("ui.career.cargoCard.possibleDestinationsLabel"),
         valueLabel: destinationsList.join(", "),
         class: "full-width",
       })
@@ -601,7 +605,7 @@ const cargoProps = computed(() => {
   if (card.distance && (!focus || focus === "distance" || detailed)) {
     res.push({
       iconType: icons.routeSimple,
-      keyLabel: detailed ? "Distance" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.distance") : "",
       valueLabel: units.buildString("distance", card.distance, 1),
       class: "",
     })
@@ -609,7 +613,7 @@ const cargoProps = computed(() => {
   if (card.vehMileage && (!focus || focus === "vehMileage" || detailed)) {
     res.push({
       iconType: icons.odometer,
-      keyLabel: detailed ? "Mileage" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.mileage") : "",
       valueLabel: units.buildString("distance", card.vehMileage, 1),
       class: "",
     })
@@ -617,7 +621,7 @@ const cargoProps = computed(() => {
   if (card.weight && (!focus || focus === "weight" || detailed)) {
     res.push({
       iconType: icons.weight,
-      keyLabel: detailed ? "Weight" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.weight") : "",
       valueLabel: units.buildString("weight", card.weight, 1),
       class: "",
     })
@@ -625,7 +629,7 @@ const cargoProps = computed(() => {
   if (card.density && (!focus || focus === "density" || detailed)) {
     res.push({
       iconType: icons.weight,
-      keyLabel: detailed ? "Density" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.density") : "",
       valueLabel: units.buildString("weight", card.density, 2),
       class: "",
     })
@@ -633,7 +637,7 @@ const cargoProps = computed(() => {
   if (card.storage && (!focus || focus === "storage" || detailed)) {
     res.push({
       iconType: icons.boxDropOff01,
-      keyLabel: detailed ? "Available Volume" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.availableVolume") : "",
       valueLabel: (card.storage.storedVolume + (detailed ? " / " + card.storage.capacity : "")).replace(/ /g, " "), //avoid breaking the fraction into two lines
       class: "",
     })
@@ -641,7 +645,7 @@ const cargoProps = computed(() => {
   if (card.slots && (!focus || focus === "slots" || detailed)) {
     res.push({
       iconType: icons.boxDropOff01,
-      keyLabel: detailed ? "Slots" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.slots") : "",
       valueLabel: card.slots,
       class: "",
     })
@@ -649,7 +653,7 @@ const cargoProps = computed(() => {
   if (card.task && (!focus || focus === "task" || detailed)) {
     res.push({
       iconType: icons.checkboxOff,
-      keyLabel: detailed ? "Task" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.task") : "",
       valueLabel: card.task,
       class: "full-width",
     })
@@ -657,25 +661,26 @@ const cargoProps = computed(() => {
   if (card.cardType == "loaner" && (!focus || detailed)) {
     res.push({
       iconType: icons.steeringWheelSporty,
-      keyLabel: detailed ? "Loaner" : "",
-      valueLabel: detailed ? (card.isFacilityCard ? "This vehicle can be loaned for delivery." : "This vehicle can be used for delivery.") : "Loaner",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.loaner") : "",
+      valueLabel: detailed ? (card.isFacilityCard ? $tt("ui.career.cargoCard.loanerFacilityDescription") : $tt("ui.career.cargoCard.loanerPlayerDescription")) : $tt("ui.career.cargoCard.loaner"),
       class: "full-width",
     })
   }
   if (card.cardType == "loaner" && card.loanerCut && !focus && detailed) {
+    const loanerCutPercent = card.loanerCut.value * 100 - ((card.loanerCut.value * 100) % 1)
     res.push({
       iconType: icons.carCoins,
-      keyLabel: detailed ? "Loaner Cut" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.loanerCut") : "",
       valueLabel: detailed
-        ? "Organization takes " + (card.loanerCut.value * 100 - ((card.loanerCut.value * 100) % 1)) + "% of rewards earned with this loaner."
-        : card.loanerCut.value * 100 - ((card.loanerCut.value * 100) % 1) + "%",
+        ? $ctx_t({ txt: "ui.career.cargoCard.loanerCutDescription", context: { percent: loanerCutPercent } })
+        : loanerCutPercent + "%",
       class: "full-width",
     })
   }
   if (card.organizationName && (!focus || detailed)) {
     res.push({
       iconType: icons.peopleOutline,
-      keyLabel: detailed ? "Organization" : "",
+      keyLabel: detailed ? $tt("ui.career.cargoCard.organization") : "",
       valueLabel: $tt(card.organizationName),
       class: "",
     })
@@ -684,7 +689,7 @@ const cargoProps = computed(() => {
     for (let cap of card.capacity) {
       res.push({
         iconType: icons[cap.icon],
-        keyLabel: detailed ? "Capacity" : "",
+        keyLabel: detailed ? $tt("ui.career.cargoCard.capacity") : "",
         valueLabel: detailed ? cap.labelLong : cap.labelShort,
         class: "",
       })
@@ -767,7 +772,7 @@ const cargoProps = computed(() => {
   flex: 1 1 auto;
   z-index: 2;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   align-items: stretch;
 
   // grid-auto-rows: minmax(max-content 1fr);
@@ -805,7 +810,8 @@ const cargoProps = computed(() => {
       align-items: center;
     }
 
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     grid-column: 1 / -1;
     grid-row: 1;
     flex: 1 0 auto;
@@ -819,7 +825,8 @@ const cargoProps = computed(() => {
     .card-heading {
       flex: 1 1 auto;
       display: flex;
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
       position: relative;
       overflow: visible;
 
@@ -840,7 +847,8 @@ const cargoProps = computed(() => {
     }
     .pill {
       display: flex;
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
       align-items: stretch;
 
       border-radius: var(--bng-corners-1);
@@ -909,7 +917,8 @@ const cargoProps = computed(() => {
 
     .load-actions-buttons {
       display: flex;
-      flex-flow: row wrap;
+      flex-direction: row;
+      flex-wrap: wrap;
       row-gap: 0.25rem;
       align-items: baseline;
       &.undetailed {
@@ -1036,7 +1045,8 @@ const cargoProps = computed(() => {
 
   .body-list-wrapped {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-start;
     padding-bottom: 0.5rem;
     > * {
@@ -1107,7 +1117,8 @@ const cargoProps = computed(() => {
 
 .detail-buttons {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   // align/justify to the right?
 }
 

@@ -32,13 +32,23 @@
         </div>
       </template>
       <template #select>
-        <div class="mission-setting-pill" :class="{ 'clickable': !setting.disabled && !noInput }" @click="!setting.disabled && !noInput && toggleSetting(setting)">
+        <div
+          class="mission-setting-pill"
+          :class="{ 'clickable': !setting.disabled && !noInput }"
+          v-bng-tooltip:top="optionDetail(setting.currentOption)"
+          @click="!setting.disabled && !noInput && toggleSetting(setting)">
           <AspectRatio
             v-if="setting.currentOption && setting.currentOption.thumb"
             class="image"
             :style="{
               backgroundImage: 'url(' + encodeURI(setting.currentOption.thumb) + ')',
             }">
+            <PerformanceIndexSticker
+              class="thumb-class-sticker"
+              :vehicle-class="getVehicleClassForOption(setting.currentOption)"
+              :long-text="false"
+              high-contrast
+              size="sm" />
           </AspectRatio>
 
           <div class="setting-label" :class="{ 'disabled-text': setting.disabled }">
@@ -47,7 +57,7 @@
               <BngIcon v-if="setting.disabled" :type="icons.lockClosed" color="var(--bng-cool-gray-400)" class="locked-icon"/>
             </div>
             <div class="setting-label-value">
-              {{$ctx_t(setting.currentOption?.l)}}
+              {{$ctx_t(optionLabel(setting.currentOption))}}
             </div>
           </div>
         </div>
@@ -60,8 +70,18 @@
 import { BngCard, BngIcon, icons } from '@/common/components/base'
 import { SlotSwitcher, AspectRatio } from '@/common/components/utility'
 import { useMissionDetailsStore } from '@/modules/missions/stores/missionDetailsStore'
+import { vBngTooltip } from '@/common/directives'
+import PerformanceIndexSticker from '@/modules/career/components/vehiclePerformance/PerformanceIndexSticker.vue'
 
 const store = useMissionDetailsStore()
+
+// Player option falls back to the live player vehicle class; preset / custom
+// vehicle options carry their own pre-resolved `vehicleClass` from Lua.
+const getVehicleClassForOption = (option) => {
+  if (!option) return null
+  if (option.type === "player") return store.missionBasicInfo?.playerVehicleClass || null
+  return option.vehicleClass || null
+}
 
 const props = defineProps({
   missionSettings: {
@@ -79,6 +99,9 @@ const findOptionValue = (valueToFind, opts) =>
     0,
     opts.findIndex(opt => opt.v === valueToFind)
   )
+
+const optionLabel = option => option?.shortLabel || option?.l || ""
+const optionDetail = option => option?.detail || undefined
 
 const toggleSetting = (setting) => {
   console.log("toggleSetting", setting)
@@ -141,7 +164,8 @@ const decrementSetting = (setting) => {
 
   :deep(.card-cnt) {
     display: flex;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 0.5rem;
     background: none;
     padding-bottom: 0.25rem;
@@ -206,6 +230,14 @@ const decrementSetting = (setting) => {
     border-radius: 0.5rem 0 0 0.5rem;
     margin: -0.2rem -0.5rem;
     margin-right: 0.5rem;
+    position: relative;
+
+    .thumb-class-sticker {
+      position: absolute;
+      bottom: 0.25rem;
+      right: 0.25rem;
+      z-index: 1;
+    }
   }
 
   .disabled-text {

@@ -1,9 +1,11 @@
-import { computed, ref, watch } from "vue"
+import { computed, ref, watch, defineAsyncComponent } from "vue"
 import { defineStore } from "pinia"
 import { lua, useBridge } from "@/bridge"
 import { openConfirmation, addPopup } from "@/services/popup"
-import CargoLoadPopup from "../components/cargoOverview/CargoLoadPopup.vue"
-import CargoScreenSettings from "../components/cargoOverview/CargoScreenSettings.vue"
+import { $translate } from "@/services/translation"
+// avoiding a circular dependency with these components (they import this store)
+const CargoLoadPopup = defineAsyncComponent(() => import("../components/cargoOverview/CargoLoadPopup.vue"))
+const CargoScreenSettings = defineAsyncComponent(() => import("../components/cargoOverview/CargoScreenSettings.vue"))
 // custom 'forEach' to check if it's an array first - some empty data from Lua seems to come back as an empty object rather than []
 const _forEach = (arr, func) => Array.isArray(arr) && arr.length > 0 && arr.forEach(func)
 
@@ -29,7 +31,7 @@ export const useCargoOverviewStore = defineStore("cargoOverview", () => {
   let parkingSpotPath
 
 
-  let facilityFilter = {value:"facility-info",label:"Facility Info", showInFilterTabs:true, isFacilityPage:true}
+  let facilityFilter = {value:"facility-info",label: $translate.instant("ui.career.cargoOverview.facilityInfo"), showInFilterTabs:true, isFacilityPage:true}
   let filterSets = ref({})
   let filterSetsByValue = ref({})
   let selectedFilterRef = ref()

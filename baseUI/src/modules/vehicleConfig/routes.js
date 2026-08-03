@@ -20,7 +20,6 @@ export default [
     meta: {
       clickThrough: true,
       infoBar: {
-        withAngular: false,
         visible: true,
         showSysInfo: false,
       },
@@ -32,6 +31,12 @@ export default [
       }
     },
     children: [
+      {
+        path: "partpacks",
+        name: "menu.vehicleconfig.partpacks",
+        component: VehicleConfig,
+        props: { tab: "partpacks" },
+      },
       {
         path: "parts",
         name: "menu.vehicleconfig.parts",
@@ -90,6 +95,6 @@ export default [
     path: "/vehicle-config/tuning/mirrors-garage",
     name: "menu.vehicleconfig.tuning.mirrors.in-garage",
     component: Mirrors,
-    props: { exitRoute: "garagemode.tuning" },
+    props: { exitRoute: "garage.tuning" },
   },
 ]

@@ -4,46 +4,53 @@
     ref="carousel"
     :images="backgrounds.normal"
     :delay="10000"
-    transition
+    :transition="transition"
     shuffle
   />
   <!-- this is to force the browser to show images right away by storing them in memory -->
-  <div v-for="list in backgrounds" class="backgrounds-cache">
-    <img v-for="src in list" :src="getAssetURL(src)" />
+  <div v-for="(list, listName) in backgroundsCache" :key="listName" class="backgrounds-cache">
+    <img v-for="src in list" :key="src" :src="src" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue"
-import { getAssetURL } from "@/utils"
 import { lua } from "@/bridge"
+import { useImageList, UNOFFICIAL } from "@/services/imageList"
 import Slideshow from "./Slideshow.vue"
 
-// number of images
-const DRIVE = 8
-const TECH = 1
+const driveList = useImageList("images/mainmenu/drive")
+const techList = useImageList("images/mainmenu/tech")
 
-const bgPathResolve = (product, name, blur = false) =>
-  `images/mainmenu/${product ? product + "/" : ""}${name}${blur ? "_blur" : ""}.jpg`
+const toBackgroundPair = list => ({
+  normal: list.map(entry => entry.normal || entry.blur).filter(Boolean),
+  blur: list.map(entry => entry.blur || entry.normal).filter(Boolean),
+})
 
-const _backgrounds = {
-  drive: Array.from({ length: DRIVE }, (_, i) => bgPathResolve("drive", i + 1)),
-  drive_blur: Array.from({ length: DRIVE }, (_, i) => bgPathResolve("drive", i + 1, true)),
-  tech: Array.from({ length: TECH }, (_, i) => bgPathResolve("tech", i + 1)),
-  tech_blur: Array.from({ length: TECH }, (_, i) => bgPathResolve("tech", i + 1, true)),
-  unofficial: [bgPathResolve(null, "unofficial_version")],
-  unofficial_blur: [bgPathResolve(null, "unofficial_version", true)],
-}
-const backgroundId = ref("drive")
-const backgrounds = computed(() => ({
-  normal: _backgrounds[backgroundId.value],
-  blur: _backgrounds[backgroundId.value + "_blur"],
+const _backgrounds = computed(() => ({
+  drive: toBackgroundPair(driveList.images.value),
+  tech: toBackgroundPair(techList.images.value),
+  unofficial: {
+    normal: [UNOFFICIAL.normal],
+    blur: [UNOFFICIAL.blur],
+  },
 }))
+
+const backgroundId = ref("drive")
+const backgrounds = computed(() => _backgrounds.value[backgroundId.value] || { normal: [], blur: [] })
+const backgroundsCache = computed(() => backgrounds.value)
 
 const carousel = ref()
 defineExpose({
   carousel: computed(() => carousel.value),
   backgrounds: computed(() => backgrounds.value),
+})
+
+defineProps({
+  transition: {
+    type: [Boolean, Number],
+    default: 20,
+  },
 })
 
 onMounted(async () => {

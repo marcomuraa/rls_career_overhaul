@@ -1,5 +1,5 @@
 <template>
-  <div class="insurance-details-wrapper" bng-ui-scope="insuranceDetailsPopup">
+  <div class="insurance-details-wrapper" v-bng-scoped-nav="popupScopeBinding" v-bng-on-ui-nav:back,menu="closePopup">
     <div class="card-content">
       <div class="header">
         <div class="header-left">
@@ -203,22 +203,32 @@
 </template>
 
 <script setup>
-import { BngCard, BngUnit, BngButton, ACCENTS, BngIcon, icons } from "@/common/components/base"
-import { useUINavScope } from "@/services/uiNav"
+import { BngUnit, BngButton, ACCENTS, BngIcon, icons } from "@/common/components/base"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 import { InsuranceTiers } from "@/modules/career/components"
-import { computed } from "vue"
+import { computed, useAttrs } from "vue"
 import { useBridge } from "@/bridge"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const { units } = useBridge()
-
-useUINavScope("insuranceDetailsPopup")
-
 
 const props = defineProps({
   insuranceData: Object,
   vehicleInfo: Object,
   driverScoreData: Object,
+  popupActive: Boolean,
 })
+
+const attrs = useAttrs()
+const scopeName = `_insuranceDetailsPopup__${attrs.__id}`
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const emit = defineEmits(["return"])
 
@@ -276,10 +286,6 @@ export default {
   position: [popupPosition.center, popupPosition.center],
 }
 </script>
-
-<style lang="scss">
-@import 'insuranceStyle.css';
-</style>
 
 <style scoped lang="scss">
 .insurance-details-wrapper {

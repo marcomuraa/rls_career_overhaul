@@ -1,73 +1,70 @@
 <template>
-  <ComputerWrapper ref="wrapper" :path="['Insurance']" title="Insurance" back @back="close">
+  <ComputerWrapper :title="$translate.instant('ui.career.insurance.title')" @back="close">
     <BngCard class="insurances-card blue-background">
-      <template v-if="!selectedInsuranceClassId">
-        <div class="cards-wrapper blue-background">
-          <div class="insurance-tiers-wrapper">
-            <div class="insurance-tier-card" v-for="{ classId, classData } in sortedInsuranceClasses" :key="classId" @click="selectInsuranceClass(classId)">
-              <BngIcon class="insurance-icon" :type="icons[classData.icon]" />
-              <div class="insurance-tier-card-name">
-                {{ classData.name }}
-              </div>
-              <div class="insurance-tier-card-description">
-                {{ classData.description }}
-              </div>
-              <div class="insurance-tier-card-cars-insured">
-                {{ classData.carsInsured }} VEHICLES INSURED
-              </div>
-            </div>
-          </div>
-
-          <div class="no-insurance-card" @click="openUninsuredVehicles">
-            <div class="left-no-insurance">
-              <BngIcon class="no-insurance-icon" :type="icons.checkmark" />
-              <div class="no-insurance-text-wrapper">
-                <div class="no-insurance-title">
-                  {{ insurancesStore.uninsuredVehsData.title }}
-                </div>
-                <div class="no-insurance-description">
-                  {{ insurancesStore.uninsuredVehsData.description }}
-                </div>
-              </div>
-            </div>
-            <div class="uninsured-count">
-              {{ insurancesStore.uninsuredVehsData.carsUninsuredCount }} vehicles
-            </div>
-          </div>
+      <div v-if="selectedInsuranceClassId" class="small-insurance-cards-wrapper blue-background">
+        <SmallInsuranceCard
+          v-for="insurance in plClassesData[selectedInsuranceClassId].insurances"
+          :key="insurance.id"
+          :insuranceData="insurance"
+          :driverScoreData="driverScoreData" />
+      </div>
+      <div v-else class="cards-wrapper blue-background">
+        <div class="insurance-tiers-wrapper">
+          <InsuranceTierCard
+            v-for="{ classId, classData } in sortedInsuranceClasses"
+            :key="classId"
+            :classId="classId"
+            :classData="classData"
+            @select="selectInsuranceClass" />
         </div>
-      </template>
-
-
-      <template v-if="selectedInsuranceClassId">
-        <div class="small-insurance-cards-wrapper blue-background">
-          <SmallInsuranceCard v-for="insurance in insurancesStore.plClassesData[selectedInsuranceClassId].insurances" :key="insurance.id" :insuranceData="insurance" :driverScoreData="insurancesStore.driverScoreData" />
-        </div>
-      </template>
+        <UninsuredCard
+          :uninsuredVehsData="uninsuredVehsData"
+          @open="openUninsuredVehicles" />
+      </div>
     </BngCard>
+
+    <!-- Tabs are shown in infobar because they are tracked events by crossfire.
+     This is a hack to prevent them from displaying in the infobar -->
+    <BngBinding v-show="false" ui-event="tab_l" controller />
+    <BngBinding v-show="false" ui-event="tab_r" controller />
   </ComputerWrapper>
 </template>
 
 <script setup>
-import { lua } from "@/bridge"
 import { onBeforeMount, onUnmounted, computed, ref } from "vue"
-import ComputerWrapper from "./ComputerWrapper.vue"
-import { useInsurancesStore } from "../stores/insurancesStore"
-import { BngCard, BngIcon, icons, BngUnit, BngButton } from "@/common/components/base"
-import { useComputerStore } from "../stores/computerStore"
-import { SmallInsuranceCard, UninsuredVehicles } from "../components"
+import { BngCard, BngBinding } from "@/common/components/base"
 import { addPopup } from "@/services/popup"
+import { lua, useBridge } from "@/bridge"
+import { $translate } from "@/services/translation"
+import { useScopedNav } from "@/services/scopedNav/api"
 
+import { SmallInsuranceCard, UninsuredVehicles, InsuranceTierCard, UninsuredCard } from "../components"
+import ComputerWrapper from "./ComputerWrapper.vue"
 
-const computerStore = useComputerStore()
-const insurancesStore = useInsurancesStore()
+const { events } = useBridge()
+const scopedNav = useScopedNav()
+
+const invVehsInsurancesData = ref({})
+const plClassesData = ref({})
+const uninsuredVehsData = ref({})
+const driverScoreData = ref({})
+
 const selectedInsuranceClassId = ref(null)
+
+events.on("insurancesData", data => {
+  invVehsInsurancesData.value = data.invVehsInsurancesData
+  plClassesData.value = data.plClassesData
+  uninsuredVehsData.value = data.uninsuredVehsData
+  driverScoreData.value = data.driverScoreData
+})
 
 const selectInsuranceClass = (classId) => {
   selectedInsuranceClassId.value = classId
+  scopedNav.requestCurrentScopeFocus()
 }
 
 const sortedInsuranceClasses = computed(() => {
-  const classes = insurancesStore.plClassesData
+  const classes = plClassesData.value
   if (!classes) return []
 
   return Object.entries(classes)
@@ -76,13 +73,12 @@ const sortedInsuranceClasses = computed(() => {
 })
 
 const start = () => {
-  insurancesStore.requestInitialData()
+  lua.career_modules_insurance_insurance.sendUIData()
 }
 
 const kill = () => {
   lua.extensions.hook("onExitInsurancesComputerScreen")
-  //insuranceStore.partInventoryClosed()
-  insurancesStore.$dispose()
+  events.off("insurancesData")
 }
 
 onBeforeMount(start)
@@ -91,13 +87,14 @@ onUnmounted(kill)
 const close = () => {
   if (selectedInsuranceClassId.value) {
     selectedInsuranceClassId.value = null
+    scopedNav.requestCurrentScopeFocus()
   } else {
-    insurancesStore.closeMenu()
+    lua.career_modules_insurance_insurance.closeMenu()
   }
 }
 
 const openUninsuredVehicles = () => {
-  addPopup(UninsuredVehicles, { uninsuredData: insurancesStore.uninsuredVehsData })
+  addPopup(UninsuredVehicles, { uninsuredData: uninsuredVehsData.value })
 }
 </script>
 
@@ -124,31 +121,13 @@ const openUninsuredVehicles = () => {
   overflow-x: auto;
   overflow-y: hidden;
   max-height: 100%;
+  padding: 0.25rem;
 }
 
-.insurance-tier-card{
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  border-radius: var(--bng-corners-3);
-  align-items: center;
-  border: 3px solid var(--bng-ter-blue-gray-500);
-  padding: 3rem 0.5rem;
-  background: linear-gradient(135deg, var(--bng-cool-gray-800) 0%, var(--bng-add-blue-900) 100%);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 20rem;
-
-  &:hover {
-    background: linear-gradient(135deg, var(--bng-cool-gray-700) 0%, var(--bng-add-blue-800) 100%);
-    border-color: rgba(255, 255, 255, 0.7);
-  }
-}
 .cards-wrapper{
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 1rem;
   max-height: 100%;
   overflow: hidden;
 }
@@ -201,98 +180,13 @@ const openUninsuredVehicles = () => {
   opacity: 0.8;
 }
 
-.no-insurance-text-wrapper{
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  justify-content: center;
-  align-items: flex-start;
-}
-
-.no-insurance-icon{
-  font-size: 4rem;
-}
-
-.no-insurance-title{
-  font-size: 2rem;
-  font-weight: 800;
-  text-align: left;
-}
-
-.left-no-insurance{
-  display: flex;
-  flex-direction: row;
-  gap: 1.25rem;
-  align-items: center;
-}
-
-.no-insurance-card{
-  display: flex;
-  flex-direction: row;
-  gap: 1.2rem;
-  height: 8rem;
-  padding: 0.5rem 1.2rem;
-  justify-content: space-between;
-  align-items: center;
-
-  background-color: var(--bng-add-red-800);
-  border: 3px solid var(--bng-add-red-500);
-  border-radius: var(--bng-corners-3);
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: var(--bng-add-red-700);
-    border-color: var(--bng-add-red-400);
-  }
-}
-
-.uninsured-count{
-  display: flex;
-  font-size: 1.2rem;
-  font-weight: 300;
-  justify-content: flex-end;
-  align-items: center;
-  opacity: 0.8;
-}
-
-.no-insurance-description{
-  font-size: 1.2rem;
-  font-weight: 300;
-  text-align: left;
-  opacity: 0.8;
-}
-
 .insurance-tiers-wrapper{
   display: flex;
   flex-direction: row;
   gap: 1.2rem;
+  padding: 0 0.5rem;
   overflow: hidden;
 }
-.insurance-icon{
-  font-size: 4rem;
-}
-.insurance-tier-card-name{
-  font-size: 2.3rem;
-  font-weight: 800;
-}
-
-.insurance-tier-card-description{
-  font-size: 1.1rem;
-  opacity: 0.8;
-  text-align: center;
-}
-
-.insurance-tier-card-cars-insured{
-  width: 80%;
-  font-weight: 800;
-  font-size: 1.2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.5);
-  margin-top: 1.2rem;
-  padding-top: 0.5rem;
-  text-align: center;
-}
-
 .innerList {
   height: 100%;
 }

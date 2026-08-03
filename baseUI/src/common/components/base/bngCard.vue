@@ -1,7 +1,7 @@
 <!-- bngCard - a generic card -->
 <template>
   <!-- TODO: remove bng-card-wrapper so that this component's root class name is 'bng-card' which matches its component name -->
-  <div class="bng-card bng-card-wrapper" :class="{ 'with-background-image': backgroundImageStyle }">
+  <div class="bng-card bng-card-wrapper" :class="{ 'with-background-image': backgroundImageStyle, 'with-layered-background': props.layeredBackground }">
     <div class="card-cnt">
       <slot>BNG Card</slot>
     </div>
@@ -26,6 +26,7 @@ const props = defineProps({
   backgroundImage: String,
   footerStyles: Object,
   hideFooter: Boolean,
+  layeredBackground: Boolean,
   animateFooter: Boolean,
   animateFooterType: {
     type: String,
@@ -48,7 +49,7 @@ defineExpose({
 .bng-card {
   --bg-opacity: 0.6;
   font-size: 1rem;
-  font-family: Overpass, var(--fnt-defs);
+  font-family: "Overpass", var(--fnt-defs);
   background-color: transparent;
   padding: 0;
   display: flex;
@@ -56,7 +57,7 @@ defineExpose({
   align-items: stretch;
   position: relative;
   border-radius: var(--bng-corners-2);
-  height: fit-content;
+  height: var(--bng-card-height, fit-content);
 
   &.with-background-image {
     background-image: v-bind(backgroundImageStyle);
@@ -69,17 +70,62 @@ defineExpose({
     }
   }
 
+  &.with-layered-background {
+    > .card-cnt,
+    > .footer-container {
+      z-index: 0;
+    }
+
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: var(--bng-card-content-bg, var(--bng-off-black));
+      opacity: var(--bng-card-content-bg-opacity, var(--bg-opacity));
+      box-shadow: var(--bng-card-bg-shadow, none);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    > .card-cnt {
+      background-color: transparent;
+    }
+
+    > .footer-container {
+      background-color: transparent;
+
+      &::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: var(--bng-card-footer-bg, var(--bng-ter-blue-gray-900));
+        opacity: var(--bng-card-footer-bg-opacity, calc(var(--bg-opacity) + 0.2));
+        box-shadow: var(--bng-card-bg-shadow, none);
+        pointer-events: none;
+        z-index: -1;
+      }
+    }
+  }
+
   > .card-cnt {
     overflow: hidden;
     height: inherit;
     border-top-left-radius: var(--bng-corners-2);
     border-top-right-radius: var(--bng-corners-2);
 
-    background-color: rgba(black, var(--bg-opacity));
+    background-color: rgba(var(--bng-off-black-rgb), var(--bg-opacity));
     display: flex;
-    flex-flow: column nowrap;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: var(--bng-card-content-gap, 0);
+    padding: var(--bng-card-content-padding, 0);
     // background-color: rgba(black, var(--bg-opacity));
     flex: 0 1 auto;
+
+    position: relative;
   }
 
   > :last-child {
@@ -96,6 +142,8 @@ defineExpose({
     padding: 0.5em 0.5em 0.5em 0.5em;
     margin-top: auto;
     flex: 0 0 auto;
+
+    position: relative;
 
     & :first-child:last-child {
       flex: 1 1 auto;

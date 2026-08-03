@@ -2,7 +2,7 @@
   <template v-if="cargoOverviewStore.cargoData">
     <div class="heading-wrapper">
       <BngCardHeading type="ribbon" class="cardHeading">
-        {{ facilityId ? "Available Cargo - " + cargoOverviewStore.cargoData.facility.name : "My Cargo" }}
+        {{ facilityId ? "Available Cargo - " + $translate.instant(cargoOverviewStore.cargoData.facility.name) : "My Cargo" }}
       </BngCardHeading>
       <div class="buttons-container">
         <BngButton
@@ -292,7 +292,7 @@ defineExpose({
   padding: 0 0.5rem 0.5rem;
   flex: 0 1 auto;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   // overflow-y: auto;
   position: relative;
   .scrollable-table {
@@ -306,7 +306,7 @@ defineExpose({
 .lockedFacility {
   flex: 0 0 auto;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   .unlock-progress {
     flex: 0 0 auto;
     padding: 0 0.5em 1em 0.5em;
@@ -448,7 +448,8 @@ defineExpose({
 
 .heading-wrapper {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: flex-start;
   flex: 0 0 auto;
   padding: 0.5rem 0.5rem 0.5rem 0;
@@ -462,7 +463,8 @@ defineExpose({
   .buttons-container {
     display: flex;
     flex: 0 0.5 auto;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: stretch;
   }
 }

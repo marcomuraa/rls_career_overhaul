@@ -1,14 +1,15 @@
 <template>
-  <div
+  <LayoutMenu
     class="livery-manager-view"
-    bng-ui-scope="livery-manager-scope"
-    v-bng-on-ui-nav:back,menu="goBack"
-    v-bng-ui-nav-label:back,menu="'Back'"
-  >
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    heading="Livery Editor">
+    <div
+      class="main-view-content"
+      v-bng-on-ui-nav:back,menu="goBack"
+      v-bng-ui-nav-label:back,menu="'Back'">
       <template v-if="screenState.isOpenLiveries">
         <BngList
           v-if="files && files.length > 0"
@@ -43,29 +44,30 @@
           @click="item.action" />
       </div>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script setup>
-import { onBeforeMount, onMounted, onUnmounted, reactive, ref, watch } from "vue"
+import { computed, onBeforeMount, onMounted, onUnmounted, reactive, ref, watch } from "vue"
+import { lua } from "@/bridge"
 import { storeToRefs } from "pinia"
 import { vBngBlur, vBngFocusIf, vBngUiNavFocus, vBngOnUiNav, vBngUiNavLabel } from "@/common/directives"
 import { BngImageTile, BngList, LIST_LAYOUTS, icons } from "@/common/components/base"
+import { LayoutMenu } from "@/common/layouts"
 import { useInfoBar } from "@/services/infoBar"
+import { useRouteDataStore } from "@/services/routeData"
 import { useUINavBlocker } from "@/services/uiNavTracker"
-import { useUINavScope } from "@/services/uiNav"
-import { useEditorHeaderStore, useLiveryMainStore } from "@/modules/liveryEditor/stores"
+import { useLiveryMainStore } from "@/modules/liveryEditor/stores"
 import { useLiveryFileStore } from "@/modules/liveryEditor/stores/liveryFileStore"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
 import FileListItem from "@/modules/liveryEditor/components/fileManager/FileListItem.vue"
 
 const store = useLiveryFileStore()
 const mainStore = useLiveryMainStore()
-const headerStore = useEditorHeaderStore()
 const infobar = useInfoBar()
 const uiNavBlocker = useUINavBlocker()
+const routeDataStore = useRouteDataStore()
 
-useUINavScope("livery-manager-scope")
+const breadcrumbItems = computed(() => (Array.isArray(routeDataStore.breadcrumbs) ? routeDataStore.breadcrumbs : []))
 
 const { files } = storeToRefs(store)
 
@@ -101,8 +103,6 @@ onBeforeMount(() => {
 })
 
 onMounted(() => {
-  headerStore.setHeader("Livery Editor")
-  headerStore.setPreheader(null)
   uiNavBlocker.blockOnly(["tab_l", "tab_r"])
   infobar.visible = true
 })
@@ -113,12 +113,11 @@ onUnmounted(() => {
 
 function onCreateNew() {
   mainStore.isSetupDone = false
-  window.bngVue.gotoGameState("LiveryMain")
+  lua.extensions.ui_router.navigate("livery.editor", null, null)
 }
 
 function onOpenLiveries() {
   screenState.isOpenLiveries = true
-  headerStore.setPreheader("Liveries")
 }
 
 function goBack(event) {
@@ -126,7 +125,7 @@ function goBack(event) {
     screenState.isOpenLiveries = false
     selectedSave.value = null
   } else {
-    window.bngVue.gotoGameState("garagemode")
+    lua.extensions.ui_router.navigate("garage", null, null)
   }
 
   event.stopPropagation()

@@ -1,6 +1,9 @@
-import { GAME_UI_NAVIGATION_EVENT, GAME_UI_NAV_MAP_ENABLED_EVENT, DOM_UI_NAVIGATION_EVENT, UI_NAV_ACTION_GROUP, ACTIONS_BY_UI_EVENT } from "./constants.js"
+import { GAME_UI_NAVIGATION_EVENT, GAME_UI_NAV_MAP_ENABLED_EVENT, DOM_UI_NAVIGATION_EVENT, UI_NAV_ACTION_GROUP, ACTIONS_BY_UI_EVENT, UI_SCOPE_ATTR } from "./constants.js"
 import { UINavEventProcessor } from "./eventProcessor.js"
 import { UINavActionHandlers } from "./actionHandlers.js"
+import { ScopeRegistry } from "./handlers/scopeRegistry.js"
+import { UINavHandlers } from "./handlers/index.js"
+import { perfEnd, perfEndEvent, perfLog, perfMark, perfStart } from "./perf.js"
 import { lua } from "@/bridge"
 import logger from "@/services/logger"
 
@@ -12,8 +15,10 @@ class UINavService {
     this._activeScope = undefined
     this._blockedEvents = []
 
+    this.scopeRegistry = new ScopeRegistry()
     this.eventProcessor = new UINavEventProcessor()
     this.actionHandlers = new UINavActionHandlers(eventBus)
+    this.handlers = new UINavHandlers(this.scopeRegistry)
 
     this.useCrossfire = true
   }
@@ -27,15 +32,39 @@ class UINavService {
 
   handleGameEvent = (name, value, ...extras) => {
     // logger.debug("UINavService: handleGameEvent", { name, value, extras })
+    let perfId = null
+    let perfToken = null
+    // DEV_ONLY >>
+    perfId = perfLog(name, "eventBus:UINavigation", {
+      value,
+      extrasCount: extras.length,
+      activeScope: this.activeScope,
+    })
+    perfToken = perfStart(perfId, "eventProcessor.processEvent")
+    // << DEV_ONLY
+
     const context = {
       activeScope: this.activeScope,
       isEventBlocked: eventName => this.isEventBlocked(eventName),
     }
+    // DEV_ONLY >>
+    context.perfId = perfId
+    // << DEV_ONLY
 
     const eventData = this.eventProcessor.processEvent(name, value, extras, context)
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      hasEventData: !!eventData,
+      blocked: this.isEventBlocked(name),
+    })
+    // << DEV_ONLY
 
     if (eventData) {
       this.dispatchDOMEvent(eventData)
+    } else {
+      // DEV_ONLY >>
+      perfEndEvent(perfId, { result: "ignored" })
+      // << DEV_ONLY
     }
   }
 
@@ -88,12 +117,35 @@ class UINavService {
     return [...this._blockedEvents]
   }
 
+  /**
+   * Get deduplicated array of event names handled within a scope
+   * @param {string} scopeId - The scope ID to query
+   * @returns {string[]} Array of event name strings
+   */
+  getHandledEventsForScope(scopeId) {
+    return this.scopeRegistry.getHandledEventsForScope(scopeId)
+  }
+
+  /**
+   * Get detailed handler report for a scope
+   * @param {string} scopeId - The scope ID to query
+   * @returns {Array|null} Array of handler info objects, or null if scope not found
+   */
+  getScopeHandlerReport(scopeId) {
+    return this.scopeRegistry.getScopeHandlerReport(scopeId)
+  }
 
   handleEnabledChange = state => {
     this.eventsActive = state
   }
 
   dispatchDOMEvent = eventData => {
+    // DEV_ONLY >>
+    perfMark(eventData.perfId, "dispatchDOMEvent:start", {
+      targetScope: eventData.targetScope,
+    })
+    // << DEV_ONLY
+
     const event = new CustomEvent(DOM_UI_NAVIGATION_EVENT, {
       detail: eventData,
       cancelable: true,
@@ -101,9 +153,28 @@ class UINavService {
     })
 
     // console.log("dispatchDOMEvent", eventData)
+    let perfToken = null
+    // DEV_ONLY >>
+    perfToken = perfStart(eventData.perfId, "eventProcessor.getEventBroadcastElement")
+    // << DEV_ONLY
     const targetElement = this.eventProcessor.getEventBroadcastElement(this.activeScope)
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      tagName: targetElement?.tagName,
+      activeScope: this.activeScope,
+    })
+    perfToken = perfStart(eventData.perfId, "DOM dispatchEvent")
+    // << DEV_ONLY
     // console.log("targetElement", targetElement)
     targetElement.dispatchEvent(event)
+    // DEV_ONLY >>
+    perfEnd(perfToken, {
+      defaultPrevented: event.defaultPrevented,
+    })
+    perfEndEvent(eventData.perfId, {
+      defaultPrevented: event.defaultPrevented,
+    })
+    // << DEV_ONLY
   }
 
   /**
@@ -125,8 +196,11 @@ class UINavService {
   }
 
   setActiveScope(scopeId) {
+    const previousScope = this._activeScope
     this._activeScope = scopeId
-    // Could add validation here in the future
+    if (previousScope !== scopeId && this._eventBus) {
+      this._eventBus.emit("uiNav_scopeChanged", { scopeId, previousScope })
+    }
   }
 
   /**
@@ -148,8 +222,12 @@ class UINavService {
    * Hook/unhook global DOM event handlers
    */
   hookGlobalEvents(state = true) {
-    const listenerAction = document.body[state ? "addEventListener" : "removeEventListener"]
-    listenerAction(DOM_UI_NAVIGATION_EVENT, this.actionHandlers.handleGlobalEvent)
+    // Always remove first so repeated initialization can't attach duplicate body listeners.
+    // handleGlobalEvent is a stable arrow-function reference, so remove-before-add is reliable.
+    document.body.removeEventListener(DOM_UI_NAVIGATION_EVENT, this.actionHandlers.handleGlobalEvent)
+    if (state) {
+      document.body.addEventListener(DOM_UI_NAVIGATION_EVENT, this.actionHandlers.handleGlobalEvent)
+    }
     this.globalEventsHooked = state
   }
 
@@ -159,8 +237,8 @@ class UINavService {
   attachEventListeners(state = true) {
     if (!this._eventBus) return
 
-    this._eventBus.off(GAME_UI_NAVIGATION_EVENT)
-    this._eventBus.off(GAME_UI_NAV_MAP_ENABLED_EVENT)
+    this._eventBus.off(GAME_UI_NAVIGATION_EVENT, this.handleGameEvent)
+    this._eventBus.off(GAME_UI_NAV_MAP_ENABLED_EVENT, this.handleEnabledChange)
 
     if (state) {
       this._eventBus.on(GAME_UI_NAVIGATION_EVENT, this.handleGameEvent)
@@ -186,6 +264,49 @@ class UINavService {
   clearFilteredEvents() {
     lua.extensions.core_input_actionFilter.addAction(0, UI_NAV_ACTION_GROUP, false)
     lua.extensions.core_input_actionFilter.setGroup(UI_NAV_ACTION_GROUP, [])
+  }
+
+  /**
+   * Get the scope hierarchy tree for all UI scopes within a root element.
+   * Useful for debugging which scopes exist, their nesting, and what events they handle.
+   *
+   * @param {HTMLElement} [rootElement=document.body] - Root element to search within
+   * @returns {Array<Object>} Array of root scope nodes, each with nested children
+   */
+  getScopeTree(rootElement = document.body) {
+    const scopeElements = rootElement.querySelectorAll(`[${UI_SCOPE_ATTR}]`)
+    const scopeMap = new Map()
+
+    for (const el of scopeElements) {
+      const scopeId = el.getAttribute(UI_SCOPE_ATTR)
+      const scopedNavProps = el._bngScopedNav || {}
+
+      scopeMap.set(scopeId, {
+        scopeId,
+        type: scopedNavProps.type || null,
+        state: el.getAttribute("data-bng-scoped-nav-state") || null,
+        trapPolicy: scopedNavProps.trapPolicy || null,
+        handledEvents: this.scopeRegistry.getHandledEventsForScope(scopeId),
+        handlers: this.scopeRegistry.getScopeHandlerReport(scopeId),
+        parentScopeId: null,
+        children: [],
+      })
+    }
+
+    for (const [scopeId, scopeData] of scopeMap) {
+      const el = [...scopeElements].find(e => e.getAttribute(UI_SCOPE_ATTR) === scopeId)
+      const parentScopeEl = el?.parentElement?.closest(`[${UI_SCOPE_ATTR}]`)
+
+      if (parentScopeEl) {
+        const parentScopeId = parentScopeEl.getAttribute(UI_SCOPE_ATTR)
+        if (scopeMap.has(parentScopeId)) {
+          scopeData.parentScopeId = parentScopeId
+          scopeMap.get(parentScopeId).children.push(scopeData)
+        }
+      }
+    }
+
+    return [...scopeMap.values()].filter(s => s.parentScopeId === null)
   }
 
   // Getters for system state
@@ -218,17 +339,8 @@ class UINavService {
   }
 }
 
-let instance = null
-export const setUINavServiceInstance = (serviceInstance) => {
-  instance = serviceInstance
-}
-
-export const getUINavServiceInstance = () => {
-  if (!instance) {
-    throw new Error("UINavService not initialized.")
-  }
-  return instance
-}
+import { getUINavServiceInstance } from "./serviceInstance.js"
+export { getUINavServiceInstance, setUINavServiceInstance } from "./serviceInstance.js"
 
 export { UINavService }
 export default getUINavServiceInstance

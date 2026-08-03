@@ -77,7 +77,8 @@ function disableButtons() {
 .buttons {
   display: flex;
   align-items: flex-start;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   & > :not(:last-child) {
     margin-right: 0.5em;
   }
@@ -186,13 +187,6 @@ export default {
       name: "holdVertical",
       type: "Boolean",
       desc: "Specifies if the 'hold' visualisation should be vertical",
-    },
-  ],
-  attrInfo: [
-    {
-      name: "oldIcons",
-      type: "n/a",
-      desc: "If attrib is present, `BngOldIcon` will be used for the icons instead of `BngIcon`",
     },
   ],
 }

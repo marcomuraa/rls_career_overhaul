@@ -2,104 +2,80 @@
   <div
     :class="{
       'mainmenu-container': true,
-      'mainmenu-with-angular': withAngular,
-      'mainmenu-fadein': firstTime && !withAngular,
+      'mainmenu-fadein': firstTime,
     }"
-    v-bng-scoped-nav="{ activateOnMount: true, canDeactivate: canDeactivateScope, canBubbleEvent}"
-    v-bng-on-ui-nav:menu="handleBack"
-    @deactivate="handleBack"
+    v-bng-scoped-nav="{ scopeId: 'root', trapPolicy: SCOPE_TRAP_POLICIES.ALWAYS, canDeactivate: canDeactivateScope, canBubbleEvent}"
+    v-bng-on-ui-nav:menu="handleMenu"
   >
-    <div v-bng-on-ui-nav:back="handleBack" class="main-view">
-      <BngCard v-if="devEnv.env" class="dev-info">
-        <BngCardHeading type="ribbon">Developer Release</BngCardHeading>
-        <div class="dev-info-content">
-          <BngIcon class="dev-info-icon" :type="icons.bug" bng-all-clicks-no-nav v-bng-double-click="quickLoadLevel" />
-          <div class="dev-info-text">
-            <div>
-              Graphics API: {{ devEnv.videoApi || "requesting..." }}
-            </div>
-            <div>
-              UI Engine: {{ devEnv.UIEngine || "requesting..." }}
-            </div>
-          </div>
-        </div>
-      </BngCard>
+    <div class="main-view">
+      <ModSlot class="mods-top" :name="MODSLOTS.mainmenu.top" />
 
       <div class="mainmenu-title">
         <Logo />
       </div>
 
       <router-view
-        :first-time="firstTime && !withAngular"
+        :first-time="firstTime"
         :addons="addons"
-        @change-view="changeView"
       />
 
       <div v-if="!viewName" class="bottom-buttons">
-        <BngButton
-          v-if="repoEnabled"
-          class="btn-mods"
-          :accent="ACCENTS.text"
-          v-bng-blur="!bgRequired"
-          v-bng-sound-class="'bng_click_hover_generic'"
-          @click="navigate('menu.mods.repository')"
+        <MenuButtonSimple
+          v-if="repoEnabled && !isSimpleMenu"
+          sound-class="bng_main_secondary"
+          v-bng-route-target="'menu.mods.repository'"
         >
-          <BlurBackground v-if="bgRequired" />
-          <div class="btn-content">
-            <span class="label">{{ $tt("ui.mainmenu.repo") }}</span>
-            <span class="small" v-if="modCounts.total > 0">&nbsp;({{ modCounts.active }} / {{ modCounts.total }})</span>
-          </div>
-        </BngButton>
-        <BngButton
-          v-else
-          class="btn-mods"
-          :class="{ 'mods-after-update': modsAfterUpdate }"
-          :accent="ACCENTS.text"
-          v-bng-blur="!bgRequired"
-          v-bng-sound-class="'bng_click_hover_generic'"
-          @click="navigate('menu.mods.local')"
+          {{ $tt("ui.mainmenu.repo") }}
+          <template #subtext v-if="modCounts.total > 0">&nbsp;({{ modCounts.active }} / {{ modCounts.total }})</template>
+        </MenuButtonSimple>
+        <MenuButtonSimple
+          v-else-if="!isSimpleMenu"
+          :accent="modsAfterUpdate ? 'danger' : undefined"
+          :icon="modsAfterUpdate ? icons.danger : undefined"
+          icon-color="#ff2d00"
+          sound-class="bng_main_secondary"
+          v-bng-route-target="'menu.mods.local'"
         >
-          <BlurBackground v-if="bgRequired" />
-          <div class="btn-content">
-            <span class="label"><BngIcon :type="'danger'" style="font-size: 1.1em;" color="#ff2d00" v-if="modsAfterUpdate"/>{{ $tt("ui.mainmenu.mods") }}</span>
-            <span class="small" v-if="modCounts.total > 0">&nbsp;({{ modCounts.active }} / {{ modCounts.total }})</span>
-          </div>
-        </BngButton>
-        <BngButton
-          :accent="ACCENTS.text"
-          v-bng-blur="!bgRequired"
-          v-bng-sound-class="'bng_click_hover_generic'"
-          @click="navigate('credits')"
+          {{ $tt("ui.mainmenu.mods") }}
+          <template #subtext v-if="modCounts.total > 0">&nbsp;({{ modCounts.active }} / {{ modCounts.total }})</template>
+        </MenuButtonSimple>
+        <MenuButtonSimple
+          sound-class="bng_main_secondary"
+          v-bng-route-target="'menu.extras'"
         >
-          <BlurBackground v-if="bgRequired" />
-          <div class="btn-content">
-            <span class="label">{{ $tt("ui.mainmenu.credits") }}</span>
-          </div>
-        </BngButton>
-        <BngButton
-          :accent="ACCENTS.text"
-          v-bng-blur="!bgRequired"
-          v-bng-sound-class="'bng_click_hover_generic'"
-          @click="navigate('menu.options.display')"
+          {{ $tt("ui.mainmenu.extras") }}
+        </MenuButtonSimple>
+        <MenuButtonSimple
+          v-if="newOptionsEnabled"
+          sound-class="bng_main_secondary"
+          v-bng-route-target="'options'"
         >
-          <BlurBackground v-if="bgRequired" />
-          <div class="btn-content">
-            <span class="label">{{ $tt("ui.mainmenu.options") }}</span>
-          </div>
-        </BngButton>
-        <BngButton v-if="!devEnv.simplemenu"
-          class="btn-quit"
-          :accent="ACCENTS.attention"
-          :icon="icons.exit"
-          v-bng-blur="!bgRequired"
-          v-bng-sound-class="'bng_click_hover_generic'"
+          {{ $tt("ui.mainmenu.options") }}
+        </MenuButtonSimple>
+        <MenuButtonSimple
+          v-if="!isSimpleMenu"
+          accent="red"
+          sound-class="bng_main_secondary"
           @click="quitGame()"
         >
-          <BlurBackground v-if="bgRequired" />
-          <div class="btn-content">
-            <span class="label">{{ $tt("ui.inputActions.general.quit.title") }}</span>
-          </div>
-        </BngButton>
+          {{ $tt("ui.inputActions.general.quit.title") }}
+        </MenuButtonSimple>
+        <MenuButtonSimple
+          v-if="devEnv.env && !isSimpleMenu"
+          :icon="icons.bug"
+          sound-class="bng_main_secondary"
+          v-bng-route-target="'menu.release-info'"
+        >
+          Release Info
+        </MenuButtonSimple>
+        <MenuButtonSimple
+          v-if="devEnv.env && !isSimpleMenu"
+          :icon="icons.aperture"
+          sound-class="bng_main_secondary"
+          v-bng-route-target="'menu.uiSounds'"
+        >
+          UI Sounds
+        </MenuButtonSimple>
       </div>
 
     </div>
@@ -107,45 +83,49 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, inject } from "vue"
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, inject, unref } from "vue"
 import { useRoute } from "vue-router"
 import router from "@/router"
-import { BngCard, BngCardHeading, BngButton, BngIcon, icons, ACCENTS } from "@/common/components/base"
-import { vBngSoundClass, vBngOnUiNav, vBngBlur, vBngDoubleClick, vBngScopedNav } from "@/common/directives"
+import { ModSlot, MODSLOTS } from "@/common/components/utility"
+import { icons } from "@/common/components/base"
+import { vBngOnUiNav, vBngScopedNav, vBngRouteTarget } from "@/common/directives"
 import { useInfoBar } from "@/services/infoBar.js"
 import { lua } from "@/bridge"
 import { runRaw } from "@/bridge/libs/Lua.js"
 import { useEvents } from "@/services/events"
 import { $translate, SysInfo } from "@/services"
-import { useSettingsAsync } from "@/services/settings"
-import { useUINavScope } from "@/services/uiNav"
-import BlurBackground from "@/common/modules/main-bg/components/BlurBackground.vue"
+import { showToast } from "@/services/toast"
 import Logo from "../components/Logo.vue"
+import MenuButtonSimple from "../components/MenuButtonSimple.vue"
+import { isShipping, isDev } from "bng:config"
+import { SCOPE_TRAP_POLICIES } from "@/services/scopedNav/types"
+import { activateRouteTargetScope } from "@/services/scopedNav/api"
 
 const events = useEvents()
 const infoBar = useInfoBar()
-useUINavScope("mainmenuUI")
 
-const withAngular = computed(() => !SysInfo.mainMenuBackgroundRequired.value)
+const $simplemenu = inject("$simplemenu", ref(window.beamng?.simplemenu === true))
+const isSimpleMenu = computed(() => unref($simplemenu))
+
+const newOptionsEnabled = computed(() => router.hasRoute("options")) // devEnv.env &&
+
 const firstTime = ref(SysInfo.mainMenuFirstTime.value)
 
-const bgRequired = SysInfo.mainMenuBackgroundRequired
 const parentImageCarousel = inject("mainBackground")
 
 const modCounts = SysInfo.modCounts
+
+const isInGame = computed(() => !!SysInfo.gameState.value)
 
 
 /// dev thingy
 
 const devEnv = reactive({
-  env: window.beamng && !window.beamng.shipping,
-  vue: process.env.NODE_ENV === "development",
-  simplemenu: window.beamng && window.beamng.simplemenu,
+  env: !isShipping(),
+  vue: isDev(),
   videoApi: null,
   UIEngine: null,
 })
-
-const quickLoadLevel = () => lua.core_levels.startLevel("/levels/smallgrid/main.level.json")
 
 /// /dev thingy
 
@@ -154,6 +134,27 @@ const quickLoadLevel = () => lua.core_levels.startLevel("/levels/smallgrid/main.
 
 const addons = ref({})
 
+const MAINMENU_MULTIPLAYER_TARGET_ALIASES = new Set([
+  "menu.multiplayer",
+  "menu.multiplayerSessions",
+])
+
+function normalizeMainmenuRouteTarget(targetState) {
+  if (typeof targetState !== "string") return targetState
+  if (MAINMENU_MULTIPLAYER_TARGET_ALIASES.has(targetState)) return "menu.multiplayer"
+  return targetState
+}
+
+function isMainmenuMultiplayerRouteName(routeName) {
+  if (typeof routeName !== "string") return false
+
+  return (
+    routeName === "menu.multiplayer" ||
+    routeName.startsWith("menu.multiplayer") ||
+    MAINMENU_MULTIPLAYER_TARGET_ALIASES.has(routeName)
+  )
+}
+
 const addButton = ({ translateid, icon, targetState, title, iconId, action }) => {
   let newButton
   if (translateid || icon || targetState) {
@@ -161,7 +162,7 @@ const addButton = ({ translateid, icon, targetState, title, iconId, action }) =>
     newButton = {
       title: $translate.instant(translateid),
       icon,
-      action: targetState,
+      action: normalizeMainmenuRouteTarget(targetState),
     }
   } else {
     // Vue style
@@ -178,10 +179,6 @@ const addButton = ({ translateid, icon, targetState, title, iconId, action }) =>
 
 
 const viewName = ref()
-const changeView = name => {
-  viewName.value = name
-  router.push("/menu.mainmenu" + (name ? "/" + name : ""))
-}
 watch(
   () => viewName.value,
   val => {
@@ -198,32 +195,101 @@ watch(
       viewName.value = null
       return
     }
-    if (!name.startsWith("menu.mainmenu")) return
-    viewName.value = name === "menu.mainmenu" ? null : name.slice("menu.mainmenu.".length)
+    if (name !== "menu" && name !== "menu.others") return
+    viewName.value = name === "menu" ? null : name.slice("menu.".length)
   },
   { immediate: true }
 )
 
-const navigate = (...state) => window.bngVue.gotoGameState(...state)
+watch(
+  () => [isSimpleMenu.value, route.name],
+  ([simpleMenuEnabled, routeName]) => {
+    if (!simpleMenuEnabled) return
+    if (!isMainmenuMultiplayerRouteName(routeName)) return
+
+    void lua.extensions.ui_router.navigate("menu")
+  },
+  { immediate: true }
+)
+
+/// initial focus readiness
+// The `menu` route declares `handlesOwnReady`, so we must report routeMounted
+// ourselves only once `MainView` is mounted (and the first-launch fade has
+// finished) so the autofocus item can actually be selected.
+const MAINMENU_FADE_DURATION_MS = 1500
+const MAINMENU_FADE_FALLBACK_BUFFER_MS = 100
+// Exposed to the scoped <style> via v-bind so the CSS animation stays in sync with the JS duration.
+const mainmenuFadeDuration = `${MAINMENU_FADE_DURATION_MS}ms`
+
+let menuReadyCanonicalRoute = null
+
+function waitForMainViewFadeIn() {
+  return new Promise(resolve => {
+    const mainView = window.document.querySelector(".mainmenu-fadein .main-view")
+    if (!mainView) {
+      resolve()
+      return
+    }
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeoutId)
+      mainView.removeEventListener("animationend", finish)
+      resolve()
+    }
+    // Fallback close to the CSS animation duration in case `animationend` never fires.
+    const timeoutId = setTimeout(finish, MAINMENU_FADE_DURATION_MS + MAINMENU_FADE_FALLBACK_BUFFER_MS)
+    mainView.addEventListener("animationend", finish)
+  })
+}
+
+async function signalMenuReady() {
+  if (route.name !== "menu") return
+
+  // Wait for child buttons from MainView to be mounted.
+  await nextTick()
+  if (route.name !== "menu") return
+
+  if (firstTime.value) {
+    await waitForMainViewFadeIn()
+    if (route.name !== "menu") return
+  }
+
+  const canonicalRoute = window.__luaRouter__?._pendingCanonicalRoute || route.name
+  // Guard against repeated reactive updates calling routeMounted twice for the same transition.
+  if (menuReadyCanonicalRoute === canonicalRoute) return
+  menuReadyCanonicalRoute = canonicalRoute
+
+  const result = await lua.extensions.ui_router.routeMounted(canonicalRoute)
+  if (!result?.success) {
+    menuReadyCanonicalRoute = null
+    return
+  }
+  if (window.__luaRouter__) window.__luaRouter__._pendingCanonicalRoute = null
+  if (route.name !== "menu") return
+  activateRouteTargetScope()
+}
+
+watch(
+  () => route.name,
+  name => {
+    if (name === "menu") {
+      signalMenuReady()
+    } else {
+      // Reset the guard so returning to `menu` re-activates the root scope.
+      menuReadyCanonicalRoute = null
+    }
+  },
+  { immediate: true }
+)
 
 function quitGame() {
   lua.quit()
   runRaw("TorqueScript.eval('quit();')", false)
 }
 
-const handleBack = (event) => {
-  if (event.detail.force) return
-  // if back button is pressed and we're on the main menu, do nothing
-  // if (event.detail.name === "back" && !viewName.value) return true
-
-  if (viewName.value) {
-    viewName.value = null
-    changeView(null)
-  } else if (event.detail.name === "back" || event.detail.name === "menu") {
-    window.globalAngularRootScope?.$broadcast("MenuToggle")
-    // return true // let event bubble up and do a normal "back"
-  }
-}
+const handleMenu = () => lua.extensions.ui_menuManager.toggleMenu()
 
 const canDeactivateScope = () => !viewName.value
 const canBubbleEvent = (event) => {
@@ -233,24 +299,17 @@ const canBubbleEvent = (event) => {
   return eventName === "tab_l" || eventName === "tab_r" ? !viewName.value : false
 }
 
-// TODO: move to services; needs a unified service for messages
+let angularReady = false
+let advertMainMenuToAngular = () => {}
+
 function displayToast(type, title, titleContext, msg, messageContext) {
-  const msgTxt = $translate.contextTranslate({ txt: msg, context: messageContext})
-  const titleTxt = $translate.contextTranslate({ txt: title, context: titleContext})
-  const msgHtml = window.angularParseBBCode(msgTxt) // use this to enable angular things
-  const titleHtml = window.angularParseBBCode(titleTxt) // use this to enable angular things
-  window.globalAngularRootScope.$broadcast("toastrMsg", {
+  showToast({
+    id: title,
     type,
-    msg: msgHtml,
-    title: titleHtml,
-    config: {
-      positionClass: "toast-top-right",
-      timeOut: 0,
-      extendedTimeOut: 0,
-      onTap() {
-        window.bngVue.gotoGameState("menu.options.performance")
-      }
-    }
+    message: $translate.contextTranslate({ txt: msg, context: messageContext}),
+    title: $translate.contextTranslate({ txt: title, context: titleContext}),
+    persistent: true,
+    onClick: () => lua.extensions.ui_router.navigate("menu.extras.performance"),
   })
 }
 
@@ -279,15 +338,22 @@ const onSettingsChanged = (data) => {
 }
 
 onMounted(async () => {
+  advertMainMenuToAngular = () => angularReady && window.globalAngularRootScope?.$broadcast?.("MainMenuButtons", addButton)
   function advertMainMenu() {
     events.emit("MainMenuButtons", addButton)
-    window.globalAngularRootScope.$broadcast("MainMenuButtons", addButton)
+    advertMainMenuToAngular()
   }
+  events.on("bngUiBootstrap", data => {
+    if (!data || !data.angularRunning) return
+    angularReady = true
+    advertMainMenuToAngular()
+  })
   advertMainMenu()
   events.on("UiModsChanged", advertMainMenu)
   events.on("BroadcastMainMenuButtons", advertMainMenu)
+  window.bngUiBootstrap?.sendStatus?.()
 
-  events.on('SettingsChanged', onSettingsChanged)
+  events.on("SettingsChanged", onSettingsChanged)
   lua.settings.notifyUI()
   // setTimeout(() => {
   //   beamng.sendEngineLua("sendUIModules()")
@@ -302,24 +368,11 @@ onMounted(async () => {
     checkHardware()
   }
 
-  const settings = await useSettingsAsync()
-  if (!await lua.extensions.tech_license.isValid()) {
-    if (settings.values.onlineFeatures === "ask" || settings.values.telemetry === "ask") {
-      window.bngVue.gotoGameState("menu.onlineFeatures")
-    } else {
-      lua.settings.getValue("showedInputLayoutPopupV37").then(value => {
-        if (value === false) {
-          window.bngVue.gotoGameState("buttonLayout")
-        }
-      })
-    }
-  }
-
   SysInfo.mainMenuFirstTime.value = false // to save the flag for later
 })
 
 onUnmounted(() => {
-  events.off('SettingsChanged', onSettingsChanged)
+  events.off("SettingsChanged", onSettingsChanged)
 })
 </script>
 
@@ -357,7 +410,7 @@ $rem: calc-ui-rem();
 }
 
 .mainmenu-fadein .main-view {
-  animation: fadein 1.5s;
+  animation: fadein v-bind(mainmenuFadeDuration);
   @keyframes fadein {
     0%, 50% { opacity: 0; }
     100% { opacity: 1; }
@@ -422,7 +475,7 @@ $rem: calc-ui-rem();
     padding: 5px 10px 10px 10px;
     font-weight: bold;
     font-size: 20px;
-    font-family: Roboto;
+    font-family: "Overpass", var(--fnt-defs);
     border-radius: var(--bng-corners-1);
   }
   .dev-info-text {
@@ -435,57 +488,17 @@ $rem: calc-ui-rem();
 }
 
 .bottom-buttons {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc-ui-rem(12), 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   padding: 0 $rem;
   width: calc-ui-rem(64);
   align-self: center;
-  > * {
-    min-height: 2.5em;
-    font-size: 1.2em;
-    pointer-events: all;
-  }
-  .btn-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-  }
-  .btn-mods {
-    // background-color: rgba(var(--bng-orange-750-rgb), 0.6) !important;
-    .label {
-      line-height: 1.2;
-    }
-    .small {
-      font-size: calc-ui-rem(0.8);
-      line-height: 1.2;
-    }
-    &.mods-after-update {
-      position: relative;
-      :deep(.background) {
-        font-size: $rem;
-        $color: var(--bng-add-red-600-rgb);
-        box-shadow: inset 0 0 0 calc-ui-rem(0.125) rgba($color, 1);
-        background-image:
-          linear-gradient(-45deg, rgba($color, 0) calc(50% - 0.124em), rgba($color, 1) calc(50% - 0.125em), rgba($color, 1) calc(50% + 0.125em), rgba($color, 0) calc(50% + 0.126em)),
-          linear-gradient(90deg, rgba(0, 0, 0, 0.80) 0%, rgba(0, 0, 0, 0.50) 30%, rgba(0, 0, 0, 0.00) 50%, rgba(0, 0, 0, 0.50) 70%, rgba(0, 0, 0, 0.80) 100%),
-          repeating-linear-gradient(-45deg, rgba($color, 0), rgba($color, 0) 0.424em, rgba($color, 0.8) 0.425em, rgba($color, 0.8) 0.55em);
-      }
-      .label, .small {
-        opacity: 1;
-      }
-    }
-  }
-  .btn-quit {
-    :deep(.background) {
-      opacity: 0.6;
-    }
-    &:hover {
-      :deep(.background) {
-        opacity: 1;
-      }
-    }
+
+  > .menu-button-simple {
+    flex: 1 1 calc-ui-rem(14);
+    min-width: calc-ui-rem(14);
+    max-width: calc-ui-rem(16);
   }
 }
 

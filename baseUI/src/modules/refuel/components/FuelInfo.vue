@@ -5,24 +5,28 @@
   </div>
   <div class="price">
     <span class="per-unit">
-      <span class="value">
-        {{ displayPrice }}
-      </span>
+      <BngUnit :money="displayPrice" />
+      <!-- <span class="value">
+        ⁹⁄₁₀
+      </span> -->
+      <BngIcon class="icon910" :type="icons['9dividedby10']" />
       <span class="divider" />
-      <span class="unit">{{ refuelStore.getUnitLabel(refuelStore.currentEnergyType) }}</span>
+      <span class="unit">{{ displayUnit }}</span>
     </span>
   </div>
 </template>
 
 <script setup>
 import { computed } from "vue"
-import { BngUnit } from "@/common/components/base"
+import { BngUnit, BngIcon, icons } from "@/common/components/base"
 import { useRefuelStore } from "@/modules/refuel/refuelStore"
 import InsurancePerkIcon from "@/modules/career/components/insurance/insurancePerkIcon.vue"
 
 const refuelStore = useRefuelStore()
 
-const displayPrice = computed(() => Math.floor(refuelStore.convertToPricePerLocalUnit(props.pricePerUnit, refuelStore.currentEnergyType) * 100) + 0.9)
+// const displayPrice = computed(() => Math.floor(refuelStore.convertToPricePerLocalUnit(props.pricePerUnit, refuelStore.currentEnergyType) * 100) + 0.9)
+const displayPrice = computed(() => refuelStore.convertToPricePerLocalUnit(props.pricePerUnit, refuelStore.currentEnergyType))
+const displayUnit = computed(() => refuelStore.getUnitLabel(refuelStore.currentEnergyType))
 
 const props = defineProps({
   totalCost: {
@@ -88,6 +92,12 @@ const props = defineProps({
   font-weight: 400;
   font-size: 0.66em;
   font-style: normal;
+}
+
+.icon910 {
+  font-style: normal;
+  // letter-spacing: -0.2em;
+  margin: 0 -0.25em 0 -0.35em;
 }
 
 .divider {

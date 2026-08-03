@@ -2,7 +2,7 @@
 
 import { debounce } from "@/utils/rateLimit"
 import { isVisibleFast, observePosition } from "@/utils/DOM"
-import { gameBlurrer } from "@/bridge"
+import gameBlurrer from "@/services/gameBlur"
 import logger from "@/services/logger"
 
 const elemBlurs = new WeakMap()

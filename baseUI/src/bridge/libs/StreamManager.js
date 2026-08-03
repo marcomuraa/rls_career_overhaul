@@ -3,9 +3,18 @@
 export default class {
   streamsRefCnt = {}
   gameAPI = {}
+  resubmitDebounceTime = 200 // in ms
+  resubmitTimeout = null
+  activePlayers = [0] // which player vehicles to subscribe streams for (split-screen)
 
   constructor(api) {
     this.gameAPI = api
+  }
+
+  // set the players whose vehicle streams we want (e.g. [0,1] for 2-way split). Defaults to [0].
+  setActivePlayers(players) {
+    this.activePlayers = Array.isArray(players) && players.length ? [...new Set(players)] : [0]
+    this._updateSubscriptions()
   }
 
   // C++ does not need to know our internal reference count, so we filter it out here
@@ -15,7 +24,7 @@ export default class {
       reqVehStreams.push(k)
     }
     let subscriptions = {
-      vehicles: [{ byPlayerId: 0, streams: reqVehStreams }],
+      vehicles: this.activePlayers.map(pid => ({ byPlayerId: pid, streams: reqVehStreams })),
       //globalStreams: [] // TODO:
     }
     this.gameAPI.subscribeToEvents(JSON.stringify(subscriptions))
@@ -49,6 +58,10 @@ export default class {
   }
 
   resubmit() {
-    this._updateSubscriptions()
+    if (this.resubmitTimeout) clearTimeout(this.resubmitTimeout)
+    this.resubmitTimeout = setTimeout(() => {
+      this.resubmitTimeout = null
+      this._updateSubscriptions()
+    }, this.resubmitDebounceTime)
   }
 }

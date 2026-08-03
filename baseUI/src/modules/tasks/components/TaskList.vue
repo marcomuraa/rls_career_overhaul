@@ -1,8 +1,8 @@
 <template>
   <div class="tasks-container" :class="{ animate: animationSettings.animate }">
     <Transition enter-active-class="show" leave-active-class="remove" :css="animationSettings.animate" @before-leave="onBeforeHeaderLeave">
-      <div v-if="header" class="header-wrapper" :class="{ 'show-animate': canAnimate }">
-        <TaskHeader v-bind="header" class="header" />
+      <div v-if="displayedHeader" class="header-wrapper" :class="{ 'show-animate': canAnimate }">
+        <TaskHeader v-bind="displayedHeader" class="header" />
       </div>
     </Transition>
 
@@ -15,7 +15,7 @@
         @before-enter="onBeforeEnterTask"
       >
         <div
-          v-for="(task, index) in internalTasks"
+          v-for="(task, index) in displayedTasks"
           :key="task.id"
           class="task-wrapper"
           :class="{ 'show-animate': canAnimate, 'remove-animate': canAnimate }"
@@ -36,9 +36,11 @@
 
 <script setup>
 import { computed, onBeforeMount, inject, ref, watch } from "vue"
+import { storeToRefs } from "pinia"
 import TaskGoal from "./TaskGoal.vue"
 import TaskHeader from "./TaskHeader.vue"
 import TaskMessage from "./TaskMessage.vue"
+import useControls from "@/services/controls"
 
 const props = defineProps({
   header: Object,
@@ -68,6 +70,8 @@ const props = defineProps({
 })
 
 const animationSettings = inject("animationSettings", props.settings)
+const controls = useControls()
+const { isControllerUsed } = storeToRefs(controls)
 
 const previousTasks = ref(null)
 
@@ -81,6 +85,26 @@ const canAnimate = computed(() => {
   if (previousTasks.value === null && !animationSettings.animateOnMount) return false
 
   return true
+})
+
+const displayedHeader = computed(() => {
+  if (!props.header) return props.header
+
+  return {
+    ...props.header,
+    title: getContextText(props.header.title, props.header.titleController),
+    description: getContextText(props.header.description, props.header.descriptionController),
+  }
+})
+
+const displayedTasks = computed(() => {
+  if (!internalTasks.value) return []
+
+  return internalTasks.value.map(task => ({
+    ...task,
+    label: getContextText(task.label, task.labelController),
+    description: getContextText(task.description, task.descriptionController),
+  }))
 })
 
 const nextTask = computed(() => {
@@ -130,6 +154,11 @@ function unwrapProxy(reactiveList) {
     return val
   })
 }
+
+function getContextText(defaultText, controllerText) {
+  if (!isControllerUsed.value) return defaultText
+  return controllerText !== undefined && controllerText !== null && controllerText !== "" ? controllerText : defaultText
+}
 </script>
 
 <style scoped lang="scss">
@@ -144,7 +173,7 @@ $textColor: #ffffff;
   height: 100%;
   padding: 0 0.25em;
   box-sizing: border-box !important;
-  font-family: "Overpass";
+  font-family: "Overpass", var(--fnt-defs);
   color: $textColor;
   overflow: hidden;
 
@@ -225,11 +254,11 @@ $textColor: #ffffff;
 
 @keyframes glow {
   from {
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.8);
   }
 
   to {
-    background: rgba(#ff6600, 0.6);
+    background: rgba(var(--bng-orange-650-rgb), 0.8);
   }
 }
 </style>

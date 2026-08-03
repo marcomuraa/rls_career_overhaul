@@ -1,26 +1,28 @@
 <template>
   <Accordion v-if="treeState && parentHasChildren" class="branch-category">
-    <PartsBranch
-      v-for="child in parentChildren"
-      :key="child.slotName"
-      :root-slot="rootSlot"
-      :child="child"
-      :info="info"
-      :tree-state="treeState"
-      :tree-state-key="child.slotName"
-      :display-names="displayNames"
-      :show-auxiliary="showAuxiliary"
-      :separate-sort="separateSort"
-      :always-sort="alwaysSort"
-      :show-empty="showEmpty"
-      :flat-entry="flatEntry"
-      :highlighter="highlighter"
-      @select="select"
-      @deselect="deselect"
-      @highlight="highlight"
-      @change="change"
-      @dropdown="dropdown"
-    />
+    <template v-for="child in parentChildren" :key="child.slotName">
+      <PartsBranch
+        :root-slot="rootSlot"
+        :child="child"
+        :info="info"
+        :tree-state="treeState"
+        :tree-state-key="child.slotName"
+        :display-names="displayNames"
+        :show-auxiliary="showAuxiliary"
+        :separate-sort="separateSort"
+        :always-sort="alwaysSort"
+        :show-empty="showEmpty"
+        :no-highlight="noHighlight"
+        :bubble-highlight-action="bubbleHighlightAction"
+        :flat-entry="flatEntry"
+        :highlighter="highlighter"
+        @select="select"
+        @deselect="deselect"
+        @highlight="highlight"
+        @change="change"
+        @dropdown="dropdown"
+      />
+    </template>
   </Accordion>
 
   <AccordionItem
@@ -34,13 +36,14 @@
     navigable
     @mouseover.stop="select(child, true)"
     @mouseleave.stop="deselect(child, true)"
-    @focusin.stop="select(child, false)"
-    @focusout.stop="deselect(child, false)"
+    @focusin.stop="onBranchFocusIn(child)"
+    @focusout.stop="onBranchFocusOut(child)"
     :primary-action="partsList.length > 0 ? openPartsDropdown : undefined"
-    :secondary-action="highlightable ? toggleHighlightCurrent : undefined"
+    :secondary-action="highlightSecondaryAction"
     primary-label="ui.inputActions.menu.menu_item_select.title"
     secondary-label="ui.vehicleconfig.highlight"
     expand-hint-inline
+    :expand-on-context="false"
     secondary-hint-inline
   >
     <template #caption>
@@ -56,16 +59,21 @@
         :disabled="!hasPartList"
         :highlight="highlighter"
         :show-search="partsList.length > 5"
+        :focus-target="captionElement"
         long-names="cut"
-        @valueChanged="change(child)"
+        @valueChanged="onPartDropdownValueChanged"
         @focus="focusReturn"
-        @open="dropdown(true)"
-        @close="dropdown(false)"
+        @open="onPartDropdownOpen"
+        @close="onPartDropdownClose"
         bng-no-nav
       />
       <BngButton
+        v-if="!noHighlight"
         :accent="ACCENTS.text"
-        :class="{ 'visibility-toggle': true, 'visibility-toggle-on': child.highlight }"
+        :class="{
+          'visibility-toggle': true,
+          'visibility-toggle-on': child.highlight
+        }"
         :icon="child.highlight ? icons.eyeSolidOpened : icons.eyeSolidClosed"
         :disabled="!highlightable"
         @click="toggleHighlight(child)"
@@ -84,6 +92,8 @@
       :separate-sort="separateSort"
       :always-sort="alwaysSort"
       :show-empty="showEmpty"
+      :hide-visibility-toggle="noHighlight"
+      :bubble-highlight-action="bubbleHighlightAction"
       :highlighter="highlighter"
       @select="select"
       @deselect="deselect"
@@ -98,12 +108,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from "vue"
+import { ref, computed, watch, watchEffect, nextTick, onUnmounted } from "vue"
 import { BngDropdown, BngButton, ACCENTS, icons } from "@/common/components/base"
 import { vBngHighlighter } from "@/common/directives"
 import { Accordion, AccordionItem } from "@/common/components/utility"
 import PartsBranch from "./PartsBranch.vue"
+import { SCOPED_NAV_ATTR } from "@/services/scopedNav/constants"
 import { partOptionSorter, partOptionGrouper } from "../parts/common"
+import { $translate } from "@/services/translation"
+import { useBridge } from "@/bridge"
+const { lua } = useBridge()
 
 const props = defineProps({
   rootSlot: Boolean,
@@ -118,29 +132,89 @@ const props = defineProps({
   separateSort: Boolean,
   alwaysSort: Boolean,
   showEmpty: Boolean,
+  noHighlight: Boolean,
+  bubbleHighlightAction: Boolean,
   highlighter: [String, Array, RegExp],
 })
 
+const emit = defineEmits(["select", "deselect", "highlight", "change", "dropdown"])
+
 const accordionItem = ref()
 const partsDropdown = ref()
+const captionElement = computed(() => {
+  const element = accordionItem.value?.captionElement
+  return element?.value || element
+})
 const openPartsDropdown = () => partsDropdown.value && partsDropdown.value.open()
 
-const emit = defineEmits(["select", "deselect", "highlight", "change", "dropdown"])
 const select = (slot, mouse = false) => (!props.child || highlightable.value) && emit("select", slot, mouse)
 const deselect = (slot, mouse = false) => emit("deselect", slot, mouse)
 const highlight = slot => emit("highlight", slot)
 const change = slot => emit("change", slot)
 const dropdown = val => emit("dropdown", val)
 
-const focusReturn = () => nextTick(() => accordionItem.value.focus())
+function onBranchFocusIn(slot) {
+  select(slot, false)
+}
 
-// allows part selection by calling a function on the active element (see Parts.vue, on the bottom of on-vehicle-change event)
-const accItemUnwatch = watch(accordionItem, () => {
-  const elm = accordionItem.value?.captionElement
-  if (elm) {
-    accItemUnwatch()
-    elm.partSelect = () => props.child && select(props.child)
+function onBranchFocusOut(slot) {
+  deselect(slot, false)
+}
+
+let clearScopedNavAutofocusTimer = null
+
+const focusReturn = () => nextTick(() => accordionItem.value.focus())
+const markCaptionAsScopedNavAutofocus = () => {
+  const caption = captionElement.value
+  const scopeElement = caption?.parentElement?.closest(`[${SCOPED_NAV_ATTR}]`)
+  if (!caption || !scopeElement) return
+  if (clearScopedNavAutofocusTimer) {
+    clearTimeout(clearScopedNavAutofocusTimer)
+    clearScopedNavAutofocusTimer = null
   }
+  scopeElement.querySelectorAll("[bng-scoped-nav-autofocus]").forEach(element => {
+    if (element !== caption) element.removeAttribute("bng-scoped-nav-autofocus")
+  })
+  caption.setAttribute("bng-scoped-nav-autofocus", "true")
+}
+const clearCaptionScopedNavAutofocusSoon = () => {
+  if (clearScopedNavAutofocusTimer) clearTimeout(clearScopedNavAutofocusTimer)
+  clearScopedNavAutofocusTimer = setTimeout(() => {
+    captionElement.value?.removeAttribute("bng-scoped-nav-autofocus")
+    clearScopedNavAutofocusTimer = null
+  }, 1500)
+}
+const onPartDropdownOpen = () => {
+  markCaptionAsScopedNavAutofocus()
+  dropdown(true)
+}
+const onPartDropdownClose = () => {
+  markCaptionAsScopedNavAutofocus()
+  dropdown(false)
+  nextTick(() => {
+    markCaptionAsScopedNavAutofocus()
+    clearCaptionScopedNavAutofocusSoon()
+  })
+}
+const onPartDropdownValueChanged = () => {
+  markCaptionAsScopedNavAutofocus()
+  nextTick(() => {
+    markCaptionAsScopedNavAutofocus()
+    accordionItem.value?.focus()
+    change(props.child)
+    clearCaptionScopedNavAutofocusSoon()
+  })
+}
+
+onUnmounted(() => {
+  if (clearScopedNavAutofocusTimer) clearTimeout(clearScopedNavAutofocusTimer)
+})
+
+// Allows part selection by restoring the rendered row after the tree refreshes.
+watchEffect(() => {
+  const elm = captionElement.value
+  if (!elm || !props.child) return
+  elm.partSelect = () => select(props.child)
 })
 
 function toggleHighlight(slot) {
@@ -148,9 +222,27 @@ function toggleHighlight(slot) {
   highlight(slot)
 }
 const toggleHighlightCurrent = () => toggleHighlight(props.child)
-const highlightable = computed(() => typeof props.child?.highlight === "boolean")
+const bubbleHighlightSecondaryAction = () => {
+  return true
+}
+const highlightable = computed(() => typeof props.child?.highlight === "boolean" && !props.noHighlight)
+const highlightSecondaryAction = computed(() => {
+  if (!highlightable.value) return undefined
+  return props.bubbleHighlightAction ? bubbleHighlightSecondaryAction : toggleHighlightCurrent
+})
 
 const expanded = ref(false)
+
+const emitBranchExpandedHook = () => {
+  //console.log("emitBranchExpandedHook", props.child)
+  if (!props.child) return
+  lua.extensions.hook("onVehicleConfigPartsBranchExpanded", {
+    slotName: props.child.slotName,
+    chosenPartName: props.child.chosenPartName,
+    parentSlotName: props.child.parentSlotName,
+  })
+}
+
 if (!props.flatEntry) {
   // treeState loads after the config, so we need to watch it
   let unwatchTreeState
@@ -162,6 +254,7 @@ if (!props.flatEntry) {
       if (!props.treeStateKey) return
       if (val) {
         props.treeState[props.treeStateKey] = val
+        emitBranchExpandedHook()
       } else if (props.treeStateKey in props.treeState) {
         delete props.treeState[props.treeStateKey]
       }
@@ -249,7 +342,7 @@ const partsList = computed(() => {
 
   // add empty slot if it's not a core slot
   if (addEmpty && !isCoreSlot.value) {
-    list.unshift({ value: "", label: "Empty" })
+    list.unshift({ value: "", label: $translate.instant("ui.vehicleconfig.empty") })
   }
 
   // return the list
@@ -298,6 +391,17 @@ $corners: var(--bng-corners-1);
     background-color: rgba(var(--bng-cool-gray-700-rgb), 0.1);
   }
 
+  > .bng-accitem-caption > .bng-accitem-caption-content {
+    min-width: 0;
+    overflow: hidden;
+    > * {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
   // line visual style
   &:not(.bng-accitem-expanded) {
     // &:nth-child(1n) > .bng-accitem-caption {
@@ -308,14 +412,18 @@ $corners: var(--bng-corners-1);
     // }
     > .bng-accitem-caption > .bng-accitem-caption-content {
       display: flex;
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
       align-items: center;
       justify-content: stretch;
+
       > * {
         flex: 0 1 auto;
       }
+
       &::after {
         flex: 1 1 auto;
+        min-width: 0.5rem;
         content: "";
         display: inline-block;
         height: 1em;
@@ -329,6 +437,7 @@ $corners: var(--bng-corners-1);
 
   > .bng-accitem-caption {
     align-items: first baseline;
+
     .bng-accitem-caption-expander {
       margin-bottom: -0.2em;
       align-self: unset;
@@ -339,16 +448,19 @@ $corners: var(--bng-corners-1);
 
   > .bng-accitem-caption {
     padding-right: 0.1em;
+
     .bng-dropdown,
     .visibility-toggle {
       background-color: rgba(var(--bng-cool-gray-900-rgb), 0.75);
       border-radius: $corners;
       @include modify-focus($corners, 1px);
     }
+
     .visibility-toggle {
       padding-top: 0.4em;
     }
   }
+
   &.bng-accitem-expanded > .bng-accitem-caption {
     // change backgrounds in expanded item
     .bng-dropdown,
@@ -371,11 +483,15 @@ $corners: var(--bng-corners-1);
 :deep(.bng-accitem-caption-controls) {
   flex: 0 0 55% !important;
   width: 16em;
+  min-width: 0;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   padding: 0.125rem;
+
   .bng-dropdown {
     flex: 1 1 auto;
+    min-width: 0;
     margin: 0;
   }
 }

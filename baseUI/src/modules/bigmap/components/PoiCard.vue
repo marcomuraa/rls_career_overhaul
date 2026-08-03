@@ -3,38 +3,32 @@
   <div
     class="poi-item"
     :class="{ highlighted: poi.isSelected }"
-    @click="onSelect"
+    v-bng-on-ui-nav:ok="onSelect"
+    v-bng-ui-nav-label:ok="$t('bigMap.poiList.selectPoi')"
+    v-bng-click="onSelect"
     bng-nav-item
+    :bng-scoped-nav-autofocus="poi.isSelected"
+    v-bng-sound-class="'bng_click_hover_generic'"
   >
-    <div
-      class="card-info"
-      :class="{
-        'content-shown': shown,
-        'thumb-show': thumbShown && !!thumb,
-      }"
-      :style="{ '--poi-image': thumb }"
-    >
-      <BngIcon
-        v-if="poi.icon"
-        class="mission-icon"
-        :type="poi.icon"
-        color="white"
-      />
-      <div class="main-info">
+    <div class="card-info">
+      <div class="card-icon">
+        <BngIcon :type="poi.icon || icons.placeholder" color="white" />
+      </div>
+      <div class="card-main">
         <div class="heading">
           {{ poi.name }}
         </div>
         <div v-if="poi.formattedProgress" class="stars">
           <BngMainStars
-            v-if="poi.formattedProgress.unlockedStars"
-            :individual-stars="poi.formattedProgress.unlockedStars.defaults"
+            v-if="defaultStars"
+            :individual-stars="defaultStars"
             class="main-stars"
             :scale="0.6"
             reverse
           />
           <BngMainStars
-            v-if="poi.formattedProgress.unlockedStars && poi.formattedProgress.unlockedStars.totalBonusStarCount > 0"
-            :individual-stars="poi.formattedProgress.unlockedStars.bonus"
+            v-if="bonusStars && poi.formattedProgress.unlockedStars && poi.formattedProgress.unlockedStars.totalBonusStarCount > 0"
+            :individual-stars="bonusStars"
             class="bonus-stars"
             :scale="0.6"
           />
@@ -43,35 +37,26 @@
           <span class="label">{{ poi.aggregatePrimary.label }}:</span>
           <span class="value">{{ poi.aggregatePrimary.value }}</span>
         </div>
-        <div v-else class="empty-gap"></div>
       </div>
-      <BngBinding
-        class="input-icon"
-        ui-event="ok"
-        controller
-      />
+      <div
+        class="card-thumb"
+        :class="{ 'thumb-show': thumbShown && !!thumb }"
+        :style="{ '--poi-image': thumb }"
+      ></div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from "vue"
-import { BngIcon, BngMainStars, BngBinding } from "@/common/components/base"
-
-// Debug flag - set to true to enable logging, false to disable
-const DEBUG_POICARD = false
-
-// Local debug logging utility for PoiCard
-const debugLog = (message, data) => {
-  if (DEBUG_POICARD) {
-    console.log(`[BigMap:PoiCard] ${message}`, data)
-  }
-}
+import { ref, watch, computed } from "vue"
+import { BngIcon, BngMainStars, icons } from "@/common/components/base"
+import { vBngOnUiNav, vBngClick, vBngSoundClass, vBngUiNavLabel } from "@/common/directives"
 
 const props = defineProps({
   poi: {
     type: Object,
-    required: true,
+    required: false,
+    default: null,
   },
   shown: {
     type: Boolean,
@@ -79,10 +64,35 @@ const props = defineProps({
   }
 })
 
+// Helper function to ensure a value is an array
+const ensureArray = (value) => {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (value && typeof value === 'object') {
+    // Convert object to array of values
+    return Object.values(value)
+  }
+  return null
+}
+
+// Computed properties to normalize defaults and bonus to arrays
+const defaultStars = computed(() => {
+  const unlockedStars = props.poi?.formattedProgress?.unlockedStars
+  if (!unlockedStars) return null
+  return ensureArray(unlockedStars.defaults)
+})
+
+const bonusStars = computed(() => {
+  const unlockedStars = props.poi?.formattedProgress?.unlockedStars
+  if (!unlockedStars) return null
+  return ensureArray(unlockedStars.bonus)
+})
+
 const emit = defineEmits(["select", "hover"])
 
 const onSelect = () => {
-  debugLog("POI selected", { poiId: props.poi.id, poiName: props.poi.name })
+  if (!props.poi) return
   emit("select", props.poi.id)
 }
 
@@ -119,163 +129,114 @@ watch([() => props.shown, () => props.poi], () => {
 <style lang="scss" scoped>
 .poi-item {
   --indicator-width: 0.5rem;
-  height: 100%;
+  --thumb-width: 34%;
 
   font-size: 1rem;
   font-family: Overpass, var(--fnt-defs);
-  background-color: transparent;
-  padding: 0;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
   position: relative;
-  height: fit-content;
 
   .card-info {
+    flex: 1 1 auto;
     display: flex;
-    flex-flow: row nowrap;
-    height: 100%;
+    flex-direction: row;
+    align-items: stretch;
+    min-height: 3.5rem;
     position: relative;
-    padding: 0.5rem 0.25rem;
-    background-color: #0009;
-    border-radius: var(--bng-corners-1);
+    background-color: var(--bng-cool-gray-900);
+    border-radius: var(--bng-corners-2);
     overflow: hidden;
+    color: var(--bng-off-white);
 
     // highlight marker
     border-left: var(--indicator-width) solid transparent;
+  }
 
-    &::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 66%;
-      right: 0;
-      border-radius: 0 0.5rem 0.5rem 0;
-      background-image: var(--poi-image);
-      background-position: 100% 50%;
-      background-repeat: no-repeat;
-      background-size: cover;
-      mask-image: linear-gradient(90deg, #0002 0%, #0008 25%, #000c 50%);
-      filter: saturate(0.5);
-      opacity: 0;
-      transition: opacity 200ms;
-      pointer-events: none;
-      z-index: 0;
-    }
-    &.thumb-show::after {
-      opacity: 1;
-    }
+  // first column: icon, always square
+  .card-icon {
+    flex: 0 0 auto;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+  }
 
-    .mission-icon {
-      right: 0.25rem;
-      font-size: 2rem;
-      z-index: 1;
-      align-self: center;
-    }
+  // second column: name + stars, vertically centered
+  .card-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.125rem;
+    padding: 0.25rem 0.25rem;
 
-    .input-icon {
-      align-self: center;
-      justify-self: flex-end;
-      font-size: 1.5rem;
-      margin-right: 0.5rem;
-      opacity: 0.9;
-      filter: drop-shadow(1px 1px 6px rgba(0, 0, 0, 0.75));
-      z-index: 1;
+    .heading {
+      font-weight: 800;
+      font-size: 1rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
     }
 
-    .main-info {
-      flex: 1 0 auto;
-      position: relative;
+    .stars {
       display: flex;
-      flex-flow: column;
-      padding-left: 0.5rem;
-      color: white;
-      z-index: 1;
-
-      .heading {
-        font-weight: 800;
-        font-size: 1.0rem;
-        overflow: ellipsis;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-shadow: 0 0 5px #000;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      > .main-stars {
+        --star-color: var(--bng-ter-yellow-50);
       }
-
-      .stars {
-        display: block;
-        & > * {
-          display: inline-block;
-          min-height: fit-content;
-          max-width: fit-content;
-          margin-right: 0.25rem;
-          margin-top: 0.25rem;
-          padding: 0.25rem 0.5rem;
-        }
-        > .main-stars {
-          --star-color: var(--bng-ter-yellow-50);
-        }
-        > .bonus-stars {
-          --star-color: var(--bng-add-blue-400);
-        }
+      > .bonus-stars {
+        --star-color: var(--bng-add-blue-400);
       }
+    }
 
-      .aggregate-primary {
-        display: inline-block;
-        width: min-content;
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
-        color: #ccc;
-        text-shadow: 0 0 5px #000;
+    .aggregate-primary {
+      font-size: 0.9rem;
+      color: var(--bng-cool-gray-300);
 
-        & > * {
-          margin-right: 0.5rem;
-        }
-
-        .label {
-          font-weight: 300;
-        }
-
-        .value {
-          font-weight: 500;
-        }
+      .label {
+        font-weight: 300;
+        margin-right: 0.25rem;
       }
-
-      .empty-gap {
-        height: 1.5rem;
+      .value {
+        font-weight: 500;
       }
+    }
+  }
+
+  // third column: thumbnail
+  .card-thumb {
+    flex: 0 0 var(--thumb-width);
+    align-self: stretch;
+    background-image: var(--poi-image);
+    background-position: 100% 50%;
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: 0;
+    transition: opacity 200ms;
+    pointer-events: none;
+
+    &.thumb-show {
+      opacity: 1;
     }
   }
 
   &:focus,
   &:hover {
     .card-info {
-      background-color: #6669;
-    }
-  }
-
-  &:not(:focus) {
-    .card-info .input-icon {
-      display: none;
+      background-color: var(--bng-cool-gray-700);
     }
   }
 
   &.highlighted .card-info {
-    background-color: rgba(var(--bng-orange-200-rgb), 0.2);
-
-    // highlight marker
+    background-color: var(--bng-orange-700);
     border-left-color: var(--bng-orange-400);
-
-    &.thumb-show::after {
-      filter: none;
-    }
   }
-
-  // &:not(.content-shown) {
-  //   .stars, .aggregate-primary {
-  //     display: none;
-  //   }
-  // }
 }
 </style>

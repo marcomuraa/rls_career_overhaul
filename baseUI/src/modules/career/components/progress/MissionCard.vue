@@ -1,5 +1,10 @@
 <template>
-  <BngCard bng-nav-item @click="clicked" :class="{ 'card-wrapper': true, 'click-startable': mission && mission.startable }" >
+  <Button
+    @click="clicked"
+    :class="{ 'card-wrapper': true, 'click-startable': mission && mission.startable }"
+    :sound-class="mission.startable ? 'bng_click_hover_generic' : 'bng_click_generic'"
+    :no-sound="!mission?.startable"
+  >
     <!--v-bng-disabled="isSkeleton"-->
     <div class="condensed">
       <AspectRatio
@@ -48,6 +53,7 @@
       :type="iconType"
       :color="iconColor" />
       <BngBinding
+        v-if="showHintIcon"
         class="input-icon"
         ui-event="ok"
         controller
@@ -62,13 +68,13 @@
         <!-- mission -->
         <div v-if="!isSkeleton && mission.startable && mission.formattedProgress" class="stars" >
           <BngMainStars
-            v-if="mission.formattedProgress.unlockedStars && mission.formattedProgress.unlockedStars.totalDefaultStarCount"
-            :individualStars="mission.formattedProgress.unlockedStars.defaults"
+            v-if="defaultStars && mission.formattedProgress.unlockedStars && mission.formattedProgress.unlockedStars.totalDefaultStarCount"
+            :individualStars="defaultStars"
             class="main-stars"
             :scale="0.6"/>
           <BngMainStars
-            v-if="mission.formattedProgress.unlockedStars && mission.formattedProgress.unlockedStars.totalBonusStarCount > 0"
-            :individualStars="mission.formattedProgress.unlockedStars.bonus"
+            v-if="bonusStars && mission.formattedProgress.unlockedStars && mission.formattedProgress.unlockedStars.totalBonusStarCount > 0"
+            :individualStars="bonusStars"
             class="bonus-stars"
             :scale="0.6" />
         </div>
@@ -81,23 +87,30 @@
         -->
       </div>
     </div>
-  </BngCard>
+  </Button>
 </template>
 
 <script setup>
 import { computed } from "vue"
-import { BngMainStars, BngIcon, icons, BngCard, BngBinding } from "@/common/components/base"
-import { AspectRatio } from "@/common/components/utility"
+import { BngMainStars, BngIcon, icons, BngBinding } from "@/common/components/base"
+import { AspectRatio, Button } from "@/common/components/utility"
 
 const props = defineProps({
   mission: Object,
   isSkeleton: Boolean,
   showStartableIcons: Boolean,
+  showHintIcon: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits(["clicked"])
 
-const clicked = () => emit("clicked", props.mission)
+const clicked = () => {
+  if (!props.mission?.startable) return
+  emit("clicked", props.mission)
+}
 
 // Computed properties for cleaner template logic
 const backgroundImageStyle = computed(() => ({
@@ -117,12 +130,63 @@ const iconColor = computed(() =>
 const showStartableIcons = computed(() =>
   !props.isSkeleton && props.showStartableIcons
 )
+
+// Helper function to ensure a value is an array
+const ensureArray = (value) => {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (value && typeof value === 'object') {
+    // Convert object to array of values
+    return Object.values(value)
+  }
+  return null
+}
+
+// Computed properties to normalize defaults and bonus to arrays
+const defaultStars = computed(() => {
+  const unlockedStars = props.mission?.formattedProgress?.unlockedStars
+  if (!unlockedStars) return null
+  return ensureArray(unlockedStars.defaults)
+})
+
+const bonusStars = computed(() => {
+  const unlockedStars = props.mission?.formattedProgress?.unlockedStars
+  if (!unlockedStars) return null
+  return ensureArray(unlockedStars.bonus)
+})
 </script>
 
 <style scoped lang="scss">
 .card-wrapper {
+    --bng-content-flow: row;
+    --bng-content-align: stretch;
+    --bng-content-justify: flex-start;
+    --bng-button-min-width: 100%;
+    --bng-button-max-width: 100%;
+    --bng-button-margin: 0;
+    --bng-button-padding: 0;
+    --bng-button-padding-top: 0;
+    --bng-button-padding-bottom: 0;
+    --bng-bg-border-radius: 0.5rem;
+    --bng-bg-border-width: 0.125rem;
+    --bng-bg-enabled: rgba(var(--bng-off-black-rgb), 0.6);
+    --bng-bg-hover: rgba(255, 255, 255, 0.2);
+    --bng-bg-active: rgba(255, 255, 255, 0.2);
+    --bng-bg-focus: rgba(255, 255, 255, 0.28);
+    --bng-bg-disabled: transparent;
+    --bng-bg-border-enabled: transparent;
+    --bng-bg-border-hover: transparent;
+    --bng-bg-border-active: transparent;
+    --bng-bg-border-focus: var(--bng-orange-300);
+    --bng-bg-border-disabled: transparent;
+    --bng-bg-focus-opacity: 1;
     height: 100%;
+    width: 100%;
     border-radius: 0.5rem;
+    overflow: hidden;
+    text-align: left;
+    line-height: normal;
     //outline: none;
     outline-offset: -1px;
   &[disabled] {
@@ -131,9 +195,14 @@ const showStartableIcons = computed(() =>
   &.focus-visible::before {
     border-radius: 0.75rem;
   }
-  &:focus,
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.4);
+  &:not(.click-startable) {
+    cursor: default;
+  }
+  &.click-startable {
+    --bng-bg-hover: rgba(255, 255, 255, 0.4);
+    --bng-bg-active: rgba(255, 255, 255, 0.4);
+    --bng-bg-focus: rgba(255, 255, 255, 0.45);
+    --bng-bg-border-focus: var(--bng-orange-400);
   }
   &:focus {
     .condensed .input-icon {
@@ -142,6 +211,9 @@ const showStartableIcons = computed(() =>
   }
   .condensed {
     display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
     height: 100%;
     position: relative;
     padding: 0.5rem 0.25rem;
@@ -210,7 +282,7 @@ const showStartableIcons = computed(() =>
 
       color: white;
       display: flex;
-      flex-flow: column;
+      flex-direction: column;
 
       > .go-to-bigmap-label {
         display: hidden;
@@ -225,7 +297,7 @@ const showStartableIcons = computed(() =>
         height: 100%;
         z-index: 1;
         display: flex;
-        justify-main-info: center;
+        justify-content: center;
         align-items: center;
         background-color: rgba($color: #000000, $alpha: 0.7);
         .glyph-locked {
@@ -252,7 +324,7 @@ const showStartableIcons = computed(() =>
 
       > .stars {
         display: flex;
-        flex-flow: row;
+        flex-direction: row;
         & > * {
           margin-right: 0.25rem;
           margin-top: 0.25rem;

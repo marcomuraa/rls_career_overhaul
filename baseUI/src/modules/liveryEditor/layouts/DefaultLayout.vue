@@ -93,11 +93,11 @@ const HEADER_TEXT = "Livery Editor"
 </script>
 
 <script setup>
-import { ref, computed, shallowRef, onMounted, onUnmounted, watchEffect, reactive, nextTick } from "vue"
+import { ref, computed, shallowRef, onMounted, onUnmounted, watchEffect, reactive } from "vue"
 import { storeToRefs } from "pinia"
 import { vBngBlur, vBngOnUiNav } from "@/common/directives"
-import { useLiveryEditorStore, useLayerActionsStore, useEditorHeaderStore } from "@/modules/liveryEditor/stores"
-import { LayersManager } from "@/modules/liveryEditor/components/layersManager"
+import { useLiveryEditorStore, useEditorHeaderStore } from "@/modules/liveryEditor/stores"
+import LayersManager from "@/modules/liveryEditor/components/layersManager/LayersManager.vue"
 import { LayerSettings } from "@/modules/liveryEditor/components/layerSettings"
 import { BngCardHeading, BngActionDrawer, BngImageTile, BngButton, BngIcon, ACCENTS, icons } from "@/common/components/base"
 import { LayerSortSettings, LayerSettingsBase } from "@/modules/liveryEditor/components/layerSettings"

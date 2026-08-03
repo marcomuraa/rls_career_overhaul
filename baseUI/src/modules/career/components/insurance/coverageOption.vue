@@ -3,7 +3,16 @@
     <InsurancePerkNotice v-if="coverageOption.perkText && showPerkMode === 'deportedLabel'" :perkText="coverageOption.perkText" />
     <div v-if="!dontShowName" class="coverage-option-name">{{ coverageOption.name }}</div>
     <div class="choices" v-if="coverageOption.choiceType === 'multiple'">
-      <div class="choice" :class="{ 'selected': choice.id === changedCoverageOptions[coverageOption.key], 'current': choice.id === getSelectedValueId(), 'disabled': choice.disabled }" v-for="choice in coverageOption.choices" :key="choice" @click="() => onChoiceClick(coverageOption, choice)">
+      <Button
+        class="choice"
+        :class="{ 'selected': choice.id === changedCoverageOptions[coverageOption.key], 'current': choice.id === getSelectedValueId(), 'disabled': choice.disabled }"
+        v-for="choice in coverageOption.choices"
+        :key="choice"
+        :disabled="choice.disabled"
+        :tab-index="-1"
+        :nav-item="false"
+        @click="() => onChoiceClick(coverageOption, choice)"
+      >
         <div class="choice-label">
           {{ choice.choiceText }}
         </div>
@@ -16,7 +25,7 @@
             <BngUnit :money="choice.premiumInfluence" />
           </div>
         </div>
-      </div>
+      </Button>
     </div>
     <div v-else-if="coverageOption.choiceType === 'toggle'" class="toggle-container">
       <BngSwitch class="toggle-switch"
@@ -33,7 +42,9 @@
 <script setup>
 import { InsurancePerkNotice } from "@/modules/career/components"
 import { BngUnit, BngSwitch } from "@/common/components/base"
+import { Button } from "@/common/components/utility"
 import { watch } from "vue"
+import "@/modules/career/components/insurance/insuranceStyle.css"
 
 const props = defineProps({
   coverageOption: {
@@ -116,10 +127,6 @@ const onChoiceClick = (coverageOption, choice) => {
 }
 </script>
 
-<style lang="scss">
-@import "insuranceStyle.css";
-</style>
-
 <style scoped lang="scss">
 .coverage-options{
   position: relative;
@@ -153,38 +160,62 @@ const onChoiceClick = (coverageOption, choice) => {
 }
 
 .choice{
-  background-color: var(--bng-cool-gray-800);
-  padding: 0.625rem;
-  border-radius: var(--bng-corners-2);
-  border: 2px solid var(--bng-cool-gray-700);
+  --bng-content-flow: column;
+  --bng-content-align: center;
+  --bng-content-justify: center;
+  --bng-button-min-width: auto;
+  --bng-button-max-width: none;
+  --bng-button-margin: 0;
+  --bng-button-padding: 0.625rem;
+  --bng-button-padding-top: 0.625rem;
+  --bng-button-padding-bottom: 0.625rem;
+  --bng-bg-border-radius: var(--bng-corners-2);
+  --bng-bg-border-width: 2px;
+  --bng-bg-enabled: var(--bng-cool-gray-800);
+  --bng-bg-hover: var(--orange-shade-50);
+  --bng-bg-active: var(--orange-shade-50);
+  --bng-bg-focus: var(--orange-shade-50);
+  --bng-bg-disabled: var(--bng-cool-gray-800);
+  --bng-bg-enabled-opacity: 1;
+  --bng-bg-hover-opacity: 1;
+  --bng-bg-active-opacity: 1;
+  --bng-bg-focus-opacity: 1;
+  --bng-bg-disabled-opacity: 1;
+  --bng-bg-border-enabled: var(--bng-cool-gray-700);
+  --bng-bg-border-hover: var(--orange-shade-10);
+  --bng-bg-border-active: var(--orange-shade-10);
+  --bng-bg-border-focus: var(--orange-shade-10);
+  --bng-bg-border-disabled: var(--bng-cool-gray-700);
+
   flex:1;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   justify-content: center;
   align-items: center;
-  cursor: pointer;
   transition: all 0.2s ease;
 
-  &:not(.disabled):not(.selected):hover{
-    background-color: var(--orange-shade-50);
-    border: 2px solid var(--orange-shade-10);
-  }
-
   &.current{
-    background-color: var(--orange-shade-50);
-    border: 2px solid var(--orange-shade-10);
+    --bng-bg-enabled: var(--orange-shade-50);
+    --bng-bg-hover: var(--orange-shade-50);
+    --bng-bg-active: var(--orange-shade-50);
+    --bng-bg-focus: var(--orange-shade-50);
+    --bng-bg-border-enabled: var(--orange-shade-10);
+    --bng-bg-border-hover: var(--orange-shade-10);
+    --bng-bg-border-active: var(--orange-shade-10);
+    --bng-bg-border-focus: var(--orange-shade-10);
   }
 
   &.selected:not(.current){
-    border: 2px solid var(--bng-add-green-500);
+    --bng-bg-border-enabled: var(--bng-add-green-500);
+    --bng-bg-border-hover: var(--bng-add-green-500);
+    --bng-bg-border-active: var(--bng-add-green-500);
+    --bng-bg-border-focus: var(--bng-add-green-500);
   }
 
   &.disabled{
-    opacity: 0.5;
-    cursor: not-allowed;
-    background-color: var(--bng-cool-gray-800);
-    border: 2px solid var(--bng-cool-gray-700);
+    --bng-bg-enabled: var(--bng-cool-gray-800);
+    --bng-bg-border-enabled: var(--bng-cool-gray-700);
   }
 }
 

@@ -1,10 +1,10 @@
 // InfoBar service - provides data and control methods for infobar
-import { ref, watch } from "vue"
+import { ref, unref, watch } from "vue"
 import { defineStore, storeToRefs } from "pinia"
 import logger from "@/services/logger"
 import { useBridge } from "@/bridge"
 import { icons } from "@/common/components/base"
-import { useUINavTracker } from "@/services/uiNavTracker"
+import { useUINavTracker, useUiNavLabel } from "@/services/uiNavTracker"
 import useControls from "@/services/controls"
 // import { ACTIONS_BY_UI_EVENT } from "@/bridge/libs/UINavEvents"
 import { ACTIONS_BY_UI_EVENT } from "@/services/uiNav"
@@ -92,6 +92,16 @@ const HINT_GROUPS = () => [ // function for late init because of icons
     // controllerOnly: true,
   },
   {
+    names: ["focus_u", "focus_d"],
+    label: "ui.mainmenu.navbar.navigate",
+    // controllerOnly: true,
+  },
+  {
+    names: ["focus_r", "focus_l"],
+    label: "ui.mainmenu.navbar.navigate",
+    // controllerOnly: true,
+  },
+  {
     names: ["focus_lr", "focus_ud"],
     label: "ui.mainmenu.navbar.navigate",
     // content: { type: "icon", props: { type: icons.xboxThumbL }, label: "ui.mainmenu.navbar.navigate" },
@@ -140,65 +150,117 @@ export const useInfoBar = defineStore("infoBar", () => {
   const hintGroups = HINT_GROUPS()
   const visible = ref(false)
   const showSysInfo = ref(false)
-  const withAngular = ref(false)
   const hintsList = ref([])
 
   const hints = ref([])
 
   watch([isControllerUsed, lastDevice], () => _groupHints())
 
+  const makeControlGroupItem = (group, viewerObj, groupLabel) => {
+    if (group.label) {
+      return {
+        type: "binding",
+        props: {
+          viewerObj: {
+            icon: viewerObj.icon,
+            ownLabel: group.label,
+          }
+        },
+        label: groupLabel,
+      }
+    }
+
+    return {
+      type: "icon",
+      props: { type: icons[group.icon] },
+      label: groupLabel,
+    }
+  }
+
+  const firstEntryLabel = entries => entries.find(entry => entry.item?.label)?.item.label
+
+  const collapseControlGroups = content => {
+    const contentItems = [content].flat()
+    const bindingEntries = contentItems.map((item, index) => {
+      const uiEvent = item?.type === "binding" ? item.props?.uiEvent : null
+      const action = ACTIONS_BY_UI_EVENT[uiEvent]
+      const viewerObj = action ? Controls.makeViewerObj({ action, actionVariants: DISPLAY_ACTION_VARIANTS, useLastDevice: true }) : null
+      return viewerObj?.ownGroups ? {
+        index,
+        item,
+        viewerObj,
+        devName: viewerObj.devName,
+        control: viewerObj.control,
+      } : null
+    }).filter(Boolean)
+
+    if (bindingEntries.length < 2) return null
+
+    const matchedIndexes = new Set()
+    const insertions = new Map()
+    const devNames = bindingEntries.reduce((res, obj) => obj.devName && !res.includes(obj.devName) ? [...res, obj.devName] : res, [])
+
+    for (const devName of devNames) {
+      const devEntries = bindingEntries.filter(entry => entry.devName === devName)
+      const groups = devEntries[0]?.viewerObj.ownGroups || []
+
+      for (const group of groups) {
+        const matchedEntries = []
+
+        for (const control of group.controls) {
+          const entry = devEntries.find(entry =>
+            !matchedIndexes.has(entry.index) &&
+            entry.control === control &&
+            !matchedEntries.includes(entry)
+          )
+          if (!entry) {
+            matchedEntries.length = 0
+            break
+          }
+          matchedEntries.push(entry)
+        }
+
+        if (matchedEntries.length !== group.controls.length) continue
+
+        const insertIndex = Math.min(...matchedEntries.map(entry => entry.index))
+        const groupLabel = firstEntryLabel(matchedEntries) || firstEntryLabel(bindingEntries)
+        matchedEntries.forEach(entry => matchedIndexes.add(entry.index))
+
+        if (!insertions.has(insertIndex)) insertions.set(insertIndex, [])
+        insertions.get(insertIndex).push(makeControlGroupItem(group, matchedEntries[0].viewerObj, groupLabel))
+      }
+    }
+
+    if (matchedIndexes.size === 0) return null
+
+    const collapsedContent = []
+    for (let idx = 0; idx < contentItems.length; idx++) {
+      if (insertions.has(idx)) collapsedContent.push(...insertions.get(idx))
+      if (!matchedIndexes.has(idx)) collapsedContent.push(contentItems[idx])
+    }
+    return collapsedContent
+  }
+
+  const collapseHintControlGroups = hint => {
+    const collapsedContent = hint?.content ? collapseControlGroups(hint.content) : null
+    if (!collapsedContent) return hint
+    return {
+      ...hint,
+      content: collapsedContent.length === 1 ? collapsedContent[0] : collapsedContent,
+    }
+  }
+
   const getControlGroup = (uiEvents, groupLabel) => {
     try {
-      // if (!isControllerUsed.value) return null
+      const content = uiEvents.map(uiEvent => ({
+        type: "binding",
+        props: { uiEvent },
+        label: groupLabel,
+      }))
+      const collapsedContent = collapseControlGroups(content)
 
-      // to avoid extra processing, map all events and check they're all available
-      const actions = uiEvents.map(event => ACTIONS_BY_UI_EVENT[event]).filter(Boolean)
-      if (actions.length !== uiEvents.length) return null
-
-      // Build viewer objects for all bindings by requesting variants
-      // see also: Hint.vue
-      const viewerObjsRaw = actions.map(action => Controls.makeViewerObj({ action, actionVariants: DISPLAY_ACTION_VARIANTS, useLastDevice: true }))
-      const viewerObjs = viewerObjsRaw.flatMap(vo => (vo?.variants ? vo.variants : (vo ? [vo] : [])))
-
-      const matchingItems = []
-
-      const devNames = viewerObjs.reduce((res, obj) => obj && !res.includes(obj.devName) ? [...res, obj.devName] : res, [])
-      for (const devName of devNames) {
-        if (!devName) continue
-
-        const devViewerObjs = viewerObjs.filter(obj => obj && obj.devName === devName && obj.ownGroups)
-        if (devViewerObjs.length === 0) continue
-
-        const groups = devViewerObjs[0].ownGroups
-        let controls = devViewerObjs.map(obj => obj.control)
-        for (const group of groups) {
-          if (!group.controls.every(control => controls.includes(control))) continue
-          controls = controls.filter(control => !group.controls.includes(control))
-          let item
-          if (group.label) {
-            item = {
-              type: "binding",
-              props: {
-                viewerObj: {
-                  icon: devViewerObjs[0].icon,
-                  ownLabel: group.label,
-                }
-              },
-              label: groupLabel,
-            }
-          } else {
-            item = {
-              type: "icon",
-              props: { type: icons[group.icon] },
-              label: groupLabel,
-            }
-          }
-          matchingItems.push(item)
-        }
-      }
-
-      if (matchingItems.length === 0) return null
-      return matchingItems.length === 1 ? matchingItems[0] : matchingItems
+      if (!collapsedContent) return null
+      return collapsedContent.length === 1 ? collapsedContent[0] : collapsedContent
     } catch (err) {
       logger.error("Error in checkForControlGroup:", err)
       return null
@@ -423,11 +485,12 @@ export const useInfoBar = defineStore("infoBar", () => {
       res.splice(group.position, 0, ...group.hints)
     }
 
-    hints.value = res
+    hints.value = res.map(collapseHintControlGroups)
     // logger.debug("[infoBar] grouped hints", res)
   }
 
   const uiNavTracker = useUINavTracker()
+  const uiNavLabels = useUiNavLabel()
 
   /**
    * Empty the hints array.
@@ -560,45 +623,77 @@ export const useInfoBar = defineStore("infoBar", () => {
     })
   })
 
+  function applyInfoBarSettings(data) {
+    const infoBarSettings = data.resolved.ui.infoBar || {}
+    visible.value = infoBarSettings.visible
+    showSysInfo.value = infoBarSettings.showSysInfo
+  }
+
+  events.on("ui_router_afterRouteChange", applyInfoBarSettings)
+
+  events.on("ui_router_routeRefresh", applyInfoBarSettings)
+
   function _addTrackedEvents() {
     const activeEvents = uiNavTracker.activeEvents
+    const activeEventNames = new Set(activeEvents.map(e => e.name))
     // remove hints for events that are no longer active
     hintsList.value = hintsList.value
-      .filter(hint => !hint.id?.startsWith(AUTOID) && activeEvents.some(e => e.name === hint.content.props.uiEvent))
+      .filter(hint => {
+        const uiEvent = hint.content?.props?.uiEvent
+        return !uiEvent || activeEventNames.has(uiEvent)
+      })
 
     const currentBindings = hintsList.value
       .filter(hint => hint.content?.type === "binding")
       .map(hint => hint.content.props.uiEvent)
 
-    const newEvents = activeEvents
-      .filter(({ name }) => !currentBindings.includes(name))
-      .map(({ name, label, nogroup, action }) => ({
+    let hasUpdatedTrackedHint = false
+    const createTrackedHint = ({ name, label, element, nogroup, action }) => {
+      // resolve label fresh from the registry
+      const resolvedLabel = uiNavLabels.getLabel(name, element) ?? unref(label)
+      const displayLabel = resolvedLabel || DEFAULT_LABELS[name] || name.replaceAll("_", " ").toUpperCase()
+      return {
         id: `${AUTOIDS.binding}_${name}`,
         content: {
           type: "binding",
           props: { uiEvent: name },
-          label,
+          label: displayLabel,
           // Mark labels from active events as non-auto if they come from UI components
-          autoLabel: !label || label === DEFAULT_LABELS[name],
+          autoLabel: !resolvedLabel || displayLabel === DEFAULT_LABELS[name],
         },
         nogroup,
         action,
-      }))
+      }
+    }
+
+    activeEvents.forEach(event => {
+      const existingIndex = _findHintIndex(`${AUTOIDS.binding}_${event.name}`)
+      if (existingIndex === -1) return
+      hintsList.value[existingIndex] = createTrackedHint(event)
+      hasUpdatedTrackedHint = true
+    })
+
+    const newEvents = activeEvents
+      .filter(({ name }) => !currentBindings.includes(name))
+      .map(createTrackedHint)
     // logger.debug("[infoBar] newEvents", newEvents.map(e => e.content.props.uiEvent + ": " + e.content.label))
 
     // add new events that aren't already shown
-    addHints(newEvents)
+    if (newEvents.length > 0) {
+      addHints(newEvents)
+    } else if (hasUpdatedTrackedHint) {
+      _groupHints()
+    }
   }
 
-  // watch for changes in active events in uiNavTracker
-  watch(() => uiNavTracker.activeEvents, _addTrackedEvents, { deep: true })
+  // watch for changes in active events and label directive values
+  watch(() => [uiNavTracker.activeEvents, uiNavLabels.labelRevision], _addTrackedEvents, { deep: true })
 
   return {
     visible,
     hintsList,
     hints,
     showSysInfo,
-    withAngular,
 
     clearHints,
     addHints,

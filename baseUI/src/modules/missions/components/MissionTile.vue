@@ -49,7 +49,7 @@ const props = defineProps({
     background-color: #222D;
     color: white;
     font-size: 1rem;
-    font-family: Overpass-mono, var(--fnt-defs);
+    font-family: "Overpass Mono", var(--fnt-mono);
     text-overflow: ellipsis;
   }
 }

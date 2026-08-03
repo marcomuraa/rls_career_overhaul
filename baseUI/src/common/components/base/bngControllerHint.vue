@@ -212,7 +212,7 @@ const actions = computed(() => {
       }
 
       text {
-        font-family: "Overpass", sans-serif;
+        font-family: "Overpass", var(--fnt-defs);
         font-size: 14px;
         font-weight: 600;
         user-select: none;

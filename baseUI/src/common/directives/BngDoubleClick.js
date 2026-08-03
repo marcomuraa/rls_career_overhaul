@@ -112,12 +112,19 @@ function update(vnode, callback = undefined, mod = {}) {
     // remove handler if no callback or capture mode changed
     delete data.callback // for slow event handling
     el.removeEventListener("click", data.handler, { capture: data.capture })
+    delete data.handler
+    if (data.timer) {
+      clearTimeout(data.timer)
+      data.timer = null
+    }
+    data.time = 0
     elems.delete(uid)
   }
   if (!callback) return // no callback, nothing to do
   if (!data.handler) {
     // fresh start (first time or when capture mode changed)
     data.capture = capture
+    data.callback = callback
     data.handler = createHandler(data)
     el.addEventListener("click", data.handler, { capture })
     elems.set(uid, data)

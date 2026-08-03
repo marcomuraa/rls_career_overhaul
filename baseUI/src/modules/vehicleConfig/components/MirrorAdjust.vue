@@ -1,8 +1,10 @@
 <template>
   <div
     class="adjustment-container"
+    v-bng-scoped-nav="{ type: SCOPED_NAV_TYPES.nonav, activateOnMount: true, trapPolicy: SCOPE_TRAP_POLICIES.ALWAYS, bubbleWhitelistEvents: ['action_2'] }"
     v-bng-on-ui-nav:focus_lr,focus_ud="move"
     v-bng-on-ui-nav:action_3="resetValues"
+    @deactivate="emit('deactivate')"
   >
     <BngImageTile class="mirror-tile" :icon="icons[mirror.mirrorIcon]" :label="mirror.description" ratio="1:1" />
     <div class="y-controls">
@@ -14,13 +16,21 @@
           v-bind="range.y"
           :uiNavFocus="false"
           v-model="mirror.y"
-          @focusout="reactivateUIScope"
-          @valueChanged="onValueChanged"
-          @deactivate="reactivateUIScope" />
+          @valueChanged="onValueChanged" />
       </div>
       <div class="value-input">
         <BngBinding class="keybinding" action="menu_item_focus_ud" deviceMask="xinput" :dark="false" />
-        <BngInput class="value" v-model="mirror.y" type="number" v-bind="range.y" prefix="Y" suffix="°" />
+        <BngInput
+          class="value"
+          v-model="mirror.y"
+          type="number"
+          v-bind="range.y"
+          prefix="Y"
+          suffix="°"
+          :show-external-button="false"
+          no-validation
+          no-spinners
+          no-scope />
       </div>
     </div>
     <div class="x-controls">
@@ -32,13 +42,21 @@
           v-bind="range.x"
           :uiNavFocus="false"
           v-model="mirror.x"
-          @focusout="reactivateUIScope"
-          @valueChanged="onValueChanged"
-          @deactivate="reactivateUIScope" />
+          @valueChanged="onValueChanged" />
       </div>
       <div class="value-input">
         <BngBinding class="keybinding" action="menu_item_focus_lr" deviceMask="xinput" :dark="false" />
-        <BngInput class="value" v-model="mirror.x" type="number" v-bind="range.x" prefix="X" suffix="°" />
+        <BngInput
+          class="value"
+          v-model="mirror.x"
+          type="number"
+          v-bind="range.x"
+          prefix="X"
+          suffix="°"
+          :show-external-button="false"
+          no-validation
+          no-spinners
+          no-scope />
       </div>
     </div>
     <div class="reset-cont">
@@ -62,21 +80,17 @@ const MIRROR_RANGE_DEFAULTS = {
 import { ref, computed, onMounted, onUnmounted } from "vue"
 import { lua } from "@/bridge"
 import { BngImageTile, BngSlider, BngInput, BngButton, BngBinding, icons, ACCENTS } from "@/common/components/base"
-import { vBngOnUiNav } from "@/common/directives"
-import { useUINavScope } from "@/services/uiNav"
-// import UINavEvents from "@/bridge/libs/UINavEvents"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
+import { SCOPED_NAV_TYPES } from "@/services/scopedNav/constants"
+import { SCOPE_TRAP_POLICIES } from "@/services/scopedNav/types"
 import { getUINavServiceInstance } from "@/services/uiNav"
+import { clamp } from "@/utils/maths"
 
 const props = defineProps({
   mirror: Object,
 })
 
-// TODO: This is a hack because ui-scope and scoped nav (from bngSlider) do not play well together yet
-const uiScopeName = "vehicle-config-mirrors"
-const uiNavScope = useUINavScope(uiScopeName)
-const reactivateUIScope = event => {
-  if (event.type === "deactivate" || event.type === "focusout") uiNavScope.set(uiScopeName)
-}
+const emit = defineEmits(["deactivate"])
 
 const range = {
   x: {
@@ -112,7 +126,9 @@ function move(evt) {
 }
 
 const precision = 10 ** (MIRROR_RANGE_DEFAULTS.step + ".").split(/[.,]/)[1].length
-const clamp = (val, axis = "x") => Math.round(Math.max(range[axis].min, Math.min(val, range[axis].max)) * precision) / precision
+const clampOnAxis = (val, axis = "x") => Math.round(
+  clamp(val, range[axis].min, range[axis].max) * precision
+) / precision
 
 function resetValues() {
   props.mirror.x = inpX.value.currentCleanValue
@@ -129,8 +145,8 @@ onMounted(() => {
   lua.extensions.core_vehicle_mirror.focusOnMirror(props.mirror.name)
   mover.tmr = setInterval(() => {
     if (mover.x === 0 && mover.y === 0) return
-    props.mirror.x = clamp(props.mirror.x + mover.x, "x")
-    props.mirror.y = clamp(props.mirror.y + mover.y, "y")
+    props.mirror.x = clampOnAxis(props.mirror.x + mover.x, "x")
+    props.mirror.y = clampOnAxis(props.mirror.y + mover.y, "y")
     onValueChanged()
   }, mover.tmrInterval)
 })
@@ -180,7 +196,7 @@ onUnmounted(() => {
       }
     }
     .value-input {
-      flex-flow: column;
+      flex-direction: column;
     }
   }
 
@@ -198,7 +214,8 @@ onUnmounted(() => {
       height: 2rem;
     }
     .value-input {
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
     }
     padding-bottom: 1rem;
   }

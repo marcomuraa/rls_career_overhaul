@@ -1,35 +1,36 @@
 <!-- Career Pause -->
 <template>
   <LayoutSingle class="career-pause-layout"
-    bng-ui-scope="pause"
+    v-bng-scoped-nav="{ scopeId: 'career-pause', activateOnMount: true }"
     v-bng-on-ui-nav:menu,back="exit"
     v-bng-blur="true"
   >
     <div class="pause-body-wrapper">
           <div class="heading-container">
-            <BngCardHeading class="pause-heading" :type="'ribbon'">Career: Paused</BngCardHeading>
+            <BngCardHeading class="pause-heading" :type="'ribbon'">{{ $translate.instant("ui.career.pause.title") }}</BngCardHeading>
           </div>
           <div class="buttons-and-status">
             <BngCard class="system-buttons">
-              <BngButton class="button" tabindex="1" :accent="ACCENTS.text" @click="exit">Resume</BngButton>
+              <BngButton class="button" tabindex="1" :accent="ACCENTS.text" @click="exit">{{ $translate.instant("ui.career.pause.resume") }}</BngButton>
               <template v-if="contextButtons.length > 0">
-                  <BngButton v-for="btn in contextButtons"
+                <BngButton v-for="btn in contextButtons" :key="btn.functionId"
                   class="button"
                   tabindex="1"
                   :accent="ACCENTS.text"
-                  @click="onContextButtonClicked(btn)">
+                  @click="onContextButtonClicked(btn)"
+                >
                   {{ $ctx_t(btn.label) }}
                   <div v-if="btn.showIndicator" class="indicator"></div>
                 </BngButton>
               </template>
               <div class="save-load-row">
-                <BngButton class="button" tabindex="1" :accent="ACCENTS.text" @click="onSaveButtonClicked">Save</BngButton>
-                <BngButton class="button" tabindex="1" :accent="ACCENTS.text" @click="onLoadButtonClicked">Load</BngButton>
+                <BngButton class="button" tabindex="1" :accent="ACCENTS.text" @click="onSaveButtonClicked">{{ $translate.instant("ui.common.save") }}</BngButton>
+                <BngButton class="button" tabindex="1" :accent="ACCENTS.text" @click="onLoadButtonClicked">{{ $translate.instant("ui.common.load") }}</BngButton>
               </div>
             </BngCard>
             <div class="status-container">
               <BngCardHeading v-if="saveSlotData" class="profile-name" :type="'ribbon'">
-                {{ saveSlotData.id }}
+                {{ saveSlotData.displayName }}
               </BngCardHeading>
               <ProfileStatus
                 v-if="saveSlotData"
@@ -54,36 +55,37 @@
 <script setup>
 import { BngButton, ACCENTS, BngCard, BngCardHeading, BngSlider, BngPillFiltersContainer, BngInput, icons, BngIcon } from "@/common/components/base"
 import { AspectRatio } from "@/common/components/utility"
-import { vBngBlur, vBngSoundClass, vBngOnUiNav } from "@/common/directives"
+import { vBngBlur, vBngSoundClass, vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 import { openConfirmation } from "@/services/popup"
 
 import { lua } from "@/bridge"
 import { ref, onMounted, onUnmounted, onBeforeMount } from "vue"
 
-import { useUINavScope } from "@/services/uiNav"
+// import { useUINavScope } from "@/services/uiNav"
 import { LayoutSingle } from "@/common/layouts"
 import { CareerStatus, CareerSimpleStats } from "@/modules/career/components"
 import  ProfileStatus  from "@/modules/career/components/profiles/ProfileStatus.vue"
 
 import PauseMapPreview from "../components/pause/PauseMapPreview.vue"
 import PauseMilestonesPreview from "../components/pause/PauseMilestonesPreview.vue"
+import { $translate } from "@/services/translation"
 
-useUINavScope("pause") // UI Nav events to fire from (or from focused element inside) element with attribute: bng-ui-scope="pause"
+// useUINavScope("pause") // UI Nav events to fire from (or from focused element inside) element with attribute: bng-ui-scope="pause"
 
 //BngImageTile default ratio for the icon
 const ICON_RATIO = "2.25:1"
 
 //middle section pills
 const MIDDLE_PILL_OPTIONS = [
-  { value: 0, label: "Map", type: "Map" },
-  { value: 1, label: "Milestones", type: "Milestones" },
-  { value: 2, label: "Engine" },
-  { value: 3, label: "Transmission" },
-  { value: 4, label: "Suspension" },
-  { value: 5, label: "Electrics" },
-  { value: 6, label: "Electrics1" },
-  { value: 7, label: "Electrics2" },
-  { value: 8, label: "Electrics3" },
+  { value: 0, label: $translate.instant("ui.career.pause.map"), type: "Map" },
+  { value: 1, label: $translate.instant("ui.career.milestones.title"), type: "Milestones" },
+  { value: 2, label: $translate.instant("ui.career.pause.pill.engine") },
+  { value: 3, label: $translate.instant("ui.career.pause.pill.transmission") },
+  { value: 4, label: $translate.instant("ui.career.pause.pill.suspension") },
+  { value: 5, label: $translate.instant("ui.career.pause.pill.electrics") },
+  { value: 6, label: $translate.instant("ui.career.pause.pill.electrics1") },
+  { value: 7, label: $translate.instant("ui.career.pause.pill.electrics2") },
+  { value: 8, label: $translate.instant("ui.career.pause.pill.electrics3") },
 ]
 
 const currentPillTypeSelected = ref(MIDDLE_PILL_OPTIONS[0].type)
@@ -135,12 +137,12 @@ function onSaveButtonClicked() {
 }
 async function onLoadButtonClicked() {
   const confirmed = await openConfirmation(
-    "Load Profile",
-    "Are you sure you want to load a different profile? Any unsaved progress will be lost."
+    $translate.instant("ui.career.pause.loadProfileTitle"),
+    $translate.instant("ui.career.pause.loadProfileMessage")
   )
 
   if (confirmed) {
-    window.bngVue.gotoGameState("profiles")
+    window.bngVue.gotoGameState("career.profiles")
   }
 }
 function onSettingsButtonClicked() {
@@ -154,15 +156,15 @@ const saveSlotData = ref(null)
 const currentVehicleName = ref('')
 
 function makeVehicleName(data) {
-  if (!data) return 'Walking'
+  if (!data) return $translate.instant("ui.career.pause.walking")
   if (data.key === 'unicycle') {
-    return 'Walking' // Using hardcoded string since we don't have translation service
+    return $translate.instant("ui.career.pause.walking")
   }
   return data.niceName
 }
 
 onMounted(async () => {
-  const data = await lua.career_career.sendCurrentSaveSlotData()
+  const data = await lua.career_career.sendCurrentProfileData()
   saveSlotData.value = data
 
   // Get current vehicle data and set name
@@ -189,9 +191,7 @@ hr {
 }
 
 .career-pause-layout {
-  --safezone-top: var(--safezone-topbar);
-  --safezone-bottom: var(--safezone-new-info-bar);
-  --content-flow: row nowrap;
+  --content-flow: row;
 
 
 

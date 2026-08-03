@@ -3,7 +3,7 @@
     <BlurBackground />
     <div class="header-row">
       <BngScreenHeadingV2 type="2" class="header-title-v2">
-        Options
+        {{ $tt("ui.menu.freeroamSelector.options.title") }}
       </BngScreenHeadingV2>
     </div>
     <div class="section-content" :class="{ 'disabled': !canConfigureOptions }">
@@ -25,7 +25,14 @@
             </BngCardHeading>
           </div>
           <template v-if="group.enabled">
-            <div class="config-item" v-for="(option, optionIndex) in group.options" :key="option.key">
+            <div v-if="group.enable_step" class="step-link-section">
+              <BngButton
+                class="step-link-button"
+                icon="fastTravel"
+                @click="emit('navigateStep', group.enable_step)"
+              >{{ $tt("ui.menu.freeroamSelector.options.configureGroup", { name: group.name }) }}</BngButton>
+            </div>
+            <div v-else class="config-item" v-for="(option, optionIndex) in group.options" :key="option.key">
               <div class="option-row" :class="{ 'disabled': option.disabled }">
                 <label class="option-label">
                   <BngIcon v-if="option.icon" :type="option.icon" class="option-icon" />
@@ -48,6 +55,18 @@
                   @update:modelValue="option.onChange"
                   :label="option.label"
                   labelBefore
+                />
+
+                <!-- Date picker for date options -->
+                <BngDatePicker
+                  v-else-if="option.type === 'date'"
+                  v-model="option.value"
+                  :min="option.min"
+                  :max="option.max"
+                  :reset-value="option.resetValue"
+                  :reset-label="option.resetLabel"
+                  :today-label="option.todayLabel"
+                  @change="option.onChange"
                 />
 
                 <!-- String input for text options -->
@@ -76,15 +95,14 @@
       </div>
       <div v-else class="placeholder-content">
         <BngIcon type="adjust" class="placeholder-icon" />
-        <p class="placeholder-text">No options available</p>
+        <p class="placeholder-text">{{ $tt("ui.menu.freeroamSelector.options.noOptionsAvailable") }}</p>
       </div>
     </div>
-    <slot name="buttons"></slot>
   </div>
 </template>
 
 <script setup>
-import { BngCardHeading, BngIcon, BngSwitch, BngInput, BngSmartSelect, BngScreenHeadingV2 } from "@/common/components/base"
+import { BngButton, BngCardHeading, BngIcon, BngSwitch, BngInput, BngSmartSelect, BngScreenHeadingV2, BngDatePicker } from "@/common/components/base"
 import { vBngBlur} from "@/common/directives"
 import BlurBackground from "@/common/modules/main-bg/components/BlurBackground.vue"
 
@@ -102,6 +120,8 @@ const props = defineProps({
     default: true
   }
 })
+
+const emit = defineEmits(["navigateStep"])
 </script>
 
 <style scoped lang="scss">
@@ -209,6 +229,20 @@ const props = defineProps({
   flex-direction: column;
   gap: 0.5rem;
   @include modify-focus(0.25rem, 0.125rem);
+}
+
+.step-link-section {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.5rem;
+  gap: 0.25rem;
+  flex-shrink: 0;
+
+  > :deep(.bng-button) {
+    max-width: unset;
+    width: 100%;
+    align-items: center;
+  }
 }
 
 .option-row {

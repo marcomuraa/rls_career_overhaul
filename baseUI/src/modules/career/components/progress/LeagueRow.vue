@@ -43,7 +43,7 @@
                   :color="cond.met ? 'white' : 'gray'"
                 />
                 <div class="label">
-                  {{cond.label}}
+                  {{ $ctx_t(cond.label) }}
                 </div>
               </div>
               <BngProgressBar
@@ -61,20 +61,21 @@
         </div>
       </div>
       <div class="cards-container" v-if="!condensed">
-
           <MissionCard
             class="clickable-card"
-            v-for="mission in league.missions"
+            v-for="(mission, index) in league.missions"
             :key="mission.id"
             :mission="mission"
+            :bng-scoped-nav-autofocus="autofocus && index === 0 ? 'true' : null"
             @clicked="leagueMissionClicked"
             :showStartableIcons="true"
           />
           <MissionCard
             class="clickable-card"
-            v-for="driftSpot in league.driftSpots"
+            v-for="(driftSpot, index) in league.driftSpots"
             :key="driftSpot.id"
             :mission="driftSpot"
+            :bng-scoped-nav-autofocus="autofocus && (!league.missions || league.missions.length === 0) && index === 0 ? 'true' : null"
             @clicked="leagueMissionClicked"
           />
           <template v-if="league.comingSoon" v-for="info in league.comingSoon">
@@ -85,7 +86,7 @@
                   :type="icons[info.icon]"
                   :color="'gray'" />
                 <div class="label">
-                  {{info.label}}
+                  {{ $ctx_t(info.label) }}
                 </div>
               </div>
             </BngCard>
@@ -121,6 +122,7 @@ const props = defineProps({
   condensed: Boolean,
   vertical: Boolean,
   nowUnlocked: Boolean,
+  autofocus: Boolean,
 })
 
 function hexToRgb(hex) {
@@ -155,7 +157,7 @@ const leagueStyle = computed(() => {
 
 .league-row {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   background-color: rgba(white, 0.05);
   border-radius: var(--bng-corners-1);
   padding: 0 !important;
@@ -238,11 +240,11 @@ const leagueStyle = computed(() => {
     flex: 1 1 auto;
     display: flex;
     padding: 0.5rem 0.5rem 0.5rem 0.75rem;
-    flex-flow:row;
+    flex-direction: row;
     gap: 0.5rem;
     >.info {
       display: flex;
-      flex-flow: column;
+      flex-direction: column;
       z-index: 1;
       flex: 0 0 20rem;
       font-size: 0.9rem;
@@ -253,9 +255,12 @@ const leagueStyle = computed(() => {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(20em, 1fr));
       gap: 0.5rem;
-      grid-auto-rows: 0.1fr;
+      grid-auto-rows: minmax(1.5rem, auto);
       align-items: stretch;
       flex: 1 1 auto;
+      .clickable-card {
+        height: 100%;
+      }
       .milestone {
         height: 100%;
       }
@@ -268,7 +273,7 @@ const leagueStyle = computed(() => {
   }
 
   .vertical {
-    flex-flow: column;
+    flex-direction: column;
       padding: 0.25rem 0.5rem 0.5rem 0.5rem;
     >.info {
       flex: 1 0 auto;
@@ -305,7 +310,7 @@ const leagueStyle = computed(() => {
 
 .unlock-condition {
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   background: linear-gradient(
             to right,
             rgba(var(--league-accent-color), 0.1),
@@ -315,7 +320,7 @@ const leagueStyle = computed(() => {
   .info {
     flex: 1 1 auto;
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     align-items: center;
     gap: 0.5rem;
     padding: 0.2rem;
@@ -351,7 +356,7 @@ const leagueStyle = computed(() => {
 
 .basic-card {
   display: flex;
-  flex-flow: row;
+  flex-direction: row;
   border-radius: var(--bng-corners-1);
   height: 100%;
   position: relative;
@@ -372,7 +377,7 @@ const leagueStyle = computed(() => {
   .info {
     flex: 1 1 auto;
     display: flex;
-    flex-flow: column;
+    flex-direction: column;
     gap: 0.5rem;
 
     .label {

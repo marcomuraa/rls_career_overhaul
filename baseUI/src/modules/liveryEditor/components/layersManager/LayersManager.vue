@@ -19,13 +19,15 @@
               holdCallback: () => setMultiSelect(node),
               repeatInterval: 0,
             }"
-            @focusin.self="setFocusLayer(node)"
-            v-bng-ui-nav-focus="isFocusFirstLayer && layers[0].uid === node.uid ? 0 : undefined"
-            v-bng-focus-if="isFocusFirstLayer && layers[0].uid === node.uid"
-            bng-nav-item
             v-bng-on-ui-nav:ok.asMouse.focusRequired
-            class="layer-node">
-            <LayerTile :layer="node" :forceShowActions="focusLayer && focusLayer.uid === node.uid" @enableClicked="() => toggleEnabled(node)" />
+            bng-nav-item
+            class="layer-node"
+            @focusin.self="setFocusLayer(node)">
+            <LayerTile
+              :layer="node"
+              :forceShowActions="focusLayer && focusLayer.uid === node.uid"
+              @enable-click="() => toggleEnabled(node)"
+            />
             <BngIcon
               v-if="node.children"
               :type="expanded ? icons.arrowSmallUp : icons.arrowSmallDown"
@@ -70,7 +72,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(["focusedLayer"])
+const emit = defineEmits(["select", "multi-select", "focus-layer", "open-actions"])
 
 const rootStore = useLiveryEditorStore()
 
@@ -106,8 +108,9 @@ const onModifiedAction = event => {
 const setMultiSelect = async node => {
   if (rootStore.selectMode === "multi") return
 
-  rootStore.selectMode = "multi"
-  rootStore.toggleSelection(node.id, false)
+  // rootStore.selectMode = "multi"
+  // rootStore.toggleSelection(node.id, false)
+  emit("multi-select", node)
 }
 
 const toggleEnabled = layer => {
@@ -118,8 +121,10 @@ const toggleEnabled = layer => {
 }
 
 const onClickItem = node => {
-  lua.extensions.ui_liveryEditor_selection.select(node.id, true)
-  setFocusLayer(null)
+  // lua.extensions.ui_liveryEditor_selection.select(node.id, true)
+  // setFocusLayer(null)
+  emit("select", node)
+  emit("open-actions", node)
 }
 
 async function moveOrder(event) {
@@ -161,7 +166,7 @@ const setFocusLayer = layer => {
   }
 
   focusLayer.value = layer
-  emit("focusedLayer", layer)
+  emit("focus-layer", layer)
 }
 
 function expandFocusedLayer() {
@@ -226,6 +231,7 @@ $selectBackground: #ff6600;
       display: flex;
       align-items: center;
       width: 100%;
+      position: relative;
     }
   }
 }

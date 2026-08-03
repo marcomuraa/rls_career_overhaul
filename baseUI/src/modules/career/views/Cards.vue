@@ -8,10 +8,10 @@
       <!--Existing profile cards-->
       <div v-for="item in profiles">
         <div v-if="item.incompatibleVersion">
-          This profile was saved with an old version of the game. It can no longer be loaded.
+          {{ $translate.instant("ui.career.profile.outdatedTooltip") }}
         </div>
         <!--Title-->
-        {{ item.id }}
+        {{ item.displayName}}
         <!--Content-->
         <!--Manage-->
         <!--Naming-->
@@ -23,17 +23,14 @@
 </template>
 
 <script setup>
-import { ref, inject, onMounted, onUnmounted } from "vue"
+import { ref, onMounted, onUnmounted } from "vue"
 import { useBridge } from "@/bridge"
 import { $translate } from "@/services"
 import { vBngOnUiNav } from "@/common/directives"
 import { useUINavScope } from "@/services/uiNav"
 import { BngScreenHeading } from "@/common/components/base"
-import router from "@/router"
 
-const $game = inject("$game")
-const bngVue = window.bngVue || { gotoGameState() { } }
-const { lua, events } = useBridge()
+const { lua } = useBridge()
 useUINavScope('careerCardsUI')
 const preHeadingText = [$translate.instant("ui.career.savedProgress")]
 const headingText = $translate.instant("ui.career.profiles")
@@ -41,22 +38,19 @@ const headingText = $translate.instant("ui.career.profiles")
 
 const profiles = ref()
 
-const updateProfiles = () => {
-  $game.api.engineLua("career_career.sendAllCareerSaveSlotsData()", (data) => {
-    profiles.value = Array.isArray(data) ? data : []
-  })
+const updateProfiles = async () => {
+  const data = await lua.career_career.sendAllCareerProfilesData()
+  profiles.value = Array.isArray(data) ? data : []
 }
 
-const renameProfile = (profileId, profileName) => {
-  $game.api.engineLua(`career_saveSystem.renameSaveSlot("${profileId}", "${profileName}")`, () => {
-    updateProfiles()
-  })
+const renameProfile = async (profileId, profileName) => {
+  await lua.career_saveSystem.renameProfile(profileId, profileName)
+  updateProfiles()
 }
 
-const deleteProfile = (profileId) => {
-  $game.api.engineLua(`career_saveSystem.removeSaveSlot("${profileId}")`, () => {
-    updateProfiles()
-  })
+const deleteProfile = async (profileId) => {
+  await lua.career_saveSystem.removeProfile(profileId)
+  updateProfiles()
 }
 
 ////On enter / exit////
@@ -83,7 +77,7 @@ onUnmounted(exit)
   width: 100%;
   height: 100%;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   .cards-heading {
     display: flex;
     flex: 0 0 auto;

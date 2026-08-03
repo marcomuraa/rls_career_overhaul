@@ -39,7 +39,7 @@ defineProps({
   }
 
   display:flex;
-  flex-flow: column;
+  flex-direction: column;
 
   color:white;
   align-items:start;

@@ -1,17 +1,19 @@
 <template>
-  <div
+  <LayoutMenu
     class="decals-main-view"
-    bng-ui-scope="decals-main-scope"
-    v-bng-ui-nav-label:context="contextUIEventLabel"
-    v-bng-ui-nav-label:action_2="action2UIEventLabel"
-    v-bng-ui-nav-label:menu,back="'Back'"
-    v-bng-on-ui-nav:menu,back="onBack"
-    v-bng-on-ui-nav:context="handleContext"
-    v-bng-on-ui-nav:action_2="handleAction2">
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    heading="Decals">
+    <div
+      class="main-view-content"
+      v-bng-ui-nav-label:context="contextUIEventLabel"
+      v-bng-ui-nav-label:action_2="action2UIEventLabel"
+      v-bng-ui-nav-label:menu,back="'Back'"
+      v-bng-on-ui-nav:menu,back="onBack"
+      v-bng-on-ui-nav:context="handleContext"
+      v-bng-on-ui-nav:action_2="handleAction2">
       <LayersManager v-model:selectedKeys="selectedLayerKeys" :layers="layers" v-bng-blur class="layers-manager" @focusedLayer="onFocusedLayer">
         <template #header>
           <BngCardHeading type="ribbon">Layers</BngCardHeading>
@@ -68,7 +70,7 @@
         <component :is="popupSettings"></component>
       </div>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script>
@@ -120,15 +122,14 @@ const SHOW_HIDE_DECAL_EVENT = "action_2"
 </script>
 
 <script setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, markRaw, reactive, toRef, watchEffect } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, markRaw, reactive, toRef, watchEffect } from "vue"
 import { lua, useBridge } from "@/bridge"
 import { useInfoBar } from "@/services/infoBar"
-import { useUINavScope } from "@/services/uiNav"
+import { useRouteDataStore } from "@/services/routeData"
 import { useUINavBlocker } from "@/services/uiNavTracker"
 import { vBngOnUiNav, vBngUiNavLabel, vBngBlur, vBngDisabled, vBngUiNavFocus, vBngFocusIf } from "@/common/directives"
 import { BngActionDrawer, BngButton, BngCardHeading, BngImageTile, BngTile, icons, ACCENTS, BngSwitch, BngBinding } from "@/common/components/base"
-import { useEditorHeaderStore } from "@/modules/liveryEditor/stores"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
+import { LayoutMenu } from "@/common/layouts"
 import { LayersManager } from "@/modules/liveryEditor/components/layersManager"
 import LayerOrder from "../components/LayerOrder.vue"
 
@@ -168,11 +169,12 @@ const MIRROR_ITEMS = [
   },
 ]
 
-const headerStore = useEditorHeaderStore()
 const infobar = useInfoBar()
-const uiNav = useUINavScope("decals-main-scope")
 const uiNavBlocker = useUINavBlocker()
+const routeDataStore = useRouteDataStore()
 const { events } = useBridge()
+
+const breadcrumbItems = computed(() => (Array.isArray(routeDataStore.breadcrumbs) ? routeDataStore.breadcrumbs : []))
 
 const layers = ref([])
 const selectedLayers = ref([])
@@ -211,10 +213,6 @@ watchEffect(() => {
   uiNavBlocker.blockOnly(eventsToBlock)
 })
 
-onBeforeMount(() => {
-  headerStore.setPreheader(["Decals"])
-})
-
 onMounted(() => {
   infobar.visible = true
   infobar.showSysInfo = true
@@ -239,14 +237,14 @@ function onBack(event) {
   } else if (actionsDrawerData.value) {
     handleDrawerBack()
   } else {
-    window.bngVue.gotoGameState("LiveryMain")
+    lua.extensions.ui_router.navigate("livery.editor", null, null)
   }
 
   event.stopPropagation()
 }
 
 function addDecal() {
-  window.bngVue.gotoGameState("LiveryDecalSelector")
+  lua.extensions.ui_router.navigate("livery.decalSelector", null, null)
 }
 
 let isReproject

@@ -5,3 +5,6 @@ baseUI/node_modules/
 ui-build-temp/
 ui/vue-dist/
 BeamNG.drive.lnk
+# Build output source maps: large debug artifacts the game does not need
+ui/ui-vue/dist/*.map
+baseUI/dist/

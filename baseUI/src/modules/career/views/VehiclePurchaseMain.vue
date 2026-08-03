@@ -1,29 +1,43 @@
 <template>
-  <!-- TODO - remove inline styling? -->
-  <LayoutSingle class="purchase-layout">
-    <BngCard v-if="vehiclePurchaseStore.vehicleInfo.niceName" bng-ui-scope="vehiclePurchase" class="purchase-screen" v-bng-blur="1">
+  <LayoutMenu
+    class="purchase-layout"
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumbs="true"
+    :hide-breadcrumb-last-item="false"
+    @breadcrumb-click="breadcrumbClick"
+    @breadcrumb-back="cancel"
+  >
+    <template #topbar-right>
+      <BngCard class="status-container" v-bng-blur="true">
+        <CareerStatus class="profile-status" />
+      </BngCard>
+    </template>
+
+    <BngCard
+      v-if="vehiclePurchaseStore.vehicleInfo.niceName"
+      v-bng-scoped-nav="{ scopeId: 'vehicle-purchase', preferAutoFocus: true }"
+      class="purchase-screen"
+      v-bng-blur="1"
+    >
       <div class="header-row">
         <BngCardHeading type="ribbon">
-          Purchase Information
+          {{ $translate.instant("ui.career.vehiclePurchase.purchaseInformation") }}
           <div class="header-seller-info">
-            Purchasing from: {{ vehiclePurchaseStore.vehicleInfo.sellerName }}
+            {{ $translate.instant("ui.career.vehiclePurchase.purchasingFrom", { sellerName: vehiclePurchaseStore.vehicleInfo.sellerName }) }}
           </div>
         </BngCardHeading>
         <BngButton class="close-button" @click="cancel" :accent="ACCENTS.attention" bng-no-nav="true" tabindex="-1">
-          <BngBinding ui-event="menu" controller  />
+          <BngBinding ui-event="back" controller />
           <BngIcon
             type="xmarkBold"
               :color="'var(--bng-cool-gray-100)'"
             />
-
         </BngButton>
       </div>
+
       <div class="purchase-list">
-        <!--
-        <div class="purchase-row purchase-header">
-          <div class="label"></div>
-          <div class="price">Price</div>
-        </div>-->
         <div class="purchase-row">
           <div class="label">
             <div>{{ vehiclePurchaseStore.vehicleInfo.year }} {{ vehiclePurchaseStore.vehicleInfo.niceName }}</div>
@@ -34,173 +48,164 @@
               <span v-if="vehiclePurchaseStore.vehicleInfo.originalSellValue" class="old-price">
                 <BngUnit :money="vehiclePurchaseStore.vehicleInfo.originalSellValue" />
               </span>
-              <BngUnit class="money" :money="vehiclePurchaseStore.vehicleInfo.valueAdjusted || vehiclePurchaseStore.vehicleInfo.Value" />
+              <BngUnit class="money" :money="vehiclePurchaseStore.vehicleInfo.Value" />
             </div>
             <div class="sub-info">
               <div>
-                Est. Market:
-                <BngUnit class="money" :money="vehiclePurchaseStore.vehicleInfo.marketValueAdjusted || vehiclePurchaseStore.vehicleInfo.marketValue" />
+                {{ $translate.instant("ui.career.vehiclePurchase.estMarket") }}
+                <BngUnit class="money" :money="vehiclePurchaseStore.vehicleInfo.marketValue" />
               </div>
             </div>
           </div>
-
         </div>
+
         <div class="purchase-divider"></div>
         <div v-if="vehiclePurchaseStore.insuranceOptions.insuranceId > 0" class="purchase-row thin light-blue">
           <div class="label category ">{{ vehiclePurchaseStore.insuranceOptions.spendingReason }}</div>
           <div class="price category"><BngUnit class="money" :money="vehiclePurchaseStore.insuranceOptions.priceMoney" /></div>
         </div>
         <div class="purchase-row thin light-blue">
-          <div class="label">Dealership Fees</div>
+          <div class="label">{{ $translate.instant("ui.career.vehiclePurchase.dealershipFees") }}</div>
           <div class="price"><BngUnit class="money" :money="vehiclePurchaseStore.vehicleInfo.fees" /></div>
         </div>
         <div class="purchase-divider" v-if="vehiclePurchaseStore.tradeInVehicleInfo?.niceName"></div>
         <div v-if="vehiclePurchaseStore.tradeInVehicleInfo.niceName" class="purchase-row thin green">
-          <div class="label">Trade-in: {{ vehiclePurchaseStore.tradeInVehicleInfo.niceName }}</div>
+          <div class="label">{{ $translate.instant("ui.career.vehiclePurchase.tradeIn", { vehicleName: vehiclePurchaseStore.tradeInVehicleInfo.niceName }) }}</div>
           <div class="price"><BngUnit class="money" :money="-vehiclePurchaseStore.tradeInVehicleInfo.Value" /></div>
         </div>
         <div class="purchase-divider"></div>
 
+        <template v-if="vehiclePurchaseStore.discountPercentage > 0">
+          <div class="purchase-row thin green">
+            <div class="label">{{ $translate.instant("ui.career.vehiclePurchase.discount", { percentage: vehiclePurchaseStore.discountPercentage }) }}</div>
+            <div class="price">
+              <BngUnit class="money" :money="vehiclePurchaseStore.prices.discount" />
+            </div>
+          </div>
+          <div class="purchase-divider"></div>
+        </template>
+
         <div class="purchase-row">
-          <div class="label">Subtotal</div>
+          <div class="label">{{ $translate.instant("ui.career.vehiclePurchase.subtotal") }}</div>
           <div class="price">
-            <BngUnit class="money" :money="vehiclePurchaseStore.finalPackagePrice - vehiclePurchaseStore.prices.taxes - (vehiclePurchaseStore.buyCustomLicensePlate ? vehiclePurchaseStore.prices.customLicensePlate : 0)" />
+            <BngUnit class="money" :money="vehiclePurchaseStore.finalPackagePrice - vehiclePurchaseStore.prices.taxes - (vehiclePurchaseStore.buyCustomLicensePlate ? vehiclePurchaseStore.prices.customLicensePlate : 0) + (vehiclePurchaseStore.prices.discount || 0)" />
           </div>
         </div>
 
         <div class="purchase-row thin yellow ">
-          <div class="label ">Sales Tax (7%)</div>
+          <div class="label ">{{ $translate.instant("ui.career.vehiclePurchase.salesTax", { rate: 7 }) }}</div>
           <div class="price "><BngUnit class="money" :money="vehiclePurchaseStore.prices.taxes" /></div>
         </div>
 
         <div v-if="vehiclePurchaseStore.buyCustomLicensePlate" class="purchase-row thin">
-          <div class="label">Custom License Plate</div>
+          <div class="label">{{ $translate.instant("ui.career.vehiclePurchase.customLicensePlate") }}</div>
           <div class="price"><BngUnit class="money" :money="vehiclePurchaseStore.prices.customLicensePlate" /></div>
         </div>
 
         <div class="purchase-divider"></div>
         <div class="purchase-row ">
-          <div class="label highlight-category">Total</div>
+          <div class="label highlight-category">{{ $translate.instant("ui.career.vehiclePurchase.total") }}</div>
           <div class="price highlight-category"><BngUnit class="money" :money="vehiclePurchaseStore.finalPackagePrice" /></div>
         </div>
 
         <div v-if="vehiclePurchaseStore.finalPackagePrice > vehiclePurchaseStore.playerMoney" class="purchase-row money-warning red">
-          <div class="label"><BngIcon type="danger" /> Additional funds required</div>
+          <div class="label"><BngIcon type="danger" /> {{ $translate.instant("ui.career.vehiclePurchase.additionalFundsRequired") }}</div>
           <div class="price">
             <BngUnit class="money" :money="(vehiclePurchaseStore.finalPackagePrice - vehiclePurchaseStore.playerMoney)" />
           </div>
         </div>
 
-
-
         <div class="purchase-customization-group">
-          <h4>Purchase Options</h4>
-          <!--
-            <div v-if="vehiclePurchaseStore.locationSelectionEnabled" class="purchase-option">
-              <BngSwitch label-before :disabled="vehiclePurchaseStore.forceNoDelivery" v-model="vehiclePurchaseStore.makeDelivery">
-                Deliver this vehicle to your garage?
-              </BngSwitch>
-            </div>
-
-            <div class="purchase-option">
-              <BngSwitch label-before v-model="vehiclePurchaseStore.buyCustomLicensePlate"> Personalize license plate </BngSwitch>
-            </div>
-
-            <div v-if="vehiclePurchaseStore.buyCustomLicensePlate">
-              <BngInput style="background-color: rgb(82, 82, 82);" v-model="vehiclePurchaseStore.customLicensePlateText" maxlength="10" floatingLabel="Custom License Plate" :validate="isLicensePlateTextValid" />
-            </div>
-          -->
-
-          <BngButton :disabled="!vehiclePurchaseStore.vehicleInfo.negotiationPossible" accent="secondary" @click="negotiatePrice">
-            Negotiate Price
+          <h4>{{ $translate.instant("ui.career.vehiclePurchase.purchaseOptions") }}</h4>
+          <BngButton
+            v-bng-tooltip:top="negotiationButtonMessage"
+            :disabled="!canNegotiatePrice"
+            accent="secondary"
+            @click="negotiatePrice"
+          >
+            {{ $translate.instant("ui.career.vehiclePurchase.negotiatePrice") }}
           </BngButton>
 
           <BngButton  v-bng-tooltip:top="tradeInButtonMessage" :disabled="!vehiclePurchaseStore.tradeInEnabled || !hasVehicle" accent="secondary" @click="chooseTradeInVehicle"
-            >Choose Trade-In</BngButton>
+            >{{ $translate.instant("ui.career.vehiclePurchase.chooseTradeIn") }}</BngButton>
           <BngButton
             v-if="vehiclePurchaseStore.tradeInEnabled && vehiclePurchaseStore.tradeInVehicleInfo.niceName"
             @click="removeTradeInVehicle"
             :accent="ACCENTS.attention"
-            >Remove Trade-In</BngButton>
+            >{{ $translate.instant("ui.career.vehiclePurchase.removeTradeIn") }}</BngButton>
 
-          <BngButton @click="chooseInsurance" :accent="ACCENTS.secondary">Choose Insurance</BngButton>
+          <BngButton @click="chooseInsurance" :accent="ACCENTS.secondary">{{ $translate.instant("ui.career.vehiclePurchase.chooseInsurance") }}</BngButton>
         </div>
       </div>
 
-
       <template #buttons>
-
         <div class="button-group">
           <BngButton :disabled="vehiclePurchaseStore.purchaseType !== 'inspect' || vehiclePurchaseStore.alreadyDidTestDrive"
           v-bng-tooltip:top="testDriveButtonMessage"
-          @click="startTestDrive" :accent="ACCENTS.secondary">Test Drive</BngButton>
+          @click="startTestDrive" :accent="ACCENTS.secondary">{{ $translate.instant("ui.career.vehiclePurchase.testDrive") }}</BngButton>
 
           <BngButton
             :disabled="
               vehiclePurchaseStore.finalPackagePrice > vehiclePurchaseStore.playerMoney ||
               !vehicleFitsInventory ||
-              (vehiclePurchaseStore.forceTradeIn && !vehiclePurchaseStore.tradeInVehicleInfo.niceName) ||
               vehiclePurchaseStore.buyCustomLicensePlate && !licensePlateTextValid
             "
             show-hold
+            bng-scoped-nav-autofocus
             v-bng-on-ui-nav:ok.asMouse.focusRequired
             v-bng-click="{
-              holdCallback: buy,
+              holdCallback: completePurchaseHold,
               holdDelay: 1000,
               repeatInterval: 0,
-            }">
-            <div v-if="vehiclePurchaseStore.finalPackagePrice > vehiclePurchaseStore.playerMoney">Insufficient Funds</div>
-            <div v-else-if="!vehicleFitsInventory">No free inventory slots</div>
-            <div v-else>Purchase</div>
+              holdSoundInstanceId: 'vehicle-purchase-buy',
+            }"
+          >
+            <div v-if="vehiclePurchaseStore.finalPackagePrice > vehiclePurchaseStore.playerMoney">{{ $translate.instant("ui.career.vehiclePurchase.insufficientFunds") }}</div>
+            <div v-else-if="!vehicleFitsInventory">{{ $translate.instant("ui.career.vehiclePurchase.noFreeInventorySlots") }}</div>
+            <div v-else>{{ $translate.instant("ui.career.vehiclePurchase.purchase") }}</div>
           </BngButton>
         </div>
       </template>
 
     </BngCard>
-    <div class="right-side">
-      <BngCard class="status-container">
-        <CareerStatus class="profile-status" />
-      </BngCard>
+
+    <template #side-tasklist>
       <TaskList
         class="task-list"
         :header="store.header"
         :tasks="store.tasks" />
-    </div>
-  </LayoutSingle>
+    </template>
+  </LayoutMenu>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue"
-import { BngButton, ACCENTS, BngCard, BngCardHeading, BngSwitch, BngInput, BngUnit, BngIcon, BngBinding } from "@/common/components/base"
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue"
+import { BngButton, ACCENTS, BngCard, BngCardHeading, BngUnit, BngIcon, BngBinding } from "@/common/components/base"
 import { useVehiclePurchaseStore } from "../stores/vehiclePurchaseStore"
 import { lua, useBridge } from "@/bridge"
-import { vBngClick, vBngTooltip } from "@/common/directives"
-import { LayoutSingle } from "@/common/layouts"
+import { vBngClick, vBngTooltip, vBngOnUiNav, vBngBlur, vBngScopedNav } from "@/common/directives"
+import { LayoutMenu } from "@/common/layouts"
 import { CareerStatus, ChooseInsuranceMain } from "@/modules/career/components"
 import { addPopup, openConfirmation } from "@/services/popup"
 import { $translate } from "@/services/translation"
-import { vBngOnUiNav, vBngBlur } from "@/common/directives"
-import { useUINavScope } from "@/services/uiNav"
-import { useRouter } from "vue-router"
-import { useTasksStore } from "@/modules/tasks/tasksStore"
+import { useRoute } from "vue-router"
+import { useRouteDataStore } from "@/services/routeData"
+import { activateRouteTargetScope } from "@/services/scopedNav/api"
+import { useTasksStore } from "@/services/tasklistStore"
 import TaskList from "@/modules/tasks/components/TaskList.vue"
-useUINavScope("vehiclePurchase")
-import useControls from "@/services/controls"
-import { storeToRefs } from "pinia"
-
-const Controls = useControls()
-const { showIfController } = storeToRefs(Controls)
 
 const { units } = useBridge()
 
-const router = useRouter()
+const route = useRoute()
+const routeDataStore = useRouteDataStore()
+
+const breadcrumbItems = computed(() => routeDataStore.breadcrumbs || [])
 
 const hasVehicle = ref(false)
 const licensePlateTextValid = ref(true)
 
 const vehiclePurchaseStore = useVehiclePurchaseStore()
 const store = useTasksStore()
-
 const isLicensePlateTextValid = (text) => {
   lua.career_modules_inventory.isLicensePlateValid(text).then(valid => {
     licensePlateTextValid.value = valid
@@ -209,15 +214,25 @@ const isLicensePlateTextValid = (text) => {
 }
 
 const tradeInButtonMessage = computed(() => {
-  if (!vehiclePurchaseStore.tradeInEnabled) return "Trade in only possible in person at a dealership"
+  if (!vehiclePurchaseStore.tradeInEnabled) return $translate.instant("ui.career.vehiclePurchase.tradeInOnlyInPerson")
 
-  return !hasVehicle.value ? "You don't own any vehicles" : undefined
+  return !hasVehicle.value ? $translate.instant("ui.career.vehiclePurchase.noOwnedVehicles") : undefined
 })
 
 const testDriveButtonMessage = computed(() => {
-  if (vehiclePurchaseStore.purchaseType !== 'inspect') return "Test drive only available for inspect purchases"
-  if (vehiclePurchaseStore.alreadyDidTestDrive) return "You have already done a test drive"
-  return "You will be charged 50% of repair costs for any damage caused"
+  if (vehiclePurchaseStore.purchaseType !== 'inspect') return $translate.instant("ui.career.vehiclePurchase.testDriveInspectOnly")
+  if (vehiclePurchaseStore.alreadyDidTestDrive) return $translate.instant("ui.career.vehiclePurchase.testDriveAlreadyDone")
+  return undefined
+})
+
+const canNegotiatePrice = computed(() => {
+  return !!vehiclePurchaseStore.vehicleInfo.negotiationPossible && (vehiclePurchaseStore.vehicleInfo.discountPercentage || 0) <= 0
+})
+
+const negotiationButtonMessage = computed(() => {
+  if ((vehiclePurchaseStore.vehicleInfo.discountPercentage || 0) > 0) return $translate.instant("ui.career.vehiclePurchase.negotiationUnavailableDiscounted")
+  if (!vehiclePurchaseStore.vehicleInfo.negotiationPossible) return vehiclePurchaseStore.vehicleInfo.negotiationDisabledReason || $translate.instant("ui.career.vehiclePurchase.negotiationUnavailable")
+  return undefined
 })
 
 const vehicleFitsInventory = computed(() => {
@@ -232,8 +247,30 @@ vehiclePurchaseStore.inventoryIsEmpty().then(empty => {
 
 const buy = () => buyVehicle(!vehiclePurchaseStore.locationSelectionEnabled || vehiclePurchaseStore.makeDelivery)
 
+function isPrimaryInteraction(event) {
+  return !event || event.fromController || event.button === 0
+}
+
+function completePurchaseHold(event) {
+  if (!isPrimaryInteraction(event)) return
+  buy()
+}
+
+// BACK is owned by the router: the active scope is route-managed, so scoped-nav
+// defers to ui_router.back(), whose handler runs the purchase-type-aware cancel.
 const cancel = () => {
-  router.back()
+  lua.extensions.ui_router.back()
+}
+
+async function breadcrumbClick(item) {
+  if (!item) return
+  if (item.closeAllMenus) {
+    lua.career_career.closeAllMenus()
+    return
+  }
+  if (item.routeName && !item.abstract) {
+    await lua.extensions.ui_router.navigate(item.routeName, item.params)
+  }
 }
 
 const startTestDrive = () => {
@@ -256,6 +293,7 @@ const chooseInsurance = () => {
 }
 
 const negotiatePrice = () => {
+  if (!canNegotiatePrice.value) return
   lua.career_modules_marketplace.startNegotiateSellingOffer(vehiclePurchaseStore.vehicleInfo.shopId)
 }
 
@@ -275,23 +313,66 @@ const kill = async () => {
   await lua.career_modules_inspectVehicle.onPurchaseMenuClosed()
   vehiclePurchaseStore.$dispose()
 }
+
+// Purchase data arrives from Lua (vehiclePurchaseData event) after mount; gate the
+// routeMounted ack and scope activation on the focusable card being present.
+const isReady = computed(() => !!vehiclePurchaseStore.vehicleInfo.niceName)
+
+// handlesOwnReady flow: ack the mount and activate the route target scope only
+// once the data is present and rendered, so autofocus lands on a real button.
+const lastMountedAckRouteName = ref("")
+let mountedAckRequestId = 0
+
+async function notifyRouteMountedWhenReady() {
+  const routeName = route.name
+  if (!routeName || routeName === "unknown" || routeName === "__legacyAngular") return
+  if (!isReady.value) return
+
+  const requestId = ++mountedAckRequestId
+  await nextTick()
+
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    await new Promise(resolve => window.requestAnimationFrame(() => resolve()))
+  }
+
+  if (requestId !== mountedAckRequestId) return
+  if (route.name !== routeName) return
+  const canonicalRoute = window.__luaRouter__?._pendingCanonicalRoute || routeName
+  if (lastMountedAckRouteName.value === canonicalRoute) return
+
+  const result = await lua.extensions.ui_router.routeMounted(canonicalRoute)
+  lastMountedAckRouteName.value = canonicalRoute
+  if (!result?.success) return
+  if (window.__luaRouter__) window.__luaRouter__._pendingCanonicalRoute = null
+  if (requestId !== mountedAckRequestId) return
+  if (route.name !== routeName) return
+
+  activateRouteTargetScope()
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    lastMountedAckRouteName.value = ""
+    notifyRouteMountedWhenReady()
+  },
+  { immediate: true }
+)
+
+watch(isReady, ready => {
+  if (ready) notifyRouteMountedWhenReady()
+})
+
 onMounted(start)
 onUnmounted(kill)
 </script>
 
 <style scoped lang="scss">
-// Layout
-.purchase-layout {
-  --content-flow: row nowrap;
-  --content-max-width: unset;
-  --safezone-sides: 1rem;
-  --safezone-top: 1rem;
-}
-
 .purchase-screen {
   width: 35rem;
   color: white;
   background-color: var(--bng-black-o6);
+  align-self: flex-start;
   & :deep(.card-cnt) {
     background-color: var(--bng-black-o6);
   }
@@ -299,14 +380,6 @@ onUnmounted(kill)
     display: flex;
     flex-direction: column;
   }
-}
-
-.right-side {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  justify-self: flex-end;
 }
 
 // Header
@@ -496,8 +569,9 @@ onUnmounted(kill)
 
 // Status sidebar
 .status-container {
+  border-radius: var(--bng-corners-2);
   color: white;
-  align-self: flex-end;
+  align-self: flex-start;
   flex: 0 0 auto;
   .status-add {
     text-align: center;
@@ -514,6 +588,6 @@ onUnmounted(kill)
 
 .task-list {
   width: 33rem;
-  align-self: flex-end;
+  align-self: flex-start;
 }
 </style>

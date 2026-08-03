@@ -1,8 +1,10 @@
 <template>
-   <InfoCard class="mission-ratings" header="Leaderboards"  header-type="line">
+   <InfoCard class="mission-ratings" :header="$t('ui.missions.leaderboards.title')"  header-type="line">
     <template #content>
 
-      Leaderboard: {{$ctx_t(currentProgressKeyTranslation)}}
+      <div v-if="showProgressKeyLabel">
+        {{ $t('ui.missions.leaderboards.label') }}: {{$ctx_t(currentProgressKeyTranslation)}}
+      </div>
       <div class="ratings" v-if="ratings">
 
         <div class="prop-container">
@@ -22,13 +24,13 @@
         <div
           v-if="!Array.isArray(ratings.attempts.rows) || ratings.attempts.rows.length == 0"
           class="caption">
-            No Attempts yet!
+            {{ $t('ui.missions.ratings.noAttempts') }}
         </div>
       </div>
       <div v-else>
         <div
           class="caption">
-            No Attempts yet!
+            {{ $t('ui.missions.ratings.noAttempts') }}
         </div>
       </div>
 
@@ -53,7 +55,7 @@ import { useMissionDetailsStore } from "@/modules/missions/stores/missionDetails
 import InfoCard from "../components/InfoCard.vue"
 import Grid from "../components/Grid.vue"
 const store = useMissionDetailsStore()
-const { formattedProgress, currentProgress,  currentProgressKey, currentProgressKeyTranslation } = storeToRefs(store)
+const { formattedProgress, selectedMission, currentProgress,  currentProgressKey, currentProgressKeyTranslation } = storeToRefs(store)
 const { units } = useBridge()
 const props = defineProps({
 
@@ -63,6 +65,9 @@ const props = defineProps({
 //const currentProgressKey = ref("3-false-false")
 const ratings = computed(() => {
   return currentProgress.value
+})
+const showProgressKeyLabel = computed(() => {
+  return !selectedMission.value?.hideProgressKeyInLeaderboards
 })
 /**
 const currentProgressKeyTranslation = computed(() => {

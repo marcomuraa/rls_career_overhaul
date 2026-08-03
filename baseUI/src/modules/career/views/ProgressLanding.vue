@@ -16,7 +16,16 @@
 
     <template #default>
 
-      <div class="cards-container grid-view" v-if="BRANCHES.length > 0">
+      <div
+        v-bng-scoped-nav="{
+          scopeId: PROGRESS_BRANCH_SCOPE_ID,
+          type: 'container',
+          preferAutoFocus: true,
+          preventNavigationEscape: ['top', 'bottom', 'left', 'right'],
+        }"
+        class="progress-content-scope"
+      >
+        <div class="cards-container grid-view" v-bng-on-ui-nav:back="navigateBackFromProgress">
         <!--<BranchSkillCard
           tabindex="1"
           v-for="branch in BRANCHES.filter(b => !b.isSkill)"
@@ -30,20 +39,24 @@
           bng-nav-item />
       -->
         <BranchSkillCard
-          tabindex="1"
-          v-for="branch in BRANCHES"
+          v-for="(branch, index) in BRANCHES"
+          :key="branch.id"
           v-bng-sound-class="'bng_click_hover_generic'"
           :branchKey="branch.id"
+          :autofocus="isAutofocusBranch(branch.id, index)"
+          @ready="onBranchCardReady"
           @openBranchPage="openBranchPage"
           @mouseenter="onBranchFocus(branch)"
           @mouseleave="onBranchBlur"
-          @focus="onBranchFocus(branch)"
-          @blur="onBranchBlur"
-          bng-nav-item
+          @focusin="onBranchFocus(branch)"
+          @focusout="onBranchBlur"
           display-mode="row"
           :class="{ 'full-width': !isHalfBranch(branch) }" />
       </div>
-      <div v-if="currentSkillToShow && currentSkillToShow.hasLevels && currentSkillToShow.unlockInfo && currentSkillToShow.unlockInfo.length" class="page-progress">
+      <div
+        v-if="currentSkillToShow && currentSkillToShow.hasLevels && currentSkillToShow.unlockInfo && currentSkillToShow.unlockInfo.length && !currentSkillToShow.isInDevelopment"
+        class="page-progress"
+        v-bng-on-ui-nav:back="navigateBackFromProgress">
         <UnlockRows v-if="currentSkillToShow.hasUnlocks"
           class="stat-progress-bar bng-progress-bar progress-bar"
           :headerLeft="$ctx_t(currentSkillToShow.name)"
@@ -58,14 +71,17 @@
           :progressFillColor="currentSkillToShow.accentColor"
         />
       </div>
-      <div v-if="leagues && leagues.length > 0" class="facility-rows">
-        <template v-for="league in leagues" :key="league.id">
+      <div v-if="leagues && leagues.length > 0" class="facility-rows" v-bng-on-ui-nav:back="navigateBackFromProgress">
+        <template v-for="(league, index) in leagues" :key="league.id">
           <LeagueRow
             :league="league"
             :leagueMissionClicked="leagueMissionClicked"
+            :autofocus="BRANCHES.length === 0 && index === 0"
           />
         </template>
       </div>
+      </div>
+      <!--
       <div class="buttons-container" v-if="landingData.showMilestones">
         <BngCard
           bng-nav-item
@@ -75,7 +91,7 @@
           <div class="content">
             <BngIcon class="icon" :type="icons.checkboxOn" />
             <div class="label">
-              Milestones
+              {{ $translate.instant("ui.career.milestones.title") }}
             </div>
             <div v-if="hasUnclaimedMilestones > 0" class="indicator">
 
@@ -83,29 +99,59 @@
           </div>
         </BngCard>
       </div>
+      -->
     </template>
   </ProgressView>
 </template>
 
 <script setup>
 import { BngCard, BngIcon, icons } from "@/common/components/base"
-import { vBngSoundClass } from "@/common/directives"
+import { vBngOnUiNav, vBngScopedNav, vBngSoundClass } from "@/common/directives"
 import BranchSkillCard from "../components/progress/BranchSkillCard.vue"
 import LeagueRow from "../components/progress/LeagueRow.vue"
 import UnlockRows from "../components/progress/UnlockRows.vue"
 import ProgressView from "../components/ProgressView.vue"
-import { ref, onBeforeMount, onMounted, computed, onUnmounted, watch } from "vue"
+import { ref, onBeforeMount, onMounted, computed, onUnmounted, watch, nextTick } from "vue"
 import { lua } from "@/bridge"
-import router from "@/router"
 import { getBranchColorStyle } from "@/utils/colorUtils"
+import { $translate } from "@/services/translation"
+import { useRouteDataStore } from "@/services/routeData"
+import { useScopedNav } from "@/services/scopedNav/api"
 
 const props = defineProps({
-  pathId: String,
-  comesFromBigMap: {
-    type: Boolean,
-    default: false
-  }
+  pathId: String
 })
+
+const PROGRESS_BRANCH_SCOPE_ID = "career-progress-landing"
+const AUTO_FOCUS_BRANCH_SELECTOR = "[bng-scoped-nav-autofocus='true']"
+const routeDataStore = useRouteDataStore()
+const scopedNav = useScopedNav()
+const currentPathId = computed(() => routeDataStore.route?.params?.pathId ?? props.pathId)
+const returnRoute = computed(() => routeDataStore.route?.params?.returnRoute)
+const focusPathId = computed(() => routeDataStore.route?.params?.focusPathId)
+const isPauseCareerBranchRoute = computed(() => String(routeDataStore.routeName || "").startsWith("pause.career.branch"))
+const progressRootRouteName = computed(() => isPauseCareerBranchRoute.value ? "pause.career" : "career.domainSelection")
+const branchRouteName = computed(() => isPauseCareerBranchRoute.value ? "pause.career.branch" : "career.branchPage")
+const missionDetailsRouteName = computed(() => isPauseCareerBranchRoute.value ? "pause.career.branch.missionDetails" : "career.branchPage.mission.details")
+const bigmapRouteName = computed(() => isPauseCareerBranchRoute.value ? "pause.career.branch.bigmap" : "career.branchPage.bigmap")
+const withReturnRoute = params => {
+  if (!returnRoute.value) return params
+  return { ...params, returnRoute: returnRoute.value }
+}
+
+function normalizeProgressBreadcrumbs(breadcrumbs) {
+  if (!isPauseCareerBranchRoute.value || !Array.isArray(breadcrumbs)) return breadcrumbs
+  const normalized = breadcrumbs.map(item => {
+    if (item?.routeName === "career.domainSelection") {
+      return { ...item, routeName: "pause.career" }
+    }
+    if (item?.routeName === "career.progressLanding" || item?.routeName === "career.branchPage") {
+      return { ...item, routeName: "pause.career.branch" }
+    }
+    return item
+  })
+  return normalized
+}
 
 const landingData = ref({
   heading: "ui.career.landingPage.name",
@@ -118,6 +164,7 @@ const landingData = ref({
 const leagues = ref([])
 
 const fetchLandingData = async () => {
+  const pathId = currentPathId.value
   landingData.value = {
     heading: "ui.career.landingPage.name",
     description: "ui.career.landingPage.description",
@@ -125,12 +172,13 @@ const fetchLandingData = async () => {
     showMilestones: true,
     showOrganizations: true
   }
-  const data = await lua.career_modules_branches_landing.getLandingPageData(props.pathId)
+  const data = await lua.career_modules_branches_landing.getLandingPageData(pathId)
+  if (pathId !== currentPathId.value) return
   landingData.value = data
   leagues.value = data.leagues || []
   console.log("data", data)
   if(data.breadcrumbs) {
-    screenHeaderPath.value = data.breadcrumbs
+    screenHeaderPath.value = normalizeProgressBreadcrumbs(data.breadcrumbs)
     console.log("screenHeaderPath", screenHeaderPath.value)
   }
 }
@@ -140,7 +188,7 @@ const hasUnclaimedMilestones = ref(false)
 onMounted(async () => {
   await fetchLandingData()
   lua.career_modules_milestones_milestones.unclaimedMilestonesCount().then((c) => hasUnclaimedMilestones.value = c)
-  //console.log("progressLanding", props.pathId, props.comesFromBigMap)
+  focusBranchCards()
 })
 
 onBeforeMount(() => {
@@ -151,20 +199,25 @@ onUnmounted(() => {
   lua.simTimeAuthority.popPauseRequest('progressLanding')
 })
 
-// Watch for pathId changes and refetch data when navigating between landing pages
-watch(() => props.pathId, async (newPathId, oldPathId) => {
+// Watch for canonical Lua pathId changes and refetch data when navigating between landing pages.
+watch(currentPathId, async (newPathId, oldPathId) => {
   if (newPathId !== oldPathId) {
     await fetchLandingData()
     lua.career_modules_milestones_milestones.unclaimedMilestonesCount().then((c) => hasUnclaimedMilestones.value = c)
+    focusBranchCards()
   }
+})
+
+watch(focusPathId, () => {
+  focusBranchCards()
 })
 
 const leagueMissionClicked = mission => {
   if (mission.canStartFromProgressScreen) {
     lua.extensions.gameplay_missions_missionScreen.setPreselectedMissionId(mission.id)
-    lua.extensions.gameplay_missions_missionScreen.openAPMChallenges(props.pathId, mission.skill[0])
+    lua.extensions.gameplay_missions_missionScreen.openAPMChallenges(currentPathId.value, mission.skill[0], missionDetailsRouteName.value, withReturnRoute({ pathId: currentPathId.value }))
   } else {
-    lua.extensions.gameplay_missions_missionScreen.navigateToMission(mission.id)
+    lua.extensions.gameplay_missions_missionScreen.navigateToMission(mission.id, bigmapRouteName.value, withReturnRoute({ pathId: currentPathId.value }))
   }
 }
 
@@ -188,27 +241,45 @@ const pageDescription = computed(() =>
   currentDescription.value || landingData.value.description
 )
 const BRANCHES = computed(() => landingData.value.branches)
+const getFocusTargetBranch = () => {
+  const targetBranchId = focusPathId.value || BRANCHES.value[0]?.id
+  return BRANCHES.value.find(branch => branch.id === targetBranchId) || null
+}
+const isAutofocusBranch = (branchId, index) => {
+  if (focusPathId.value) {
+    return branchId === focusPathId.value
+  }
+  return index === 0
+}
+
+const focusBranchCards = async () => {
+  await nextTick()
+  const selector = focusPathId.value ? `[data-branch-id="${focusPathId.value}"]` : AUTO_FOCUS_BRANCH_SELECTOR
+  scopedNav.requestScopeFocus(PROGRESS_BRANCH_SCOPE_ID, selector, {
+    activeOnly: false,
+    force: true,
+    reason: focusPathId.value ? "career-branch-back-focus" : "career-branch-default-focus",
+  })
+  const focusedBranch = getFocusTargetBranch()
+  if (focusedBranch) {
+    onBranchFocus(focusedBranch)
+  }
+}
+
+const onBranchCardReady = branchId => {
+  if (branchId === getFocusTargetBranch()?.id) {
+    focusBranchCards()
+  }
+}
 
 const openBranchPage = branchKey => {
-  let target = landingData.value.branches.find(b => b.id === branchKey).target
-  if (target === 'skillPage') {
-    //window.bngVue.gotoGameState("branchPage", { params: { branchKey } })
-  } else if (target === 'landing') {
-  }
   console.log("openBranchPage", branchKey)
-  window.bngVue.gotoGameState("progressLanding", { params: { pathId: branchKey } })
+  window.bngVue.gotoGameState(branchRouteName.value, { params: withReturnRoute({ pathId: branchKey }) })
 }
-const exit = () => {
-  //console.log("exit", props.pathId, props.comesFromBigMap)
-  if(props.pathId && !props.comesFromBigMap) {
-    router.back()
-  } else {
-    window.bngVue.gotoAngularState("menu.careerPause")
-  }
-}
+const exit = () => navigateBackFromProgress()
 
-const openReputationScreen = () => window.bngVue.gotoGameState("organizations")
-const openMilestonesScreen = () => window.bngVue.gotoGameState("milestones")
+const openReputationScreen = () => window.bngVue.gotoGameState("career.organizations")
+
 
 
 const onBranchFocus = (branch) => {
@@ -231,21 +302,47 @@ const currentSkillToShow = computed(() => {
 
 //breadcrumbs
 const screenHeaderPath = ref([
-  { label: "Career", path: "/career" },
-  { label: landingData.value.heading, path: `/career/${landingData.value.id}` }
+  { label: $translate.instant("ui.environment.pause"), routeName: "pause" },
+  { label: landingData.value.heading, routeName: progressRootRouteName.value }
 ])
-const gotoHeaderItem = (item) => {
-  if(item.gotoPath) {
-    window.bngVue.gotoGameState(item.gotoPath.path, { params: item.gotoPath.props })
-    console.log("gotoPath", item.gotoPath)
+const gotoHeaderItem = (item, options = {}) => {
+  if( item.routeName) {
+    const shouldPassFocusPath =
+      options.focusCurrentPath !== false &&
+      isPauseCareerBranchRoute.value &&
+      (item.routeName === "pause.career" || item.routeName === "pause.career.branch")
+    if (shouldPassFocusPath && item.routeName === "pause.career" && typeof window !== "undefined") {
+      window.__pauseCareerFocusPathId = currentPathId.value
+    }
+    const params = shouldPassFocusPath
+      ? withReturnRoute({ ...(item.params || {}), focusPathId: currentPathId.value })
+      : item.params
+    if (params) {
+      window.bngVue.gotoGameState(item.routeName, { params })
+      return
+    }
+    window.bngVue.gotoGameState(item.routeName)
   }
   if(item.gotoAngularState) {
     window.bngVue.gotoAngularState(item.gotoAngularState)
   }
 }
-const onBreadBack = () => {
-  gotoHeaderItem(screenHeaderPath.value[screenHeaderPath.value.length - 2])
+function getProgressBackTarget() {
+  if (!isPauseCareerBranchRoute.value) return null
+  const breadcrumbs = Array.isArray(screenHeaderPath.value) ? screenHeaderPath.value : []
+  if (breadcrumbs.length >= 2) return breadcrumbs[breadcrumbs.length - 2]
+  return { routeName: "pause.career" }
 }
+
+const navigateBackFromProgress = () => {
+  const target = getProgressBackTarget()
+  if (target) {
+    gotoHeaderItem(target)
+    return
+  }
+  lua.extensions.ui_router.back()
+}
+const onBreadBack = navigateBackFromProgress
 
 </script>
 
@@ -272,6 +369,13 @@ const onBreadBack = () => {
   gap: 1rem;
   padding: 0.5rem;
   padding-bottom: 0;
+}
+
+.progress-content-scope {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.25rem;
 }
 
 .cards-container {
@@ -341,7 +445,7 @@ const onBreadBack = () => {
       background-color: rgba(var(--bng-cool-gray-800-rgb), 0.9) !important;
     }
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     justify-content: center;
     align-items: center;
 

@@ -1,170 +1,185 @@
-// services/scopedNav/api.js
-import { useScopeCoordinator } from "./coordinator"
-import { INPUT_MODES, SCOPE_STATUS } from "./types"
+// Public API - Clean interface for components
+
+import { computed, onMounted, onUnmounted } from "vue"
+import { getScopeCoordinatorInstance } from "./coordinator"
+import { getRouteScopeValidatorInstance } from "./routeScopeValidator"
+import { getScopeForElement, getScopeHierarchy } from "./utils"
+import {
+  buildRouteEntryFocus,
+  getFromRouteName,
+  getRouteScopeMeta,
+  getScreenRootScopeId,
+  getTargetScopeId,
+} from "./routeIntegration"
+import { lua } from "@/bridge"
+import { useRouteDataStore } from "@/services/routeData"
 
 /**
- * Main API for scoped navigation
+ * Main composable for scoped navigation
  */
-export function useScopedNavigation() {
-  const coordinator = useScopeCoordinator()
+export function useScopedNav() {
+  const coordinator = getScopeCoordinatorInstance()
 
   return {
-    // === CORE SCOPE MANAGEMENT ===
+    // Scope operations
+    activateScope: (id, opts) => coordinator.activateScope(id, opts),
+    deactivateScope: (id, opts) => coordinator.deactivateScope(id, opts),
+    suspendScope: id => coordinator.suspendScope(id),
+    resumeScope: id => coordinator.resumeScope(id),
+    // TODO: Proxy to activateScope for now, when requirements become more complex, add a dedicated switchScope method
+    switchScope: (id, opts) => coordinator.activateScope(id, opts),
+    requestScopeFocus: (id, targetOrOptions, options) => requestScopeFocus(coordinator, id, targetOrOptions, options),
+    requestCurrentScopeFocus: (targetOrOptions, options) => requestCurrentScopeFocus(coordinator, targetOrOptions, options),
 
-    /**
-     * Switch to a specific scope by name/ID
-     * @param {string} scopeId - Target scope identifier
-     * @param {Object} options - Switch options
-     * @param {boolean} options.exclusive - Deactivate other scopes
-     * @param {boolean} options.focus - Auto-focus on switch
-     * @param {'active'|'partial'} options.activationType - Activation type
-     */
-    switchScope: (scopeId, options = {}) => coordinator.switchScope(scopeId, options),
+    // Pending activation
+    setPendingActivation: (id, options) => coordinator.setPendingActivation(id, options),
+    clearPendingActivation: () => coordinator.clearPendingActivation(),
 
-    /**
-     * Activate a scope
-     * @param {string} scopeId
-     * @param {Object} options
-     */
-    activateScope: (scopeId, options = {}) => coordinator.activateScope(scopeId, options),
+    // Activation barrier (defer normal-scope resume while a host stays top-layer active)
+    beginActivationBarrier: id => coordinator.beginActivationBarrier(id),
+    endActivationBarrier: id => coordinator.endActivationBarrier(id),
 
-    /**
-     * Deactivate a scope
-     * @param {string} scopeId
-     * @param {Object} options
-     */
-    deactivateScope: (scopeId, options = {}) => coordinator.deactivateScope(scopeId, options),
+    // Queries
+    currentScope: () => coordinator.getCurrentScope(),
+    isActiveScope: id => coordinator.isActiveScope(id),
+    getScopeById: id => coordinator.getScopeById(id),
+    getParentScope: id => coordinator.getParentScope(id),
 
-    // === GLOBAL CONTROL ===
+    // Element scope queries (stateless DOM lookups)
+    getScopeForElement: el => getScopeForElement(el),
+    getScopeHierarchy: el => getScopeHierarchy(el),
 
-    /**
-     * Enable scoped navigation globally
-     */
-    enable: () => coordinator.setEnabled(true),
-
-    /**
-     * Disable scoped navigation globally
-     */
-    disable: () => coordinator.setEnabled(false),
-
-    /**
-     * Check if scoped navigation is enabled
-     */
-    isEnabled: () => coordinator.enabled.value,
-
-    // === INPUT MODE MANAGEMENT ===
-
-    /**
-     * Set input mode to mouse
-     */
-    setMouseMode: () => coordinator.setInputMode(INPUT_MODES.MOUSE),
-
-    /**
-     * Set input mode to controller
-     */
-    setControllerMode: () => coordinator.setInputMode(INPUT_MODES.CONTROLLER),
-
-    /**
-     * Set input mode to hybrid (auto-detect)
-     */
-    setHybridMode: () => coordinator.setInputMode(INPUT_MODES.HYBRID),
-
-    /**
-     * Get current input mode
-     */
-    getInputMode: () => coordinator.inputMode.value,
-
-    // === STATE INSPECTION ===
-
-    /**
-     * Get currently active scope
-     */
-    getCurrentScope: () => coordinator.getCurrentScope(),
-
-    /**
-     * Get all active scopes
-     */
-    getActiveScopes: () => coordinator.getActiveScopes(),
-
-    /**
-     * Get scope stack (activation order)
-     */
-    getScopeStack: () => coordinator.scopeStack.value,
-
-    /**
-     * Get scope by ID
-     */
-    getScope: scopeId => coordinator.scopes.get(scopeId),
-
-    /**
-     * Check if scope is active
-     */
-    isScopeActive: scopeId => {
-      const scope = coordinator.scopes.get(scopeId)
-      return scope && scope.status !== SCOPE_STATUS.INACTIVE
-    },
-
-    // === ADVANCED FEATURES ===
-
-    /**
-     * Create scope group for batch operations
-     * @param {string[]} scopeIds
-     */
-    createScopeGroup: scopeIds => ({
-      activate: () => Promise.all(scopeIds.map(id => coordinator.activateScope(id))),
-      deactivate: () => Promise.all(scopeIds.map(id => coordinator.deactivateScope(id))),
-      toggle: () => {
-        const allActive = scopeIds.every(id => {
-          const scope = coordinator.scopes.get(id)
-          return scope && scope.status !== SCOPE_STATUS.INACTIVE
-        })
-
-        if (allActive) {
-          return Promise.all(scopeIds.map(id => coordinator.deactivateScope(id)))
-        } else {
-          return Promise.all(scopeIds.map(id => coordinator.activateScope(id)))
-        }
-      },
-    }),
-
-    /**
-     * Add observer for scope events
-     * @param {Object} observer
-     */
-    addObserver: observer => coordinator.addObserver(observer),
-
-    /**
-     * Remove observer
-     * @param {Object} observer
-     */
-    removeObserver: observer => coordinator.removeObserver(observer),
-
-    // === UTILITY METHODS ===
-
-    /**
-     * Find scope containing element
-     * @param {HTMLElement} element
-     */
-    findScopeForElement: element => {
-      const scopeElement = element.closest("[bng-scoped-nav]")
-      if (!scopeElement) return null
-
-      const scopeId = scopeElement.getAttribute("bng-scoped-nav")
-      return coordinator.scopes.get(scopeId)
-    },
-
-    /**
-     * Debug: Get internal state
-     */
-    debug: () => ({
-      enabled: coordinator.enabled.value,
-      inputMode: coordinator.inputMode.value,
-      scopeCount: coordinator.scopes.size,
-      stackDepth: coordinator.scopeStack.value.length,
-      scopes: Array.from(coordinator.scopes.entries()),
-    }),
+    // Reactive state (computed refs)
+    current: computed(() => coordinator.getCurrentScope()),
+    stack: computed(() => coordinator.scopeStack),
+    popupStack: computed(() => coordinator.popupScopeStack),
   }
 }
 
-// Convenience exports for common operations
-export const scopedNav = useScopedNavigation()
+function requestCurrentScopeFocus(coordinator, targetOrOptions, options) {
+  const scope = coordinator.getCurrentScope()
+  if (!scope) return false
+  return requestScopeFocus(coordinator, scope.id, targetOrOptions, options)
+}
+
+function requestScopeFocus(coordinator, id, targetOrOptions, options) {
+  if (isFocusTarget(targetOrOptions)) {
+    return coordinator.requestScopeFocus(id, targetOrOptions, withDefaultFocusReason(options))
+  }
+
+  return coordinator.requestScopeFocus(id, withDefaultFocusReason(targetOrOptions))
+}
+
+function withDefaultFocusReason(options) {
+  return {
+    ...(options || {}),
+    reason: options?.reason || "api-request",
+  }
+}
+
+function isFocusTarget(value) {
+  return typeof value === "string" || (!!value && typeof value === "object" && value.nodeType === 1)
+}
+
+/**
+ * Register a scope observer
+ */
+export function useScopedNavObserver(observer) {
+  const coordinator = getScopeCoordinatorInstance()
+
+  onMounted(() => coordinator.addObserver(observer))
+  onUnmounted(() => coordinator.removeObserver(observer))
+}
+
+/**
+ * Resolve back navigation for a scope using route-defined metadata.
+ * Reads scopeParentMap from the route data store to decide whether
+ * to activate a sibling/parent scope or fall back to Lua router back.
+ */
+export function luaRouterScopedNavBack(scopeId) {
+  const store = useRouteDataStore()
+  const scopeMeta = getRouteScopeMeta(store, scopeId)
+
+  if (!scopeMeta) {
+    lua.extensions.ui_router.back()
+    return
+  }
+
+  const coordinator = getScopeCoordinatorInstance()
+  const validator = getRouteScopeValidatorInstance()
+
+  if (scopeMeta.backTargetType === "route") {
+    if (scopeMeta.backTarget) {
+      lua.extensions.ui_router.navigate(scopeMeta.backTarget, null, { restoreLastScope: true })
+    } else {
+      lua.extensions.ui_router.back()
+    }
+    return
+  }
+
+  if (scopeMeta.backTarget) {
+    if (scopeMeta.backTargetType === "scope") {
+      validator?.validateScopeTarget(scopeMeta.backTarget, { trigger: "back", fromScopeId: scopeId })
+      coordinator.activateScope(scopeMeta.backTarget)
+      return
+    }
+  }
+
+  if (scopeMeta.parentScopeId !== false) {
+    validator?.validateScopeTarget(scopeMeta.parentScopeId, { trigger: "back", fromScopeId: scopeId })
+    coordinator.activateScope(scopeMeta.parentScopeId)
+    return
+  }
+
+  lua.extensions.ui_router.back()
+}
+
+/**
+ * Activate the screen root scope for the current route.
+ * Reads the route scopes from the global router state and activates
+ * the screen root scope if one is defined.
+ */
+export function activateScreenRootScope() {
+  const rootScope = getScreenRootScopeId(useRouteDataStore())
+  if (!rootScope) return false
+  getScopeCoordinatorInstance().activateScope(rootScope)
+  return true
+}
+
+/**
+ * Read targetScope from the route data store and set it as the
+ * pending activation on the scope coordinator. Called after
+ * routeMounted completes so activation happens post-mount.
+ *
+ * Also registers a one-shot route-entry focus payload with the
+ * coordinator so the route-target focus intent survives even when
+ * the target scope is already mounted/active and only re-renders,
+ * or is resumed instead of freshly activated. The directive's
+ * focus selection consumes the payload exactly once.
+ */
+export function activateRouteTargetScope() {
+  const store = useRouteDataStore()
+  const targetScope = getTargetScopeId(store)
+  if (!targetScope) return false
+
+  getRouteScopeValidatorInstance()?.validateScopeTarget(targetScope, { trigger: "activateRouteTargetScope" })
+
+  const coordinator = getScopeCoordinatorInstance()
+  const routeEntryFocus = buildRouteEntryFocus(getFromRouteName(store))
+  coordinator.setRouteEntryFocus(targetScope, routeEntryFocus)
+  coordinator.setPendingActivation(targetScope, routeEntryFocus)
+  return true
+}
+
+/**
+ * Install the global router hook for clearing pending activation
+ * on route cancellation. Call once during app initialization.
+ */
+export function installGlobalRouterHook() {
+  window.__luaRouter__._clearPendingActivation = () => {
+    try {
+      const { clearPendingActivation } = useScopedNav()
+      clearPendingActivation()
+    } catch (e) {}
+  }
+}

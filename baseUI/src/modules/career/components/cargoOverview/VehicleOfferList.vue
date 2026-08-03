@@ -213,7 +213,8 @@ const pad = n => ("" + n).padStart(2, 0)
     padding: 0em 0.2em 0em;
     &.tableButtons {
       // display: flex;
-      // flex-flow: row nowrap;
+      // flex-direction: row;
+      // flex-wrap: nowrap;
       //   text-align: end;
       //   & :deep(.targetDropdown) {
       //     text-align: center;
@@ -223,7 +224,8 @@ const pad = n => ("" + n).padStart(2, 0)
       //   }
       .buttonsWrapper {
         display: flex;
-        flex-flow: row wrap;
+        flex-direction: row;
+        flex-wrap: wrap;
         min-width: 8em;
         max-width: 18em;
         align-items: baseline;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest"
 import { UINavService } from "@/services/uiNav"
-import Emitter from "tiny-emitter"
+import Emitter from "eventemitter3"
 
 describe("UINavService Active Scope Test", () => {
   it("should have undefined activeScope initially", () => {

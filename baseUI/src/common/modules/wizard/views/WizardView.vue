@@ -1,5 +1,5 @@
 <template>
-  <LayoutSingle class="layout-content-full content-center layout-paddings wizard-view" v-bng-blur>
+  <LayoutSingle class="layout-content-full content-center wizard-view" v-bng-blur v-bng-ui-nav>
     <Wizard
       ref="wizardRef"
       v-bind="props"
@@ -18,7 +18,7 @@
 
 <script setup>
 import { ref, useSlots } from "vue"
-import { vBngBlur } from "@/common/directives"
+import { vBngBlur, vBngUiNav } from "@/common/directives"
 import { LayoutSingle } from "@/common/layouts"
 import Wizard, { wizardProps } from "./Wizard.vue"
 

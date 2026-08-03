@@ -1,6 +1,8 @@
-import { vi, describe, it, expect } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import FuelTypeSettings from '@/modules/refuel/components/FuelTypeSettings'
+import { createPinia, setActivePinia } from 'pinia'
+import Emitter from 'eventemitter3'
+import FuelTypeSettings from '@/modules/refuel/components/FuelTypeSettings.vue'
 
 const bngVueMock = vi.fn(() => {
     isProd: false
@@ -8,7 +10,28 @@ const bngVueMock = vi.fn(() => {
 
 vi.stubGlobal('bngVue', bngVueMock)
 
+// BngBinding (the gamepad-hint chrome inside BngButton) needs a full app boot
+// (uiNavTracker, ScopeCoordinator, $simplemenu injection) that's out of scope here
+const mountStubs = {
+    global: {
+        stubs: { BngBinding: true },
+    },
+}
+
 describe('Refuel/FuelNozzle.vue Test', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        // the prev/next buttons trigger a UI sound, which reaches into the bridge
+        window.bridge = {
+            events: new Emitter(),
+            api: {
+                engineLua: vi.fn(),
+                activeObjectLua: vi.fn(),
+                serializeToLua: vi.fn(v => JSON.stringify(v)),
+            },
+        }
+    })
+
     it('Previous button clicked should emit previousClick', async () => {
         const wrapper = mount(FuelTypeSettings, {
             props: {
@@ -18,7 +41,8 @@ describe('Refuel/FuelNozzle.vue Test', () => {
                     { id: 2, value: 1, name: "FuelType-2" },
                     { id: 3, value: 2, name: "FuelType-3" }
                 ]
-            }
+            },
+            ...mountStubs,
         })
         const previousButton = wrapper.find('[data-testid="previous-btn"')
 
@@ -36,7 +60,8 @@ describe('Refuel/FuelNozzle.vue Test', () => {
                     { id: 2, value: 1, name: "FuelType-2" },
                     { id: 3, value: 2, name: "FuelType-3" }
                 ]
-            }
+            },
+            ...mountStubs,
         })
         const previousButton = wrapper.find('[data-testid="next-btn"')
 

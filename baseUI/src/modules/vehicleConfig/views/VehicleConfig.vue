@@ -1,11 +1,13 @@
 <template>
   <LayoutSingle
     v-bng-scoped-nav="{ activateOnMount: true, bubbleWhitelistEvents: ['tab_l', 'tab_r', 'menu'] }"
+    v-bng-on-ui-nav:back="onBack"
+    v-bng-on-ui-nav:menu="onMenu"
     class="vehcfg"
-    @deactivate="exit"
   >
     <Tabs class="bng-tabs" v-bng-frustum-mover.left="true" @change="syncWithStates">
       <TabList v-bng-blur />
+      <PartsPacks :tab-selected="tab === 'partpacks'" :tab-heading="'Parts Packs'" v-bng-blur />
       <Parts :tab-selected="tab === 'parts'" :tab-heading="$t('ui.vehicleconfig.parts')" v-bng-blur />
       <Tuning :tab-selected="tab === 'tuning'" :tab-heading="$t('ui.vehicleconfig.tuning')" v-bng-blur />
       <Paint :tab-selected="tab === 'color'" :tab-heading="$t('ui.vehicleconfig.color')" v-bng-blur />
@@ -16,10 +18,13 @@
 </template>
 
 <script setup>
+import { useRoute } from "vue-router"
 import { LayoutSingle } from "@/common/layouts"
 import { Tabs, TabList } from "@/common/components/utility"
-import { vBngScopedNav, vBngBlur, vBngFrustumMover } from "@/common/directives"
+import { vBngOnUiNav, vBngScopedNav, vBngBlur, vBngFrustumMover } from "@/common/directives"
+import { lua } from "@/bridge"
 
+import PartsPacks from "../components/PartsPacks.vue"
 import Parts from "../components/Parts.vue"
 import Tuning from "../components/Tuning.vue"
 import Paint from "../components/Paint.vue"
@@ -27,33 +32,41 @@ import Save from "../components/Save.vue"
 import Debug from "../components/Debug.vue"
 
 
-const props = defineProps({
+defineProps({
   tab: {
     type: String,
     default: "parts",
-    validator: val => !val || ["parts", "tuning", "color", "save", "debug"].includes(val),
+    validator: val => !val || ["partpacks", "parts", "tuning", "color", "save", "debug"].includes(val),
   },
 })
 
-const exit = (event) => {
-  if (event.detail.force) return
-  window.bngVue.gotoAngularState("menu.mainmenu")
+const route = useRoute()
+
+function onBack() {
+  lua.extensions.ui_router.back()
+}
+function onMenu() {
+  window.bngVue.gotoAngularState("menu")
 }
 
 function syncWithStates(tab) {
+  const tabName = ["partpacks", "parts", "tuning", "color", "save", "debug"][tab.index] || "parts"
+
+  // radial-owned vehicle config must stay in the radial.* route family instead of
+  // pulling the user back into the menu.vehicleconfig.* angular flow
+  if (typeof route.name === "string" && route.name.startsWith("radial.vehicleconfig")) {
+    lua.extensions.ui_router.navigate(`radial.vehicleconfig.${tabName}`)
+    return
+  }
+
   if (!window.bngVue) return
-  tab = ["parts", "tuning", "color", "save", "debug"][tab.index] || "parts"
+  tab = ["partpacks", "parts", "tuning", "color", "save", "debug"][tab.index] || "parts"
   window.bngVue.gotoAngularState(`menu.vehicleconfig.${tab}`)
 }
-
-const backToOld = () => window.bngVue && window.bngVue.gotoAngularState(`menu.vehicleconfigold.${props.tab}`)
 </script>
 
 <style lang="scss" scoped>
 .vehcfg {
-  --safezone-top: 2.75em;
-  --safezone-bottom: 3.75em;
-  --safezone-sides: 0;
   pointer-events: none;
   > * {
     pointer-events: all;

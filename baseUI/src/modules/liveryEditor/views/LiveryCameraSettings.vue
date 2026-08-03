@@ -1,9 +1,15 @@
 <template>
-  <div class="camera-settings-view" bng-ui-scope="camera-settings-scope" v-bng-on-ui-nav:back="goBack" v-bng-on-ui-nav:menu="done">
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+  <LayoutMenu
+    class="camera-settings-view"
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    :show-breadcrumb-back-button="true"
+    heading="Camera Settings"
+    @breadcrumb-click="onBreadcrumbClick"
+    @breadcrumb-back="onBreadcrumbBack">
+    <div class="main-view-content" v-bng-on-ui-nav:back="goBack" v-bng-on-ui-nav:menu="done">
       <div class="menu-container">
         <BngImageTile
           v-for="item in MENU_ITEMS"
@@ -15,7 +21,7 @@
           @click="onMenuItemClicked(item)" />
       </div>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script>
@@ -65,41 +71,42 @@ const MENU_ITEMS = [
 
 <script setup>
 import { onBeforeMount, onMounted, ref } from "vue"
-import { storeToRefs } from "pinia"
 import { lua } from "@/bridge"
 import { useInfoBar } from "@/services/infoBar"
-import { useUINavScope } from "@/services/uiNav"
 import { vBngOnUiNav, vBngBlur } from "@/common/directives"
 import { BngButton, BngCardHeading, BngIcon, BngImageTile, BngList, icons, ACCENTS, LIST_LAYOUTS } from "@/common/components/base"
-import { useEditorHeaderStore, useDecalSelectorStore } from "@/modules/liveryEditor/stores"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
+import { LayoutMenu } from "@/common/layouts"
+import { useDecalSelectorStore } from "@/modules/liveryEditor/stores"
 import DecalSelectorItem from "@/modules/liveryEditor/components/DecalSelectorItem.vue"
-import router from "@/router"
+import { useLiveryBreadcrumbNavigation } from "@/modules/liveryEditor/composables/useLiveryBreadcrumbNavigation"
 
 const CAMERA_LUA = lua.extensions.ui_liveryEditor_camera
 
-const headerStore = useEditorHeaderStore()
 const store = useDecalSelectorStore()
 const infobar = useInfoBar()
 
-const uiNav = useUINavScope("camera-settings-scope")
+const { breadcrumbItems, onBreadcrumbClick, onBreadcrumbBack } = useLiveryBreadcrumbNavigation({
+  handleBack: () => {
+    goBack()
+    return true
+  },
+})
 
 function onMenuItemClicked(item) {
   CAMERA_LUA.setOrthographicView(item.value)
 }
 
 function goBack() {
-  router.replace({ name: "LiveryDecals" })
+  lua.extensions.ui_router.navigate("livery.editor.decals", null, null)
 }
 
 function done() {
-  router.replace({ name: "LiveryDecalSelector" })
+  lua.extensions.ui_router.navigate("livery.editor.decals.selector", null, null)
 }
 
 onBeforeMount(() => {
   infobar.clearHints()
   infobar.addHints(NAV_HINTS)
-  headerStore.setPreheader(["Select Camera"])
 })
 
 onMounted(() => {

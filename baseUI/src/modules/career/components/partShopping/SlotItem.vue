@@ -1,15 +1,16 @@
 <template>
   <AccordionItem
-    :static="static"
+    :static="isStatic"
     :expanded="expanded"
+    :primary-action="() => openSlot()"
+    :expand-on-context="false"
+    navigable
+    expand-hint-inline
+    primary-hint-inline
     @expanded="itemExpanded"
     @focus="onFocus"
     @unfocus="onUnfocus"
     @selected="selectSlot"
-    navigable
-    :primary-action="() => partShoppingStore.setSlot(path)"
-    expand-hint-inline
-    primary-hint-inline
   >
     <template #caption>
       <div v-if="partShoppingStore.slotToScrollTo === path" class="highlighted">
@@ -26,7 +27,7 @@
         bng-no-nav="true"
         class="buy-button"
         :accent="ACCENTS.outlined"
-        @click="partShoppingStore.setSlot(path)"
+        @click="openSlot()"
         v-bng-tooltip:top="partNiceName"
         :style="{backgroundColor: partShoppingStore.slotToScrollTo && partShoppingStore.slotToScrollTo == path ? 'rgba(75,75,75,0.8)' : '' }"
       >
@@ -41,11 +42,12 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from "vue"
+import { lua } from "@/bridge"
+import { vBngTooltip } from "@/common/directives"
+import { BngButton, ACCENTS } from "@/common/components/base"
 import { AccordionItem } from "@/common/components/utility"
-import { vBngTooltip, vBngOnUiNav } from "@/common/directives"
-import { BngButton, ACCENTS, BngBinding } from "@/common/components/base"
 import { usePartShoppingStore } from "../../stores/partShoppingStore"
-import { ref, onMounted } from "vue"
 
 const slotItem = ref()
 const focused = ref(false)
@@ -68,6 +70,8 @@ const start = () => {
   }
 }
 
+const isStatic = computed(() => props.static)
+
 onMounted(start)
 
 const partShoppingStore = usePartShoppingStore()
@@ -84,8 +88,14 @@ const onUnfocus = val => {
   focused.value = false
 }
 
+const openSlot = () =>
+  lua.extensions.ui_router.navigate("career.computer.partShopping.category.slot", {
+    category: partShoppingStore.category,
+    slotPath: props.path,
+  })
+
 const selectSlot = val => {
-  partShoppingStore.setSlot(props.path)
+  openSlot()
 }
 </script>
 

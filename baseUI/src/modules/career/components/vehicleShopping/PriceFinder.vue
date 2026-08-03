@@ -2,7 +2,7 @@
   <div v-if="priceFinderData" class="price-finder-container"
     :class="{ 'selling': amISelling, 'buying': !amISelling }">
     <div class="price-finder-label right">
-      {{ priceFinderData.topIsTheir ? 'Your' : 'Their' }} Asking Price:
+      {{ $translate.instant("ui.career.negotiation.priceFinderAskingPrice") }}
       <BngUnit class="money" :money="priceFinderData.rightPrice" />
     </div>
 
@@ -61,7 +61,12 @@
     </div>
 
     <div class="price-finder-label left">
-      {{ priceFinderData.topIsTheir ? 'Their' : 'Your' }} initial offer:
+      <template v-if="priceFinderData.topIsTheir">
+        {{ $translate.instant("ui.career.negotiation.theirInitialOffer") }}
+      </template>
+      <template v-else>
+        {{ $translate.instant("ui.career.negotiation.yourInitialOffer") }}
+      </template>
       <BngUnit class="money" :money="priceFinderData.leftPrice" />
     </div>
   </div>
@@ -71,6 +76,8 @@
 import { computed } from "vue"
 import { BngUnit } from "@/common/components/base"
 import { useBridge } from "@/bridge"
+import { $translate } from "@/services/translation"
+import { clamp } from "@/utils/maths"
 
 const { units } = useBridge()
 
@@ -259,7 +266,7 @@ const priceFinderData = computed(() => {
 
     return {
       ...offer,
-      position: Math.max(0, Math.min(100, position)), // Clamp between 0 and 100
+      position: clamp(position, 0, 100),
       isMostRecent: isMostRecent
     }
   })

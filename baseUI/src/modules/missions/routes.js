@@ -1,6 +1,10 @@
 // Mission related routes
-import * as views from "./views"
+import MissionControl from "./views/MissionControl.vue"
+import MissionsGrid from "./views/MissionsGrid.vue"
+import MissionDragHistory from "./views/MissionDragHistory.vue"
+import MissionDragRules from "./views/MissionDragRules.vue"
 import MissionDetailsNew from "./views/MissionDetailsNew.vue"
+import AiCompetitorsLeaderboardTable from "./components/AiCompetitorsLeaderboardTable.vue"
 import { CROSSFIRE_HINTS_ALL } from "@/services/infoBar.js"
 export default [
   {
@@ -9,7 +13,7 @@ export default [
       // Details
       {
         path: "details",
-        name: "mission-details",
+        name: "mission.details",
         component: MissionDetailsNew,
         // component: views.MissionDetails,
         meta: {
@@ -27,8 +31,8 @@ export default [
 
       {
         path: "mission-control/:mode(\\*?.*?)?",
-        name: "mission-control",
-        component: views.MissionControl,
+        name: "mission.control",
+        component: MissionControl,
         meta: {
           uiApps: {
             shown: false,
@@ -45,8 +49,8 @@ export default [
       // WIP: grid viewer
       {
         path: "grid",
-        name: "missions-grid",
-        component: views.MissionsGrid,
+        name: "mission.grid",
+        component: MissionsGrid,
         meta: {
           uiApps: {
             shown: false,
@@ -55,8 +59,8 @@ export default [
       },
       {
         path: "dragHistory/:id(\\*?.*?)?:name?/:level?/",
-        name: "dragHistory",
-        component: views.MissionDragHistory,
+        name: "mission.dragHistory",
+        component: MissionDragHistory,
         meta: {
           uiApps: {
             shown: false,
@@ -68,6 +72,37 @@ export default [
           },
         },
         props: true,
+      },
+      {
+        path: "dragRules/:id/:level",
+        name: "mission.dragRules",
+        component: MissionDragRules,
+        meta: {
+          uiApps: {
+            shown: false,
+          },
+          infoBar: {
+            visible: true,
+            showSysInfo: false,
+            hints: CROSSFIRE_HINTS_ALL,
+          },
+        },
+        props: true,
+      },
+      {
+        path: "AiCompetitorsLeaderboardTable",
+        name: "mission.AiCompetitorsLeaderboardTable",
+        component: AiCompetitorsLeaderboardTable,
+        meta: {
+          uiApps: {
+            shown: false,
+          },
+          infoBar: {
+            visible: true,
+            showSysInfo: false,
+            hints: CROSSFIRE_HINTS_ALL,
+          },
+        },
       },
     ],
   },

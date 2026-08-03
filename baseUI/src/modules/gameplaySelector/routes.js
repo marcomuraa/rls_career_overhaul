@@ -1,23 +1,31 @@
 import GameplaySelector from "./views/GameplaySelector.vue"
 
-export default [
-  {
-    name: "menu.gameplayselector",
-    path: "/gameplay-selector/:pathMatch(.*)*",
+const gameplaySelectorMeta = {
+  clickThrough: true,
+  handlesOwnReady: true,
+  infoBar: {
+    visible: true,
+    showSysInfo: false,
+  },
+  uiApps: {
+    shown: false,
+  },
+  topBar: {
+    visible: true,
+  },
+}
+
+function buildGameplaySelectorRoute(name, path) {
+  return {
+    name,
+    path,
     component: GameplaySelector,
-    props: true,
-    meta: {
-      clickThrough: true,
-      infoBar: {
-        visible: true,
-        showSysInfo: false,
-      },
-      uiApps: {
-        shown: false,
-      },
-      topBar: {
-        visible: true,
-      }
-    },
+    meta: gameplaySelectorMeta,
   }
+}
+
+export default [
+  buildGameplaySelectorRoute("menu.gameplay", "/gameplay-selector"),
+  buildGameplaySelectorRoute("menu.rallySelector", "/gameplay-selector/rally"),
+  buildGameplaySelectorRoute("menu.gameplay.type", "/gameplay-selector/type"),
 ]

@@ -1,7 +1,5 @@
 import { icons } from "@/common/components/base"
-import { $translate } from "@/services/translation"
 import { uniqueSafeId } from "@/services/uniqueId"
-import useControls from "@/services/controls"
 
 // note: all sizes are in range 0..1 for convenience
 const cfg = {
@@ -78,20 +76,6 @@ const cfg = {
 const size = 500 // rendering size in pixels (does not affect the appearance, but might have an effect on the different renderers; can be down to 1 px)
 const pointerRadius = 125
 
-let controlsHotkey = ""
-
-const getHotkey = action => {
-  const controls = useControls()
-  const viewerObj = controls.makeViewerObj({ action })
-  if (viewerObj) {
-    return icons[viewerObj.icon].glyph
-      + " "
-      + viewerObj.control.split(/[ -]/).map(s => s.substring(0, 1).toUpperCase() + s.substring(1)).join("+")
-  } else {
-    return ""
-  }
-}
-
 export default class RadialSVG {
   /** Parent element for `<svg>` */
   parent
@@ -103,14 +87,12 @@ export default class RadialSVG {
   events
   /** Svg element container, provided by `createSvg` */
   itemsCont
-  /** Information object with svg elements, provided by `createSvg` */
-  info
   /** Array of rendered buttons */
   buttons
   /** Pointer element */
   pointer
   /** Default menu icon */
-  menuIcon = ''
+  menuIcon = ""
 
   /**
    * Creates `<svg>` inside of the `element`
@@ -134,7 +116,7 @@ export default class RadialSVG {
     if (this.parent === element) return
     this.parent = element
     if (!this.svg) {
-      [this.svg, this.itemsCont, this.info, this.pointer] = createSvg(this.config)
+      [this.svg, this.itemsCont, this.pointer] = createSvg(this.config)
     }
     this.parent.appendChild(this.svg)
   }
@@ -144,9 +126,8 @@ export default class RadialSVG {
    * @param {Array<Object>} items Array of data items
    */
   update(items = []) {
-    if (!this.itemsCont || !this.info) return
-    controlsHotkey = getHotkey("menu_item_focus_ud")
-    this.buttons = updateSvg(this.itemsCont, this.info, items, this.events, this.config, this.buttons || [], this)
+    if (!this.itemsCont) return
+    this.buttons = updateSvg(this.itemsCont, items, this.events, this.config, this.buttons || [])
   }
 
   dispose() {
@@ -155,7 +136,7 @@ export default class RadialSVG {
     this.parent = null
     this.svg = null
     this.itemsCont = null
-    this.info = null
+    this.pointer = null
     this.buttons = null
   }
 
@@ -171,11 +152,11 @@ export default class RadialSVG {
     if (magnitude > 0.1) {
       x = x / magnitude
       y = y / magnitude
-      this.pointer.setAttribute('cx',  x * pointerRadius + size / 2)
-      this.pointer.setAttribute('cy', -y * pointerRadius + size / 2)
-      this.pointer.setAttribute('display', 'block')
+      this.pointer.setAttribute("cx", x * pointerRadius + size / 2)
+      this.pointer.setAttribute("cy", -y * pointerRadius + size / 2)
+      this.pointer.setAttribute("display", "block")
     } else {
-      this.pointer.setAttribute('display', 'none')
+      this.pointer.setAttribute("display", "none")
     }
   }
 
@@ -185,22 +166,16 @@ export default class RadialSVG {
    */
   setMenuIcon(iconName) {
     this.menuIcon = iconName
-    if (this.info) {
-      const iconGlyph = getIconGlyph(this.menuIcon)
-      this.info.icon.textContent = iconGlyph
-    }
   }
 }
 
 
 const svgns = "http://www.w3.org/2000/svg"
-const xhtmlns = "http://www.w3.org/1999/xhtml"
 const pid = Math.PI * 2
 
 const getIconGlyph = iconName => (iconName && iconName in icons ? icons[iconName] : icons.beamNG).glyph
 
 const setAttrs = (elm, attrs) => Object.entries(attrs).forEach(attr => elm.setAttribute(...attr))
-const setStyles = (elm, styles) => Object.entries(styles).forEach(rule => elm.style.setProperty(...rule))
 const f2size = f => f * size
 
 const getPoint = (turn, radius, center = [0.5, 0.5]) => [
@@ -302,15 +277,13 @@ function createPath({ pos, rad, width, height, corner, padout, padin }) {
 /**
  * Update function
  * @param {SVGElement} cont Svg element container, provided by `createSvg`
- * @param {Object} info  Information object with svg elements, provided by `createSvg`
  * @param {Array<Object>} items Array of data items
  * @param {Object<String, Function>} events Events to fire: `click`, `down`, `up`
  * @param {Object} [config] Appearance configuration
  * @param {Array<Object>} [buttons] Buttons provided by `updateSvg` (this function)
- * @param {RadialSVG} [radialInstance] The RadialSVG instance
  * @returns {Array<Object>|null} Rendered buttons
  */
-export function updateSvg(cont, info, items, events, config = cfg, buttons = [], radialInstance = null) {
+export function updateSvg(cont, items, events, config = cfg, buttons = []) {
   const btns = [...(buttons || [])]
 
   // remove extra elements
@@ -326,14 +299,14 @@ export function updateSvg(cont, info, items, events, config = cfg, buttons = [],
 
   // create new buttons
   for (let index = btns.length; index < items.length; index++) {
-    const btn = createButton(index, info, config, items[index])
+    const btn = createButton(index, config, items[index])
     cont.appendChild(btn.element)
     btns.push(btn)
   }
 
   // apply all data changes
   for (const elm of btns) {
-    elm.update(items[elm.index], events, radialInstance)
+    elm.update(items[elm.index], events)
   }
 
   return btns
@@ -362,9 +335,8 @@ const iconGet = {
   }[icon] || icon),
 }
 
-function createButton(index, info, config, item) {
+function createButton(index, config, item) {
   const btn = { index }
-  let menuIconRef = '' // Add reference to store menuIcon
 
   // Create gradient IDs only for major buttons
   const majorGradId = uniqueSafeId()
@@ -659,7 +631,7 @@ function createButton(index, info, config, item) {
     ))
   }
 
-  function updateEvents(events, radialInstance) {
+  function updateEvents(events = {}) {
     if (btn._handlers) {
       hitzone.removeEventListener("mouseover", btn._handlers.focus)
       hitzone.removeEventListener("mouseleave", btn._handlers.blur)
@@ -670,9 +642,6 @@ function createButton(index, info, config, item) {
     }
     const item = btn.item
     const index = btn.index
-
-    // Get menuIcon from the RadialSVG instance passed in
-    btn.menuIcon = radialInstance?.menuIcon || ''
 
     btn._handlers = {
       /** Focus command */
@@ -685,33 +654,10 @@ function createButton(index, info, config, item) {
         button.setAttribute("fill", highlightFill)
         button.setAttribute("stroke", config.button.borderHighlight)
         marker.setAttribute("fill", config.button.marker)
-        const itype = iconType(item.icon)
-        if (itype === "glyph") {
-          setStyles(info.icon, {
-            "background-color": "transparent",
-            "-webkit-mask-image": "none",
-            "color": config.info.focusedColor,
-          })
-          info.icon.textContent = getIconGlyph(item.icon)
-        } else {
-          info.icon.textContent = ""
-          if (itype === "symbol")
-            info.iconSymbol.setAttribute("href", iconGet[itype](item.icon))
-          setStyles(info.icon, {
-            "background-color": config.info.icon,
-            "-webkit-mask-image": itype === "symbol" ? `url('#${info.iconMaskId}')` : `url('${iconGet[itype](item.icon)}')`,
-          })
-        }
-        info.label.textContent = typeof item.title === 'string'
-          ? $translate.contextTranslate({txt: item.title, context: item.context})
-          : $translate.contextTranslate(item.title)
-        info.label.style.color = config.info.focusedColor
-        info.price.textContent = item?.price?.money?.amount !== undefined ? item.price.money.amount + " \u{EC0D}" : ""
-        info.hotkey.textContent = item.hotkey || ""
-        info.cont.removeAttribute("style")
         item.focused = true
         btn._focused = true // internal focus
         typeof events.focus === "function" && events.focus(item, index)
+        typeof events.centerFocus === "function" && events.centerFocus(item, index)
       },
       /** Blur command */
       blur() {
@@ -723,22 +669,14 @@ function createButton(index, info, config, item) {
         button.setAttribute("fill", normalFill)
         button.setAttribute("stroke", config.button.border)
         marker.setAttribute("fill", "none")
-        // Show default info instead of hiding the info container
-        setStyles(info.icon, {
-          "background-color": "transparent",
-          "-webkit-mask-image": "none",
-          "color": config.info.unfocusedColor,
-        })
-        const iconGlyph = getIconGlyph(btn.menuIcon)
-        info.icon.textContent = iconGlyph
-        info.label.textContent = "Select an option"
-        info.price.textContent = ""
-        info.hotkey.textContent = controlsHotkey
-        // Set label color to match icon color
-        info.label.style.color = config.info.unfocusedColor
         item.focused = false
         btn._focused = false // internal focus
         typeof events.blur === "function" && events.blur(item, index)
+        if (typeof events.centerBlur === "function") {
+          events.centerBlur(item, index)
+        } else if (typeof events.centerDefault === "function") {
+          events.centerDefault(item, index)
+        }
       },
       /** Click event */
       click(evt) {
@@ -793,9 +731,8 @@ function createButton(index, info, config, item) {
    * Can be used to update the button without re-render.
    * @param {Object} item Item data
    * @param {Object} [events] Events to bind
-   * @param {RadialSVG} [radialInstance] The RadialSVG instance
    */
-  btn.update = (item, events = undefined, radialInstance = null) => {
+  btn.update = (item, events = undefined) => {
     btn.item = item
     const length = Math.min(item.size, 0.5)
     const position = (item.position - 0.5) % 1
@@ -803,8 +740,7 @@ function createButton(index, info, config, item) {
     updateHitzone(position, length, config)
     updateIcon(position, length, config, item)
     updateEnable(item)
-    // Pass the RadialSVG instance to updateEvents
-    btn._handlers = updateEvents(events, radialInstance)
+    btn._handlers = updateEvents(events)
     Object.assign(btn, btn._handlers)
     // call hover if already focused
     if (item.focused || btn._focused) {
@@ -818,7 +754,7 @@ function createButton(index, info, config, item) {
 /**
  * Creates `<svg>` inside of the `element`
  * @param {Object} [config] Appearance configuration
- * @returns {Array<SVGAElement, SVGAElement, Object>} Array with main `<svg>` element, items container and an object with information elements
+ * @returns {Array<SVGAElement, SVGAElement, SVGCircleElement>} Array with main `<svg>` element, items container and pointer element
  */
 export function createSvg(config = cfg) {
   const svg = document.createElementNS(svgns, "svg")
@@ -858,122 +794,6 @@ export function createSvg(config = cfg) {
   }, true)
   svg.appendChild(bg)
 
-  // create info fields
-  const nfo = {
-    cont: document.createElementNS(svgns, "foreignObject"),
-    body: document.createElementNS(xhtmlns, "body"),
-    wrap: document.createElementNS(xhtmlns, "div"),
-    icon: document.createElementNS(xhtmlns, "div"),
-    iconSymbol: document.createElementNS(svgns, "use"),
-    iconMaskId: uniqueSafeId(),
-    label: document.createElementNS(xhtmlns, "div"),
-    price: document.createElementNS(xhtmlns, "div"),
-    hotkey: document.createElementNS(xhtmlns, "div"),
-  }
-
-  // in foreign object, everything is rounded to integers, so we're going to scale it down by minimum size
-  const foMinSize = 200 // min size
-  const nfoSize = size >= foMinSize ? size : foMinSize
-  setAttrs(nfo.cont, {
-    "style": "display: none",
-    "width": nfoSize,
-    "height": nfoSize,
-  })
-  if (size < foMinSize) {
-    // scale if rendering size is below minimum fo size
-    nfo.cont.setAttribute("transform", `scale(${size * 0.005})`)
-  }
-  nfo.body.setAttribute("xmlns", xhtmlns)
-  setStyles(nfo.body, {
-    "width": "100%",
-    "height": "100%",
-  })
-  setStyles(nfo.wrap, {
-    "width": `${nfoSize * 0.5}px`,
-    "height": `${nfoSize * 0.4}px`,
-    "margin": `${nfoSize * 0.3}px ${nfoSize * 0.25}px`,
-    "display": "flex",
-    "flex-direction": "column",
-    "align-items": "center",
-    "justify-content": "space-between",
-    "font-family": "var(--fnt-defs)",
-  })
-
-  setStyles(nfo.icon, {
-    // for icon font
-    "color": config.info.icon,
-    "font-size": `${config.info.iconSize * nfoSize}px`,
-    "font-family": "bngIcons",
-    // for image file
-    "width": `${config.info.iconSize * nfoSize}px`,
-    "height": `${config.info.iconSize * nfoSize}px`,
-    "-webkit-mask-image": "none",
-    "-webkit-mask-size": "contain",
-    "-webkit-mask-position": "50% 50%",
-    "-webkit-mask-repeat": "no-repeat",
-    "background-color": "transparent",
-  })
-  const iconSvg = document.createElementNS(svgns, "svg")
-  setAttrs(iconSvg, {
-    "viewBox": `0 0 ${config.info.iconSize * nfoSize} ${config.info.iconSize * nfoSize}`,
-    "width": "0",
-    "height": "0",
-    "style": "position: absolute;",
-  })
-  const iconMask = document.createElementNS(svgns, "mask")
-  setAttrs(iconMask, {
-    "id": nfo.iconMaskId,
-    "maskUnits": "userSpaceOnUse",
-    "maskContentUnits": "userSpaceOnUse",
-    "mask-type": "luminocity",
-  })
-  setAttrs(nfo.iconSymbol, {
-    "x": "0",
-    "y": "0",
-    "width": config.info.iconSize * nfoSize,
-    "height": config.info.iconSize * nfoSize,
-    "fill": "#fff",
-  })
-  iconMask.appendChild(nfo.iconSymbol)
-  iconSvg.appendChild(iconMask)
-
-  setStyles(nfo.label, {
-    "min-height": "2em",
-    "width": "100%",
-    "text-align": "center",
-    "color": config.info.label,
-    "font-size": `${config.info.labelSize * nfoSize}px`,
-    "font-family": "var(--fnt-defs)",
-  })
-
-  setStyles(nfo.price, {
-    "width": "100%",
-    "text-align": "center",
-    "color": config.info.label,
-    "font-size": `${config.info.labelSize * 0.8 * nfoSize}px`,
-    "font-family": "bngIcons, var(--fnt-defs)",
-  })
-
-  setStyles(nfo.hotkey, {
-    "width": "80%",
-    "text-align": "center",
-    "padding-top": "1px",
-    "min-height": `${config.info.hotkeySize * nfoSize + 10}px`,
-    "border-top": `${config.info.lineSize * nfoSize}px solid ${config.info.line}`,
-    "color": config.info.hotkey,
-    "font-size": `${config.info.hotkeySize * nfoSize}px`,
-    "font-family": "bngIcons, \"Noto Sans Mono\", var(--fnt-defs)",
-  })
-
-  nfo.wrap.appendChild(iconSvg)
-  nfo.wrap.appendChild(nfo.icon)
-  nfo.wrap.appendChild(nfo.label)
-  nfo.wrap.appendChild(nfo.price)
-  nfo.wrap.appendChild(nfo.hotkey)
-  nfo.body.appendChild(nfo.wrap)
-  nfo.cont.appendChild(nfo.body)
-  svg.appendChild(nfo.cont)
-
   // radial items container
   const cont = document.createElementNS(svgns, "g")
   svg.appendChild(cont)
@@ -987,16 +807,7 @@ export function createSvg(config = cfg) {
   })
   svg.appendChild(pointer)
 
-  // Set initial default info
-  nfo.icon.textContent = getIconGlyph(svg.menuIcon)
-  nfo.label.textContent = "Select an option"
-  nfo.price.textContent = ""
-  nfo.label.style.color = config.info.unfocusedColor
-  controlsHotkey = getHotkey("menu_item_focus_ud")
-  nfo.hotkey.textContent = controlsHotkey
-  nfo.cont.removeAttribute("style") // Make info visible by default
-
-  const radialSvg = [svg, cont, nfo, pointer]
+  const radialSvg = [svg, cont, pointer]
 
   return radialSvg
 }

@@ -306,17 +306,16 @@ import MissionObjectives from "../components/MissionObjectives.vue"
 import MissionSettings from "../components/MissionSettings.vue"
 import BngAdvCardHeading from "../components/bngAdvCardHeading.vue"
 import RewardsPills from "../../career/components/progress/RewardsPills.vue"
-import { lua } from "@/bridge"
+import { useBridge } from "@/bridge"
 import router from "@/router"
 import MissionCard from "@/modules/career/components/progress/MissionCard.vue"
 import { nextTick } from "vue"
 import { TaskList } from "@/modules/tasks"
-import { useTasksStore } from "@/modules/tasks"
-import { useLibStore } from "@/services"
+import { useTasksStore } from "@/services/tasklistStore"
 import { setFocus } from "@/services/uiNavFocus"
 import MissionSettingsSimple from "../components/MissionSettingsSimple.vue"
 
-const { $game } = useLibStore()
+const { lua } = useBridge()
 
 // useUINavScope("mission-details")
 const store = useMissionDetailsStore()
@@ -412,7 +411,7 @@ const exit = async () => {
     if (isMissionStartOrEndScreen) {
       //console.log(isMissionStartOrEndScreen)
       ignoreExit = true
-      window.bngVue.gotoGameState("mission-control", { params: { mode: isMissionStartOrEndScreen } })
+      window.bngVue.gotoGameState("mission.control", { params: { mode: isMissionStartOrEndScreen } })
       return
     }
   }
@@ -536,7 +535,7 @@ provide("animationSettings", {
 })
 
 function playAudio() {
-  $game.lua.Engine.Audio.playOnce("AudioGui", "event:>UI>Career>Checkbox")
+  lua.Engine.Audio.playOnce("AudioGui", "event:>UI>Career>Checkbox")
 }
 
 const wideColumnRef = ref(null)
@@ -607,7 +606,7 @@ function gotoMenu() {
     if (isActive) {
       window.bngVue.gotoAngularState("menu.careerPause")
     } else {
-      window.bngVue.gotoAngularState("menu.mainmenu")
+      window.bngVue.gotoAngularState("menu")
     }
   })
 }

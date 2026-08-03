@@ -1,60 +1,65 @@
 <template>
-  <div
+  <LayoutMenu
     class="layer-transform-view"
-    bng-ui-scope="layer-transform-scope"
-    v-bng-on-ui-nav:ok="handleOk"
-    v-bng-on-ui-nav:back="goBack"
-    v-bng-on-ui-nav:menu="saveChanges"
-    v-bng-on-ui-nav:focus_lr="handleTranslateScalar"
-    v-bng-on-ui-nav:focus_ud="handleTranslateScalar"
-    v-bng-on-ui-nav:focus_l.up="handleFocusLinear"
-    v-bng-on-ui-nav:focus_l.down="handleFocusLinear"
-    v-bng-on-ui-nav:focus_r.up="handleFocusLinear"
-    v-bng-on-ui-nav:focus_r.down="handleFocusLinear"
-    v-bng-on-ui-nav:focus_u.up="handleFocusLinear"
-    v-bng-on-ui-nav:focus_u.down="handleFocusLinear"
-    v-bng-on-ui-nav:focus_d.up="handleFocusLinear"
-    v-bng-on-ui-nav:focus_d.down="handleFocusLinear"
-    v-bng-on-ui-nav:focus_l.up.modified="handleFocusLinear"
-    v-bng-on-ui-nav:focus_l.down.modified="handleFocusLinear"
-    v-bng-on-ui-nav:focus_r.up.modified="handleFocusLinear"
-    v-bng-on-ui-nav:focus_r.down.modified="handleFocusLinear"
-    v-bng-on-ui-nav:focus_u.up.modified="handleFocusLinear"
-    v-bng-on-ui-nav:focus_u.down.modified="handleFocusLinear"
-    v-bng-on-ui-nav:focus_d.up.modified="handleFocusLinear"
-    v-bng-on-ui-nav:focus_d.down.modified="handleFocusLinear"
-    v-bng-on-ui-nav:rotate_h_cam="handleRotateCam"
-    v-bng-on-ui-nav:rotate_v_cam="handleRotateCam"
-    v-bng-on-ui-nav:rotate_h_cam.modified="handleRotateCam"
-    v-bng-on-ui-nav:rotate_v_cam.modified="handleRotateCam"
-    v-bng-on-ui-nav:action_2.up="handlePrecise"
-    v-bng-on-ui-nav:action_2.down="handlePrecise"
-    v-bng-on-ui-nav:action_2.up.modified="handlePrecise"
-    v-bng-on-ui-nav:action_2.down.modified="handlePrecise"
-    v-bng-on-ui-nav:tab_l.up="handleModifier"
-    v-bng-on-ui-nav:tab_l.down="handleModifier"
-    v-bng-on-ui-nav:tab_r.up="handleTabRight"
-    v-bng-on-ui-nav:tab_r.down="handleTabRight"
-    v-bng-on-ui-nav:action_3="handleAction3"
-    v-bng-on-ui-nav:context="toggleEdit"
-    v-bng-ui-nav-label:focus_lr="hintLabels['focus_lr']"
-    v-bng-ui-nav-label:focus_ud="hintLabels['focus_ud']"
-    v-bng-ui-nav-label:focus_l="hintLabels['focus_l']"
-    v-bng-ui-nav-label:focus_r="hintLabels['focus_r']"
-    v-bng-ui-nav-label:focus_u="hintLabels['focus_u']"
-    v-bng-ui-nav-label:focus_d="hintLabels['focus_d']"
-    v-bng-ui-nav-label:rotate_h_cam="hintLabels['rotate_h_cam']"
-    v-bng-ui-nav-label:rotate_v_cam="hintLabels['rotate_v_cam']"
-    v-bng-ui-nav-label:action_2="hintLabels['action_2']"
-    v-bng-ui-nav-label:action_3="hintLabels['action_3']"
-    v-bng-ui-nav-label:tab_r="hintLabels['tab_r']"
-    v-bng-ui-nav-label:tab_l="hintLabels['tab_l']"
-    v-bng-ui-nav-label:ok="hintLabels['ok']"
-    v-bng-ui-nav-label:back="hintLabels['back']">
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    :show-breadcrumb-back-button="true"
+    heading="Transform"
+    @breadcrumb-click="onBreadcrumbClick"
+    @breadcrumb-back="onBreadcrumbBack">
+    <div
+      class="main-view-content"
+      v-bng-on-ui-nav:ok="handleOk"
+      v-bng-on-ui-nav:back="goBack"
+      v-bng-on-ui-nav:menu="saveChanges"
+      v-bng-on-ui-nav:focus_lr="handleTranslateScalar"
+      v-bng-on-ui-nav:focus_ud="handleTranslateScalar"
+      v-bng-on-ui-nav:focus_l.up="handleFocusLinear"
+      v-bng-on-ui-nav:focus_l.down="handleFocusLinear"
+      v-bng-on-ui-nav:focus_r.up="handleFocusLinear"
+      v-bng-on-ui-nav:focus_r.down="handleFocusLinear"
+      v-bng-on-ui-nav:focus_u.up="handleFocusLinear"
+      v-bng-on-ui-nav:focus_u.down="handleFocusLinear"
+      v-bng-on-ui-nav:focus_d.up="handleFocusLinear"
+      v-bng-on-ui-nav:focus_d.down="handleFocusLinear"
+      v-bng-on-ui-nav:focus_l.up.modified="handleFocusLinear"
+      v-bng-on-ui-nav:focus_l.down.modified="handleFocusLinear"
+      v-bng-on-ui-nav:focus_r.up.modified="handleFocusLinear"
+      v-bng-on-ui-nav:focus_r.down.modified="handleFocusLinear"
+      v-bng-on-ui-nav:focus_u.up.modified="handleFocusLinear"
+      v-bng-on-ui-nav:focus_u.down.modified="handleFocusLinear"
+      v-bng-on-ui-nav:focus_d.up.modified="handleFocusLinear"
+      v-bng-on-ui-nav:focus_d.down.modified="handleFocusLinear"
+      v-bng-on-ui-nav:rotate_h_cam="handleRotateCam"
+      v-bng-on-ui-nav:rotate_v_cam="handleRotateCam"
+      v-bng-on-ui-nav:rotate_h_cam.modified="handleRotateCam"
+      v-bng-on-ui-nav:rotate_v_cam.modified="handleRotateCam"
+      v-bng-on-ui-nav:action_2.up="handlePrecise"
+      v-bng-on-ui-nav:action_2.down="handlePrecise"
+      v-bng-on-ui-nav:action_2.up.modified="handlePrecise"
+      v-bng-on-ui-nav:action_2.down.modified="handlePrecise"
+      v-bng-on-ui-nav:tab_l.up="handleModifier"
+      v-bng-on-ui-nav:tab_l.down="handleModifier"
+      v-bng-on-ui-nav:tab_r.up="handleTabRight"
+      v-bng-on-ui-nav:tab_r.down="handleTabRight"
+      v-bng-on-ui-nav:action_3="handleAction3"
+      v-bng-on-ui-nav:context="toggleEdit"
+      v-bng-ui-nav-label:focus_lr="hintLabels['focus_lr']"
+      v-bng-ui-nav-label:focus_ud="hintLabels['focus_ud']"
+      v-bng-ui-nav-label:focus_l="hintLabels['focus_l']"
+      v-bng-ui-nav-label:focus_r="hintLabels['focus_r']"
+      v-bng-ui-nav-label:focus_u="hintLabels['focus_u']"
+      v-bng-ui-nav-label:focus_d="hintLabels['focus_d']"
+      v-bng-ui-nav-label:rotate_h_cam="hintLabels['rotate_h_cam']"
+      v-bng-ui-nav-label:rotate_v_cam="hintLabels['rotate_v_cam']"
+      v-bng-ui-nav-label:action_2="hintLabels['action_2']"
+      v-bng-ui-nav-label:action_3="hintLabels['action_3']"
+      v-bng-ui-nav-label:tab_r="hintLabels['tab_r']"
+      v-bng-ui-nav-label:tab_l="hintLabels['tab_l']"
+      v-bng-ui-nav-label:ok="hintLabels['ok']"
+      v-bng-ui-nav-label:back="hintLabels['back']">
       <div class="inspector-container">
         <LayerInspectorBase v-bng-blur :heading="'Transform'">
           <div class="transform-inspector" :class="{ 'inspector-editing': isEdit }">
@@ -65,7 +70,7 @@
               </div>
               <div v-else-if="isEdit" class="transform-setting-inputs">
                 <div class="slider-text-container">
-                  <BngInput v-model="positionX" type="number" :step="0.001" :min="INPUT_MIN" :max="1.0" prefix="X" />
+                  <BngInput class="slider-text-first-input" v-model="positionX" type="number" :step="0.001" :min="INPUT_MIN" :max="1.0" prefix="X" />
                   <BngSlider v-model="positionX" :step="0.001" :min="INPUT_MIN" :max="1.0" />
                 </div>
                 <div class="slider-text-container">
@@ -87,7 +92,7 @@
               <div class="setting-item-name">Scale</div>
               <div v-if="isEdit" class="transform-setting-inputs">
                 <div class="slider-text-container">
-                  <BngInput v-model="scaleX" type="number" prefix="X" :step="0.01" :min="INPUT_MIN" :max="15.0" />
+                  <BngInput class="slider-text-first-input" v-model="scaleX" type="number" prefix="X" :step="0.01" :min="INPUT_MIN" :max="15.0" />
                   <BngSlider v-model="scaleX" :step="0.01" :min="INPUT_MIN" :max="15.0" />
                 </div>
                 <div class="slider-text-container">
@@ -105,7 +110,7 @@
               <div class="setting-item-name">Rotate</div>
               <div v-if="isEdit" class="transform-setting-inputs">
                 <div class="slider-text-container">
-                  <BngInput v-model="rotation" type="number" :step="0.1" :min="INPUT_MIN" :max="359.9" suffix="deg" />
+                  <BngInput class="slider-text-first-input" v-model="rotation" type="number" :step="0.1" :min="INPUT_MIN" :max="359.9" suffix="deg" />
                   <BngSlider v-model="rotation" :step="0.1" :min="INPUT_MIN" :max="359.9" />
                 </div>
               </div>
@@ -118,7 +123,7 @@
               <div class="setting-item-name">Skew</div>
               <div v-if="isEdit" class="transform-setting-inputs">
                 <div class="slider-text-container">
-                  <BngInput v-model="skewX" type="number" :step="0.01" :min="INPUT_MIN" :max="INPUT_MAX" prefix="X" />
+                  <BngInput class="slider-text-first-input" v-model="skewX" type="number" :step="0.01" :min="INPUT_MIN" :max="INPUT_MAX" prefix="X" />
                   <BngSlider v-model="skewX" :step="0.01" :min="INPUT_MIN" :max="INPUT_MAX" />
                 </div>
                 <div class="slider-text-container">
@@ -152,7 +157,7 @@
         </BngButton>
       </div>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script>
@@ -161,24 +166,32 @@ const INPUT_MAX = 1
 </script>
 
 <script setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, reactive, ref, watchEffect } from "vue"
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watchEffect } from "vue"
 import { useInfoBar } from "@/services/infoBar"
-import { useUINavScope } from "@/services/uiNav"
 import { vBngOnUiNav, vBngUiNavLabel, vBngBlur } from "@/common/directives"
 import { BngBinding, BngButton, BngDivider, BngInput, BngPropVal, BngSlider } from "@/common/components/base"
-import { useEditorHeaderStore } from "@/modules/liveryEditor/stores"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
+import { LayoutMenu } from "@/common/layouts"
 import { lua, useBridge } from "@/bridge"
 import { useUINavBlocker } from "@/services/uiNavTracker"
 import { openConfirmation } from "@/services/popup"
 import LayerInspectorBase from "../components/layerSettings/LayerInspectorBase.vue"
+import { useLiveryBreadcrumbNavigation } from "@/modules/liveryEditor/composables/useLiveryBreadcrumbNavigation"
 
-const headerStore = useEditorHeaderStore()
 const infobar = useInfoBar()
 const navBlocker = useUINavBlocker()
 const { events } = useBridge()
 
-useUINavScope("layer-transform-scope")
+const { breadcrumbItems, onBreadcrumbClick, onBreadcrumbBack } = useLiveryBreadcrumbNavigation({
+  handleBack: () => {
+    goBack()
+    return true
+  },
+  handleNavigate: async item => {
+    if (!item?.routeName || item.abstract || item.decorator) return true
+    if (await confirmLeave()) await lua.extensions.ui_router.navigate(item.routeName, item.params)
+    return true
+  },
+})
 
 const transformState = reactive({
   positionX: 0,
@@ -285,10 +298,6 @@ watchEffect(() => {
   if (isTabRightActive.value) navBlocker.allowOnly(["rotate_h_cam", "rotate_v_cam", "tab_r"])
 
   if (isHoldModifier.value) navBlocker.allowOnly(["rotate_h_cam", "rotate_v_cam", "action_2", "tab_l"])
-})
-
-onBeforeMount(() => {
-  headerStore.setPreheader(["Transform"])
 })
 
 onMounted(async () => {
@@ -427,26 +436,32 @@ function handleRotateCam(element) {
   }
 }
 
-function goBack(event) {
+// Resolve leaving the transform screen. Reposition/edit sub-states are stepped
+// out of first (returning false); otherwise confirm discarding unsaved changes
+// and perform cleanup. Returns true when the caller should proceed to navigate.
+async function confirmLeave() {
   if (isRepositionActive.value) {
     toggleReposition()
-  } else if (isEdit.value) {
+    return false
+  }
+  if (isEdit.value) {
     toggleEdit()
-  } else {
-    // clear all blocked events
-
-    openConfirmation("Exit", "Exit and lose unsaved changes?").then(res => {
-      if (res) {
-        lua.extensions.ui_liveryEditor_layerEdit.endTransform()
-        const cancelRes = lua.extensions.ui_liveryEditor_layerEdit.cancelChanges()
-        cancelRes.then(() => {
-          window.bngVue.gotoGameState("LiveryDecals")
-        })
-      }
-    })
+    return false
   }
 
-  event.stopPropagation()
+  const res = await openConfirmation("Exit", "Exit and lose unsaved changes?")
+  if (!res) return false
+
+  lua.extensions.ui_liveryEditor_layerEdit.endTransform()
+  await lua.extensions.ui_liveryEditor_layerEdit.cancelChanges()
+  return true
+}
+
+function goBack(event) {
+  event?.stopPropagation?.()
+  confirmLeave().then(proceed => {
+    if (proceed) lua.extensions.ui_router.navigate("livery.editor.decals", null, { preferredScope: "actions-drawer" })
+  })
 }
 
 function handleOk() {
@@ -457,7 +472,7 @@ function handleOk() {
     const res = lua.extensions.ui_liveryEditor_layerEdit.saveChanges(false)
 
     res.then(() => {
-      window.bngVue.gotoGameState("LiveryDecals")
+      lua.extensions.ui_router.navigate("livery.editor.decals", null, { preferredScope: "actions-drawer" })
     })
   }
 }
@@ -465,7 +480,7 @@ function handleOk() {
 function saveChanges() {
   const res = lua.extensions.ui_liveryEditor_layerEdit.saveChanges(false)
   res.then(() => {
-    window.bngVue.gotoGameState("LiveryDecals")
+    lua.extensions.ui_router.navigate("livery.editor.decals", null, { preferredScope: "actions-drawer" })
   })
 }
 
@@ -563,7 +578,8 @@ $infobarHeight: 4rem;
       display: flex;
       flex-direction: row;
 
-      > :first-child > :first-child {
+      // > :first-child > :first-child { // this selector crashes gameface
+      .slider-text-first-input {
         margin-right: 0.5rem;
       }
     }

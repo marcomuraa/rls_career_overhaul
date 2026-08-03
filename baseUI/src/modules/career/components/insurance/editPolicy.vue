@@ -1,21 +1,21 @@
 <template>
-  <div class="popup-content">
+  <div class="popup-content" v-bng-scoped-nav="popupScopeBinding" v-bng-on-ui-nav:back,menu="closePopup">
     <div class="top-banner">
       <div class="top-info">
         <div class="top-info-title">
-          Edit Policy: <span class="top-info-policy-name">{{ props.insuranceData.name }}</span>
+          {{ $t("ui.career.insurance.smallCard.editPolicy") }}: <span class="top-info-policy-name">{{ props.insuranceData.name }}</span>
         </div>
         <div class="top-info-description">
-          These settings apply to all vehicles under this policy. Set deductibles per vehicle by clicking "Edit Vehicles"
+          {{ $t("ui.career.insurance.editPolicy.description") }}
         </div>
       </div>
 
       <BngButton
         class="edit-vehicles-button"
-        accent="custom"
+        :accent="ACCENTS.custom_old"
         @click="openVehicleList"
       >
-        Edit Vehicles
+        {{ $t("ui.career.insurance.editPolicy.editVehicles") }}
       </BngButton>
     </div>
 
@@ -37,7 +37,7 @@
 
     <div class="premium-details section">
       <div class="premium-details-header">
-        Premium Breakdown
+        {{ $t("ui.career.insurance.editPolicy.premiumBreakdown") }}
       </div>
       <div class="premium-details-content">
         <div class="premium-details-item" v-for="(detail, key) in props.insuranceData.currentPremiumDetails.items" :key="key">
@@ -63,12 +63,12 @@
         <div class="premium-details-total premium-details-item">
           <div class="premium-details-left">
             <div>
-              Final Premium
+              {{ $t("ui.career.insurance.editPolicy.finalPremium") }}
             </div>
             <div class="driver-score-details-wrapper">
               <span class="driver-score-details">
-                Base Premium : <BngUnit :money="props.insuranceData.currentPremiumDetails.totalPrice" />
-                × Driver Score {{ props.driverScoreData.score }} @
+                {{ $t("ui.career.insurance.editPolicy.basePremium") }} <BngUnit :money="props.insuranceData.currentPremiumDetails.totalPrice" />
+                {{ $ctx_t({ txt: "ui.career.insurance.editPolicy.driverScoreMultiplier", context: { score: props.driverScoreData.score } }) }}
               </span>
               <span class="driver-score" :class="driverScoreColorClass">
                  {{ Math.round(props.driverScoreData.tier.multiplier * 100) }}%
@@ -92,15 +92,15 @@
       </div>
     </div>
     <div class="buttons">
-      <BngButton class="cancel-button bigger-button" accent="custom" @click="closePopup">
-        Cancel
+      <BngButton class="cancel-button bigger-button" :accent="ACCENTS.custom_old" @click="closePopup">
+        {{ $t("ui.common.cancel") }}
       </BngButton>
-      <BngButton class="save-button bigger-button" accent="custom" @click="onSaveClick" :disabled="!props.insuranceData.canPayPaperworkFees || !hasChangedCoverageOptions">
+      <BngButton class="save-button bigger-button" :accent="ACCENTS.custom_old" @click="onSaveClick" :disabled="!props.insuranceData.canPayPaperworkFees || !hasChangedCoverageOptions">
         <template v-if="!props.insuranceData.canPayPaperworkFees">
-          Insufficient funds
+          {{ $t("ui.career.shared.insufficientFunds") }}
         </template>
         <template v-else>
-          Apply for <BngUnit :money="props.insuranceData.paperworkFees" />
+          {{ $t("ui.career.insurance.editPolicy.applyFor") }} <BngUnit :money="props.insuranceData.paperworkFees" />
         </template>
       </BngButton>
     </div>
@@ -109,10 +109,11 @@
 
 <script setup>
 import { InsuranceIdentity, CoverageOption, VehicleInsuranceList } from "@/modules/career/components"
-import { BngIcon, icons, BngUnit, BngButton } from "@/common/components/base"
-import { ref, onMounted, computed } from "vue"
+import { BngIcon, icons, BngUnit, BngButton, ACCENTS } from "@/common/components/base"
+import { ref, onMounted, computed, useAttrs } from "vue"
 import { lua } from "@/bridge"
 import { addPopup } from "@/services/popup"
+import { vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 
 
 const props = defineProps({
@@ -124,7 +125,19 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  popupActive: Boolean,
 })
+
+const attrs = useAttrs()
+const scopeName = `_editPolicyPopup__${attrs.__id}`
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const changedCoverageOptions = ref({})
 const newPremiumDetails = ref({})

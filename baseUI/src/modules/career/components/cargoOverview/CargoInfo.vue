@@ -75,7 +75,7 @@ const props = defineProps({
   .props {
     z-index: 1;
     display: flex;
-    flex-flow:row;
+    flex-direction: row;
     .prop {
       flex: 0 1 auto;
     }

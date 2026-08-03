@@ -1,23 +1,5 @@
 export default {
     sample: [{
-        "time": 1696397240,
-        "entryId": "playerAttributeFinancials",
-        "hideInRecent": true,
-        "type": "progress",
-        "cardTypeLabel": "ui.career.poiCard.generic",
-        "text": "<span>Below is an overview of how you spent and earned money.<ul><li><b>Earn money</b> by playing Challenges and completing new Objectives, or by selling Vehicles and Parts.</li><li><b>Spend your Money</b> on new Vehicles and Parts, Insurances and Repairs, or by taking a Taxi.</li></ul><span><i>Disclaimer: Financial values are not balanced yet across the whole of career mode. So you might end up with too much or too little money in the long run.</i></span></span><table style=\"text-align:left; width:100%; margin-top:1.5em;\"><tr style=\"background-color:rgba(0,0,0,0.5)\"><th>Reason</th><th>Change</th><th>Time</th></tr><tr style=\"background-color:rgba(0,0,0,0.2)\"><td>Starting Capital</td><td><span><b>money</b>: +13500.00</span></td><td><div>Wed Oct  4 12:26:15 2023</div></td></tr></table>",
-        "title": "Financial History",
-        "_ready": true
-    }, {
-        "time": 1696397239,
-        "entryId": "playerAttributeGameplay",
-        "hideInRecent": true,
-        "type": "progress",
-        "cardTypeLabel": "ui.career.poiCard.generic",
-        "text": "<span style=\"margin-bottom:0.5em\">Below is an overview of rewards you earned from Challenges and Milestones.<ul><li><b>Money</b> can be used to make purchases.</li><li><b>Beam XP</b> is a measure of your overall general progress, but has no use in game currently.</li><li><b>Branch XP</b> for the four branches will let you reach the next tier of that branch, unlocking new missions.</li><li><b>Bonus Stars</b> can currently only be used for fast repairs.</li></ul></span><br><table style=\"text-align:left; width:100%\"><tr style=\"background-color:rgba(0,0,0,0.5)\"><th>Reason</th><th>Change</th><th>Time</th></tr></table>",
-        "title": "Rewards History",
-        "_ready": true
-    }, {
         "claimed": false,
         "claimable": false,
         "text": "Play challenges from the Adventurer branch to earn <em>Branch XP</em> and reach the next level. Each new level will unlock some <em>new challenges</em> for you to play!<br><br>From daring stunt jumps, to speed traps and other highly-reckless activities, the Adventurer Branch offers that menacing intensity, drama, and innate danger that keeps players coming back for more.",

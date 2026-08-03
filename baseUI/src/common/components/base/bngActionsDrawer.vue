@@ -66,7 +66,7 @@ $text-color: white;
 
 .actions-drawer {
   color: $text-color;
-  font-family: "Overpass";
+  font-family: "Overpass", var(--fnt-defs);
   height: 100%;
   width: 100%;
 

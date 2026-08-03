@@ -43,7 +43,7 @@
               >{{ selectedEntry && $ctx_t(selectedEntry.title) }}
               <div class="career-logbook-title-newmark" v-show="selectedEntry.isNew"></div>
               <BngButton class="exitButton" @click="exit" :accent="ACCENTS.attention" v-bng-sound-class="'bng_back_generic'"
-                ><BngBinding ui-event="back" deviceMask="xinput" />Back</BngButton
+                ><BngBinding ui-event="back" deviceMask="xinput" />{{ $translate.instant("ui.common.back") }}</BngButton
               >
             </BngCardHeading>
             <div class="career-logbook-meta">
@@ -84,7 +84,7 @@
               <!-- only include this part of the element is a quest -->
               <hr v-if="selectedEntry.type === 'quest'" />
               <div v-if="selectedEntry.type === 'quest'" class="logbook-description quest-status">
-                <h4>Milestone Status</h4>
+                <h4>{{ $translate.instant("ui.career.logbook.milestoneStatus") }}</h4>
                 <div v-for="prog in selectedEntry.progress">
                   <div class="quest-stats-wrapper">
                     <div class="quest-labels">
@@ -141,6 +141,7 @@ import { $content, $translate } from "@/services"
 import { lua } from "@/bridge"
 import { ref, computed, onMounted, onUnmounted, onBeforeMount } from "vue"
 import RewardsPills from "../components/progress/RewardsPills.vue"
+import { useRouteDataStore } from "@/services/routeData"
 import { useUINavScope } from "@/services/uiNav"
 useUINavScope("logbook") // UI Nav events to fire from (or from focused element inside) element with attribute: bng-ui-scope="logbook"
 
@@ -154,13 +155,14 @@ const props = defineProps({
 })
 
 const sectionTabs = ref()
+const routeDataStore = useRouteDataStore()
 
 const entryId = computed(() => (props.id !== undefined ? ("" + props.id).replace(/%/g, "/") : undefined))
 
 const logbookTabs = ref([
   {
     id: "info",
-    name: "Info",
+    name: "ui.career.logbook.tabs.info",
     entries: [],
     filter: i => i.type === "info",
   },
@@ -171,7 +173,7 @@ const logbookTabs = ref([
   // },
   {
     id: "history",
-    name: "History",
+    name: "ui.career.logbook.tabs.history",
     entries: [],
     filter: i => i.type === "progress",
   },
@@ -240,7 +242,13 @@ const claimRewards = entry => {
   entry.claimed = true
 }
 
-const exit = () => setTimeout(() => window.bngVue.gotoAngularState("menu.careerPause"), 0)
+const exit = () => {
+  if (String(routeDataStore.routeName || "").startsWith("pause.career")) {
+    lua.extensions.ui_router.back()
+    return
+  }
+  setTimeout(() => window.bngVue.gotoGameState("pause"), 0)
+}
 
 onBeforeMount(() => {
   lua.simTimeAuthority.pushPauseRequest('logbook')
@@ -272,7 +280,8 @@ $fontsize: 1rem;
 
 .flex-row {
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 
 hr {
@@ -283,9 +292,7 @@ hr {
 
 .logbook-layout {
   padding: 1em;
-  --safezone-top: 0em;
-  --safezone-bottom: 0;
-  --content-flow: column nowrap;
+  --content-flow: column;
   color: $textcolor;
   font-size: $fontsize;
 }
@@ -665,7 +672,7 @@ hr {
 }
 
 .logbook-description :deep(code) {
-  font-family: "Noto Sans Mono";
+  font-family: "Noto Sans Mono", var(--fnt-mono);
   font-size: 0.875em;
   display: inline-flex;
   padding: 0.25em 0.5em;

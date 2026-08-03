@@ -1,12 +1,17 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 import { BngSelect } from '@/common/components/base'
+import { bootstrapUiNavForTest } from '@/tests/bootstrapUiNav'
 
 const previousButtonId = '[data-testid="previous-btn"]'
 const nextButtonId = '[data-testid="next-btn"]'
 const valueChangedEventName = 'valueChanged'
 
 describe('bngSelect.vue Test', () => {
+    beforeEach(() => {
+        bootstrapUiNavForTest()
+    })
+
     it('should emit valueChanged on click previous button', async () => {
         const wrapper = shallowMount(BngSelect, {
             props: {

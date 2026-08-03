@@ -2,14 +2,14 @@
   <div v-if="managementDetails && managementDetails.buttonInfo && managementDetails.buttonInfo.length > 0" class="management-details">
     <div v-if="managementDetails.details" class="current-vehicle-info">
       <div class="info-row">
-        <span class="label">Current Vehicle:</span>
+        <span class="label">{{ $t('ui.menu.vehicleSelector.currentVehicle') }}</span>
         <span class="value">{{ managementDetails.details.currentVehicleName }}</span>
       </div>
     </div>
 
     <div class="buttons-section">
-      <div v-for="button in managementDetails.buttonInfo" :key="button.buttonId" class="button-container">
-        <BngButton :accent="button.accent || 'secondary'" :label="button.label" :icon="button.icon" @click="handleButtonClick(button.buttonId)" />
+      <div v-for="button in managementDetails.buttonInfo" :key="button.focusKey || button.buttonId" class="button-container">
+        <BngButton :accent="button.accent || 'secondary'" :label="button.label" :icon="button.icon" @click="handleButtonClick(button)" />
       </div>
     </div>
   </div>
@@ -17,6 +17,8 @@
 
 <script setup>
 import { BngButton, BngCardHeading, BngCard } from "@/common/components/base"
+import { openVehicleDetailsEditor } from "../components/VehicleDetailsEditor.utils.js"
+
 
 const props = defineProps({
   managementDetails: {
@@ -33,9 +35,13 @@ const emit = defineEmits(["button-click"])
 
 // managementDetails is now passed as a prop
 
-const handleButtonClick = buttonId => {
-  props.executeButton(buttonId)
-  emit("button-click", buttonId)
+const handleButtonClick = button => {
+  if (button.openVehicleEditorPopup) {
+    openVehicleDetailsEditor(button.data)
+    return
+  }
+  props.executeButton(button.buttonId)
+  emit("button-click", button.buttonId)
 }
 </script>
 

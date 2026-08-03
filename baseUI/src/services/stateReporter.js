@@ -36,6 +36,10 @@ export function reportState(stateName, opened, prevName = null) {
   luaReport(stateName, opened)
 }
 
+export function hasReportedPopupState() {
+  return stateStack.some(stateName => typeof stateName === "string" && stateName.startsWith("/popup/"))
+}
+
 /**
  * Popup service state reporting function
  * @param {object} popup Popup object

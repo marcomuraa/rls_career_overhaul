@@ -7,30 +7,30 @@ Overpass is a variable font with this axis:
   wght
 
 This means all the styles are contained in these files:
-  Overpass-VariableFont_wght.ttf
-  Overpass-Italic-VariableFont_wght.ttf
+  Overpass/Overpass-VariableFont_wght.ttf
+  Overpass/Overpass-Italic-VariableFont_wght.ttf
 
 If your app fully supports variable fonts, you can now pick intermediate styles
 that aren’t available as static fonts. Not all apps support variable fonts, and
 in those cases you can use the static font files for Overpass:
-  static/Overpass-Thin.ttf
-  static/Overpass-ExtraLight.ttf
-  static/Overpass-Light.ttf
-  static/Overpass-Regular.ttf
-  static/Overpass-Medium.ttf
-  static/Overpass-SemiBold.ttf
-  static/Overpass-Bold.ttf
-  static/Overpass-ExtraBold.ttf
-  static/Overpass-Black.ttf
-  static/Overpass-ThinItalic.ttf
-  static/Overpass-ExtraLightItalic.ttf
-  static/Overpass-LightItalic.ttf
-  static/Overpass-Italic.ttf
-  static/Overpass-MediumItalic.ttf
-  static/Overpass-SemiBoldItalic.ttf
-  static/Overpass-BoldItalic.ttf
-  static/Overpass-ExtraBoldItalic.ttf
-  static/Overpass-BlackItalic.ttf
+  Overpass/static/Overpass-Thin.ttf
+  Overpass/static/Overpass-ExtraLight.ttf
+  Overpass/static/Overpass-Light.ttf
+  Overpass/static/Overpass-Regular.ttf
+  Overpass/static/Overpass-Medium.ttf
+  Overpass/static/Overpass-SemiBold.ttf
+  Overpass/static/Overpass-Bold.ttf
+  Overpass/static/Overpass-ExtraBold.ttf
+  Overpass/static/Overpass-Black.ttf
+  Overpass/static/Overpass-ThinItalic.ttf
+  Overpass/static/Overpass-ExtraLightItalic.ttf
+  Overpass/static/Overpass-LightItalic.ttf
+  Overpass/static/Overpass-Italic.ttf
+  Overpass/static/Overpass-MediumItalic.ttf
+  Overpass/static/Overpass-SemiBoldItalic.ttf
+  Overpass/static/Overpass-BoldItalic.ttf
+  Overpass/static/Overpass-ExtraBoldItalic.ttf
+  Overpass/static/Overpass-BlackItalic.ttf
 
 Get started
 -----------
@@ -74,7 +74,7 @@ License
 Please read the full license text (OFL.txt) to understand the permissions,
 restrictions and requirements for usage, redistribution, and modification.
 
-You can use them freely in your products & projects - print or digital,
+You can use them in your products & projects – print or digital,
 commercial or otherwise.
 
 This isn't legal advice, please consider consulting a lawyer and see the full

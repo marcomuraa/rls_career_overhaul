@@ -1,0 +1,98 @@
+// yes * is required for the engine we're testing
+:root {
+  --bng-orange-shade1: rgba(255, 102, 0, 0.7);
+  --bng-orange-shade2: rgba(255, 102, 0, 0.4);
+  --bng-orange-shade1opaque: #b34700;
+  --bng-orange-shade2opaque: #662900;
+ /* --bng-gradient-orange: linear-gradient(to right,#b34700, #ff6600); */
+ /* --bng-filter-orange: invert(49%) sepia(74%) saturate(3850%) hue-rotate(0deg) brightness(101%) contrast(106%); */
+  --bng-black-8: rgba(0, 0, 0, 0.8);
+  --bng-black-6: rgba(0, 0, 0, 0.6);
+  --bng-black-4: rgba(0, 0, 0, 0.4);
+  --bng-black-2: rgba(0, 0, 0, 0.2);
+  --dark-neutral-grey: #252525;
+  --neutral-grey: #b1b3b6;
+  --light-neutral-grey: #e3e5e8;
+  --dark-grey: #505050;
+  --dark-grey-alpha: rgba(80, 80, 80, 0.8);
+  --black-1:rgba(0, 0, 0, 0.7);
+  --black-2: rgba(0 ,0 ,0 ,0.4);
+  --white-1: rgba(255, 255, 255, 0.8);
+  --white-2: rgba(255, 255, 255, 0.4);
+  --white-3: rgba(255, 255, 255, 0.2);
+
+
+  /* z-index values: main stuff */
+  --zorder-index-fullscreen-default: 0;
+  --zorder_index_fullscreen_default: 0;
+  --zorder_index_broken_ui_loading: 1;
+  --zorder_index_waiting_screen_icon: 10;
+  --zorder_index_fullscreen_loading: 50;
+  --zorder_index_waiting_screen: 97;
+  --zorder_index_mdcontent: 98;
+  --zorder-index_popup: 9876;
+  --zorder_index_prevnext: 999999;
+
+  --zorder_main_fancyBackground: -1;
+  --zorder_main_missionpopups: 5;
+  --zorder_main_contentNav: 1;
+  --zorder_main_reconnectScreen: 1;
+  --zorder_main_topbar_button_end: 5;
+  --zorder_main_mission_info_button: 10;
+  --zorder_main_mission_info_alt_button: 10;
+  --zorder_main_app_alignment_dot_corner: 23;
+  --zorder_main_menu_navigation_focus: 97;
+  --zorder_main_gfxSettingsLoading: 97;
+
+  --zorder_mainmenu_blendbox: 2;
+  --zorder_mainmenu_shippinginfo: 97;
+  --zorder_mainmenu_infobox: 97;
+  --zorder_mainmenu_accountinfo: 97;
+  --zorder_mainmenu_onlineinfo: 97;
+  --zorder_mainmenu_versioninfo: 97;
+
+  --zorder_index_menucontent: 2;
+
+  --zorder_menu_dashmenu: 3;
+  --zorder_play_crosshair: 20;
+
+  /* z-index values: app editing */
+  --zorder_bngapp_delete: calc(var(--zorder_menu_dashmenu) + 1);
+  --zorder_bngapp_move:   calc(var(--zorder_menu_dashmenu) + 1);
+  --zorder_bngapp_resize: calc(var(--zorder_menu_dashmenu) + 1);
+  --zorder_bngapp_cockpit:calc(var(--zorder_menu_dashmenu) + 1);
+  --zorder_appedit_bar: 50;
+
+  /* z-index values: apps */
+  --zorder_apps_default: 1;
+  --zorder_apps_dev_langMenu: 1;
+  --zorder_apps_dev_reftip: 1;
+  --zorder_apps_dev_sapop: 1;
+  --zorder_apps_simpleBrakeThermals_svg: 999;
+
+  /* z-index values: modules */
+  --zorder_campaignselect_search: 1;
+  --zorder_levelselect_search: 1;
+  --zorder_scenarioselect_search: 1;
+  --zorder_vehicleselect_search: 1;
+  --zorder_vehicleselect_showconfigs: 1;
+
+  --zorder_dragrace_popover: 97;
+  --zorder_gamecontext_popover: 97;
+  --zorder_lightrunner_popover: 97;
+  --zorder_quickrace_popover: 97;
+  --zorder_scenariocontrol_popover: 97;
+
+  --zorder_comic_canvas: 97;
+  --zorder_fadescreen: 97;
+  --zorder_iconview_iconsdemo: 97;
+  --zorder_loading_background: 97;
+
+  --zorder_mapview_target_cross: 9;
+  --zorder_mapview_poi: 10;
+  --zorder_mapview_poi_focus: 12;
+  --zorder_mapview_arrow: 13;
+  --zorder_mapview_base: 15;
+  /* --zorder_mapview_left_pane: 20; */
+
+}

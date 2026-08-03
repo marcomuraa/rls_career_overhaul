@@ -2,11 +2,6 @@ import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 import { lua, useBridge } from "@/bridge"
 
-// DEBUG_ONLY >>
-import { getMockedData, runInBrowser} from '@/utils'
-// << END_DEBUG_ONLY
-
-
 const isFuelEnergyType = type => ["gasoline", "diesel"].includes(type)
 
 export const useRefuelStore = defineStore("refuel", () => {
@@ -32,7 +27,9 @@ export const useRefuelStore = defineStore("refuel", () => {
     showAmountSettings = ref(false),
     energyTypesToLocalUnits = ref({}),
     gasStationName = ref(""),
-    fuelDiscountData = ref({})
+    fuelDiscountData = ref({}),
+    canPay = ref(false),
+    isAutoFuelling = ref(false)
 
   // Getters
   const isFuelling = computed(() => flowRate.value > 0)
@@ -41,7 +38,6 @@ export const useRefuelStore = defineStore("refuel", () => {
   const currentFuelLevel = computed(() => (currentFuelData.value ? currentFuelData.value.currentEnergy / currentFuelData.value.maxEnergy : 0))
   const canRefuel = computed(() => (currentFuelData.value ? currentFuelData.value.currentEnergy < currentFuelData.value.maxEnergy : false))
   const nozzleMode = computed(() => (canRefuel.value === true ? (isFuelling.value === true ? "on" : "off") : "disabled"))
-  const canPay = computed(() => currentFuelData.value.price > 0)
   const canStartFuelling = computed(() => isFuelling.value === false && canRefuel.value === true)
   const canStopFuelling = computed(() => isFuelling.value === true)
   const minEnergyLabel = computed(() => minEnergy + " " + getUnitLabel(currentEnergyType.value))
@@ -85,35 +81,32 @@ export const useRefuelStore = defineStore("refuel", () => {
 
   // Actions
   function startFuelling() {
-    lua.career_modules_fuel.uiButtonStartFueling(currentEnergyType.value)
+    isAutoFuelling.value = true
+    return lua.career_modules_fuel.uiButtonStartFueling(currentEnergyType.value)
   }
 
   function stopFuelling() {
-    lua.career_modules_fuel.uiButtonStopFueling(currentEnergyType.value)
+    isAutoFuelling.value = false
+    return lua.career_modules_fuel.uiButtonStopFueling(currentEnergyType.value)
   }
 
   function changeFlowRate(newFlowRate) {
+    if (newFlowRate <= 0) isAutoFuelling.value = false
     flowRate.value = newFlowRate
     lua.career_modules_fuel.onChangeFlowRate(flowRate.value)
   }
 
   function payPrice() {
-    lua.career_modules_fuel.payPrice()
+    return lua.career_modules_fuel.payPrice()
   }
 
   function requestFuelingData() {
     lua.career_modules_fuel.requestRefuelingTransactionData()
-
-    // DEBUG_ONLY >> Get some mock fuel data if we're outside the game
-    runInBrowser(
-      () => getMockedData('career.initialFuelingData').then(data => events.emit("initialFuelingData", data))
-    )
-    // << END_DEBUG_ONLY
   }
 
   function cancelTransaction() {
     console.log("cancelTransaction")
-    lua.career_modules_fuel.uiCancelTransaction()
+    return lua.career_modules_fuel.uiCancelTransaction()
   }
 
   function dispose() {
@@ -142,9 +135,11 @@ export const useRefuelStore = defineStore("refuel", () => {
     fuelTanks.value[0]["fueledEnergy"] = data.fuelData[0]["fueledEnergy"]
     fuelTanks.value[0]["price"] = data.fuelData[0]["price"]
     overallPrice.value = data.overallPrice
+    canPay.value = data.canPay === true
 
     const isFuelingActive = data.fuelData[0]["fuelingActive"]
-    flowRate.value = isFuelingActive === true ? 1 : 0
+    flowRate.value = isFuelingActive === true ? data.flowRate : 0
+    if (!isFuelingActive) isAutoFuelling.value = false
   })
 
   return {
@@ -153,8 +148,11 @@ export const useRefuelStore = defineStore("refuel", () => {
     currentFuelType,
     currentEnergyType,
     nozzleMode,
+    canRefuel,
     overallPrice,
+    flowRate,
     isFuelling,
+    isAutoFuelling,
     energyTypes,
     canPay,
     canStartFuelling,

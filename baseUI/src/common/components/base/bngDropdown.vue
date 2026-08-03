@@ -4,10 +4,12 @@
     ref="elContainer"
     v-bind="binds"
     v-model:opened="opened"
-    :disabled="disabled"
+    :disabled="effectiveDisabled"
+    :no-nav="inRow"
     :headless="headless"
     :focus-target="focusTarget"
     :popover-target="popoverTarget"
+    :auto-scroll-trigger="searchTerm"
     :class="{
       'with-search': showSearch,
       [`dropdown-longnames-${longNames}`]: true,
@@ -25,7 +27,7 @@
 
     <div v-if="showSearch" class="dropdown-search">
       <BngInput
-        v-model.trim="search"
+        v-model="search"
         floating-label="Search"
         @focus="searching = true"
         @blur="searching = false"
@@ -58,6 +60,7 @@
           v-bng-ui-nav-label:ok="'ui.inputActions.menu.menu_item_select.title'"
           v-bng-tooltip="item.tooltip ?? undefined"
           v-bng-highlighter="highlighter"
+          @mousedown.prevent
           @click="select(item)"
           @keyup.enter="select(item)"
         >
@@ -70,12 +73,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, useAttrs } from "vue"
+import { ref, computed, watch, useAttrs, inject, onMounted, onBeforeUnmount, provide } from "vue"
 import { BngDropdownContainer, BngInput } from "@/common/components/base"
 import { vBngHighlighter, vBngOnUiNav, vBngUiNavLabel, vBngTooltip } from "@/common/directives"
+import { $translate } from "@/services/translation"
 
 const attrs = useAttrs()
-const binds = computed(() => !props.headless ? attrs : undefined)
 
 const props = defineProps({
   modelValue: {
@@ -108,6 +111,18 @@ const props = defineProps({
   popoverTarget: Object,
 })
 
+const row = inject("BngRow", null)
+const inRow = !!row
+const effectiveDisabled = computed(() => props.disabled || (inRow && row.disabled.value))
+const rowElement = computed(() => inRow ? row.getElement?.() : undefined)
+const focusTarget = computed(() => props.focusTarget || rowElement.value)
+const popoverTarget = computed(() => props.popoverTarget)
+
+// Prevent nested controls (e.g. search input) from registering into the same row.
+provide("BngRow", null)
+
+const binds = computed(() => !props.headless ? attrs : undefined)
+
 const emit = defineEmits(["update:modelValue", "valueChanged", "open", "close"])
 
 const elContainer = ref(null)
@@ -116,7 +131,7 @@ const opened = ref(false)
 
 const searching = ref(false)
 const search = ref("")
-const searchTerm = computed(() => search.value.toLowerCase())
+const searchTerm = computed(() => search.value.trim().toLowerCase())
 
 // reset search on close
 watch(opened, val => !val && (search.value = ""))
@@ -126,6 +141,7 @@ defineExpose({
   open: () => opened.value = true,
   close: () => opened.value = false,
   toggle: () => opened.value = !opened.value,
+  getElement: () => elContainer.value?.getElement?.(),
   get popoverName() { return elContainer.value?.popoverName },
 })
 
@@ -213,7 +229,7 @@ const groupedItems = computed(() => {
   return finalGroups
 })
 
-const highlighter = computed(() => search.value || props.highlight)
+const highlighter = computed(() => search.value.trim() || props.highlight)
 const selectedValue = computed({
   get: () => props.modelValue,
   set: newValue => {
@@ -229,17 +245,35 @@ const headerText = computed(() =>
   selectedItem.value.value !== null &&
   selectedItem.value.value !== undefined
     ? selectedItem.value.label
-    : "Select"
+    : $translate.instant("ui.common.select")
 )
-const tabIndexValue = computed(() => (props.disabled ? -1 : 0))
+const tabIndexValue = computed(() => (effectiveDisabled.value ? -1 : 0))
 
 const select = item => {
-  if (item.disabled) return
+  if (effectiveDisabled.value || item.disabled) return
   opened.value = false;
   if (selectedValue.value !== item.value) {
     selectedValue.value = item.value
   }
   elContainer.value?.focusContainer()
+}
+
+const rowControlApi = inRow
+  ? {
+      activate: () => {
+        if (effectiveDisabled.value) return
+        opened.value = !opened.value
+      },
+      isEventInside: event => {
+        const element = elContainer.value?.getElement?.()
+        return !!(element && event?.target instanceof Node && element.contains(event.target))
+      },
+    }
+  : null
+
+if (inRow) {
+  onMounted(() => row.register(rowControlApi))
+  onBeforeUnmount(() => row.unregister(rowControlApi))
 }
 </script>
 
@@ -281,7 +315,9 @@ const select = item => {
   top: 0;
   left: 0;
   width: 100%;
-  min-height: 2.5em;
+  min-height: 2.85em;
+  padding: 0.25em;
+  background-color: rgba(var(--bng-ter-blue-gray-700-rgb), 1);
   z-index: 1;
   color: var(--bng-off-white);
   overflow: hidden;

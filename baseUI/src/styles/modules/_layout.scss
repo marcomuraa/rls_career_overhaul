@@ -2,10 +2,6 @@
 
 :deep() {
 
-/* Layout */
-
---safezone-new-info-bar: 4.75em;
---safezone-topbar: 2.75em;
 // content
 .layout-wrapper {
   position: absolute;
@@ -17,8 +13,8 @@
     left: 0;
     right: 0;
   }
-
 }
+
 // alignment
 .layout-content {
   &.layout-align-hcenter, &.layout-align-center {
@@ -43,7 +39,7 @@
     padding: $vsafezone $hsafezone; // These should be adjustable to surve as safe-zones for some screens
   }
   &.flex-column {
-    flex-flow: column;
+    flex-direction: column;
   }
 }
 

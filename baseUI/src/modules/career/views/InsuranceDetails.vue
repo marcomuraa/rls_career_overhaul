@@ -5,7 +5,7 @@
         <div class="header">
           <div class="header-left">
             <div class="policy-details">
-              Policy details
+              {{ $translate.instant("ui.career.insurance.policyDetails") }}
             </div>
             <div class="insurance-identity">
               <span class="insurance-name">{{ props.insuranceData.name }}</span>
@@ -13,15 +13,15 @@
               <span class="insurance-slogan">{{ props.insuranceData.slogan }}</span>
             </div>
             <div class="covers-renew-info">
-              <span>Covers {{ props.insuranceData.carsInsured }} Vehicles</span>
+              <span>{{ $translate.instant("ui.career.insurance.coversVehicles", { count: props.insuranceData.carsInsured }) }}</span>
               <span class="covers-renew-seperator"></span>
-              <span>Renews every 100 kms</span>
+              <span>{{ $translate.instant("ui.career.insurance.renewsEvery100Kms") }}</span>
             </div>
           </div>
           <div class="header-right">
-            <div class="action-type">Adding vehicle</div>
+            <div class="action-type">{{ $translate.instant("ui.career.insurance.addingVehicle") }}</div>
             <div class="vehicle-name">{{ props.insuranceData.vehicleName }}</div>
-            <div class="vehicle-value">Value : {{ props.insuranceData.vehicleValue }} €</div>
+            <div class="vehicle-value">{{ $translate.instant("ui.career.insurance.valueLabel", { value: props.insuranceData.vehicleValue }) }}</div>
           </div>
         </div>
 
@@ -33,10 +33,10 @@
             </div>
             <div class="group-discount-text-wrapper">
               <div class="group-discount-main-text">
-                Multi-Vehicle Discount Active
+                {{ $translate.instant("ui.career.insurance.multiVehicleDiscountActive") }}
               </div>
               <div class="group-discount-secondary-text">
-                Insurance discounts are based on the total value of your fleet.
+                {{ $translate.instant("ui.career.insurance.multiVehicleDiscountDescription") }}
               </div>
             </div>
           </div>
@@ -44,7 +44,7 @@
           <div class="tiers">
             <div class="tier" v-for="tier in props.insuranceData.groupDiscountData.groupDiscountTiers" :key="tier.id">
               <div class="tier-number">
-                Tier {{ tier.id }}
+                {{ $translate.instant("ui.career.insurance.tier", { id: tier.id }) }}
               </div>
               <div class="money-bracket">
                 <span>{{ tier.min / 1000 }}k</span>
@@ -52,7 +52,7 @@
                 <span v-else>+</span>
               </div>
               <div class="tier-discount" :class="{'isCurrent':tier.isCurrent}">
-                {{ tier.discount * 100 }} %
+                {{ $translate.instant("ui.career.insurance.discountPercent", { percent: tier.discount * 100 }) }}
               </div>
             </div>
           </div>
@@ -60,24 +60,24 @@
           <div class="current-after-discount-price">
             <div class="tier-discount-price">
               <div class="section-label deactivated">
-                Current Tier
+                {{ $translate.instant("ui.career.insurance.currentTier") }}
               </div>
               <div class="policy-value">
-                Policy Value : {{ props.insuranceData.totalInsuranceVehsValue }} €
+                {{ $translate.instant("ui.career.insurance.policyValue", { value: props.insuranceData.totalInsuranceVehsValue }) }}
               </div>
               <div class="policy-tier">
-                Tier {{ props.insuranceData.groupDiscountData.currentTierData.id }} - {{ props.insuranceData.groupDiscountData.currentTierData.discount * 100 }}% off
+                {{ $translate.instant("ui.career.insurance.policyTierDiscount", { id: props.insuranceData.groupDiscountData.currentTierData.id, discount: props.insuranceData.groupDiscountData.currentTierData.discount * 100 }) }}
               </div>
             </div>
             <div class="tier-discount-price isFutureTier">
               <div class="section-label">
-                After Purchase
+                {{ $translate.instant("ui.career.insurance.afterPurchase") }}
               </div>
               <div class="policy-value">
-                Policy Value : {{ props.insuranceData.totalInsuranceVehsValue + props.insuranceData.vehicleValue }} €
+                {{ $translate.instant("ui.career.insurance.policyValue", { value: props.insuranceData.totalInsuranceVehsValue + props.insuranceData.vehicleValue }) }}
               </div>
               <div class="policy-tier isFuture">
-                Tier {{ props.insuranceData.groupDiscountData.futureTierData.id }} - {{ props.insuranceData.groupDiscountData.futureTierData.discount * 100 }}% off
+                {{ $translate.instant("ui.career.insurance.policyTierDiscount", { id: props.insuranceData.groupDiscountData.futureTierData.id, discount: props.insuranceData.groupDiscountData.futureTierData.discount * 100 }) }}
               </div>
             </div>
           </div>
@@ -87,11 +87,11 @@
           <div class="prices-breakdown-header">
             <div class="breakdown-item">
               <div class="section-label">
-                Vehicle
+                {{ $translate.instant("ui.career.insurance.vehicle") }}
               </div>
               <div class="breakdown-item-value">
                 <span class="breakdown-label">
-                  Coverage Cost
+                  {{ $translate.instant("ui.career.insurance.coverageCost") }}
                 </span>
                 <span class="breakdown-value">
                   {{ props.insuranceData.nonProRatedVehiclePremium }} €
@@ -99,15 +99,15 @@
               </div>
               <div class="breakdown-item-value orange">
                 <span class="breakdown-label">
-                  Pro-rated Renewal
+                  {{ $translate.instant("ui.career.insurance.proRatedRenewal") }}
                 </span>
                 <span class="breakdown-value">
-                  × {{ props.insuranceData.proRatedPercentage }}%
+                  {{ $translate.instant("ui.career.insurance.proRatedRenewalMultiplier", { percent: props.insuranceData.proRatedPercentage }) }}
                 </span>
               </div>
               <div class="breakdown-item-value result">
                 <span class="breakdown-label">
-                  Policy Add-On Cost
+                  {{ $translate.instant("ui.career.insurance.policyAddOnCost") }}
                 </span>
                 <span class="breakdown-value result">
                   {{ props.insuranceData.proRatedVehiclePremium }} €
@@ -116,12 +116,12 @@
             </div>
             <div class="breakdown-item">
               <div class="section-label">
-                Policy
+                {{ $translate.instant("ui.career.insurance.policy") }}
               </div>
             </div>
           </div>
           <div class="sum-to-pay">
-            <span>Amount due today</span>
+            <span>{{ $translate.instant("ui.career.insurance.amountDueToday") }}</span>
             <span class="sum-to-pay-value">
               <BngUnit class="green-price" :money="props.insuranceData.addVehiclePrice"/>
             </span>
@@ -130,7 +130,7 @@
 
         <div class="closeButton">
           <BngButton :accent="ACCENTS.primary" @click="closePopup">
-            Close
+            {{ $translate.instant("ui.common.close") }}
           </BngButton>
         </div>
       </div>
@@ -142,6 +142,7 @@
 import { BngCard, BngUnit, BngButton, ACCENTS, BngIcon, icons } from "@/common/components/base"
 import { useInsuranceDetailsStore } from "../stores/insuranceDetailsStore"
 import { useUINavScope } from "@/services/uiNav"
+import { $translate } from "@/services/translation"
 
 useUINavScope("insuranceDetailsPopup")
 

@@ -1,5 +1,10 @@
 <template>
-  <div class="form-dialog" :style="{ maxWidth: props.maxWidth }" :bng-ui-scope="scopeName" v-bng-on-ui-nav:back,menu="handleCancelWithBack">
+  <div
+    v-bng-scoped-nav="popupScopeBinding"
+    class="form-dialog"
+    :style="{ maxWidth: props.maxWidth }"
+    v-bng-on-ui-nav:back,menu="handleCancelWithBack"
+  >
     <div v-if="title" class="form-dialog-toolbar">
       <div class="toolbar-title">
         {{ title }}
@@ -15,11 +20,12 @@
     </div>
     <div class="form-actions-bar">
       <BngButton
-        v-for="(button, index) in buttons"
+        v-for="(button, index) in displayButtons"
         :key="index"
-        v-bng-ui-nav-focus="buttons.length - index"
-        v-bng-focus-if="index === 0"
-        v-bind="button.extras"
+        v-bng-ui-nav-focus="getButtonFocusPriority(button, index)"
+        v-bng-focus-if="popupActive && button === focusButton"
+        :bng-scoped-nav-autofocus="popupActive && button === focusButton ? true : null"
+        v-bind="buttonProps[index]"
         :disabled="button.disableIfInvalid && !formValid"
         @click="onClick(button)"
         >{{ button.label }}</BngButton
@@ -29,14 +35,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue"
+import { computed, ref, watch, onMounted, useAttrs } from "vue"
 import { BngButton } from "@/common/components/base"
-import { vBngOnUiNav, vBngUiNavFocus, vBngFocusIf } from "@/common/directives"
-import { usePopupUINavScopeName } from "@/services/uiNav"
+import { vBngOnUiNav, vBngUiNavFocus, vBngFocusIf, vBngScopedNav } from "@/common/directives"
 import { useUINavBlocker } from "@/services/uiNavTracker"
-
-const navBlocker = useUINavBlocker()
-navBlocker.allowOnly(["focus_u", "focus_d", "focus_l", "focus_r", "back", "menu", "ok"])
+import { getButtonProps, hasRoles, isCancel, orderButtonsByRole, playCancelSound, resolveFocusButton, popupOrderDevWarn } from "../buttonRoles.js"
 
 const props = defineProps({
   title: {
@@ -45,13 +48,14 @@ const props = defineProps({
   description: {
     type: String,
   },
+  popupActive: Boolean,
   view: {
     type: [Object, String],
     required: true,
   },
   formValidator: {
     type: Function,
-    default: formModel => true,
+    default: () => true,
   },
   buttons: {
     type: Array,
@@ -61,16 +65,66 @@ const props = defineProps({
     type: String,
     default: "40rem",
   },
+  // Opt-OUT of the canonical role engine. Defaults to false (canonical-capable);
+  // popup.js helpers pass `true` to freeze existing popups to legacy behavior.
+  unordered: { type: Boolean, default: false },
 })
+
+const popupNavEvents = ["focus_u", "focus_d", "focus_l", "focus_r", "back", "menu", "ok"]
+const navBlocker = useUINavBlocker()
+watch(() => props.popupActive, active => {
+  if (active) navBlocker.allowOnly(popupNavEvents)
+  else navBlocker.clear()
+}, { immediate: true })
+
 const emit = defineEmits(["return"])
 const formModel = defineModel("formModel")
 
-const scopeName = usePopupUINavScopeName("_formdialog", props)
-const handleCancelWithBack = () => {
-  const cancelButton = props.buttons.find(x => x.extras && x.extras.cancel)
-  if (cancelButton) onClick(cancelButton)
-  else emit("return")
+const attrs = useAttrs()
+const scopeName = `_formdialog__${attrs.__id}`
+const keepPopupScopeActive = () => false
+const popupScopeBinding = computed(() => ({
+  scopeId: scopeName,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: keepPopupScopeActive,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
+
+const useRoles = computed(() => !props.unordered && hasRoles(props.buttons))
+const displayButtons = computed(() => (useRoles.value ? orderButtonsByRole(props.buttons) : props.buttons))
+const focusButton = computed(() => resolveFocusButton(displayButtons.value, useRoles.value))
+
+const buttonProps = computed(() => displayButtons.value.map(button => getButtonProps(button, useRoles.value)))
+
+const getButtonFocusPriority = (button, index) => {
+  if (!props.popupActive) return undefined
+  if (button === focusButton.value) return 1000
+  return useRoles.value ? undefined : displayButtons.value.length - index
 }
+
+let warnedNoCancel = false
+const handleCancelWithBack = () => {
+  const cancelButton = props.buttons.find(x => isCancel(x))
+  if (cancelButton) {
+    playCancelSound(cancelButton)
+    onClick(cancelButton)
+  }
+  else {
+    if (!warnedNoCancel) {
+      warnedNoCancel = true
+      popupOrderDevWarn(`${props.title || scopeName} (no cancel role)`)
+    }
+    emit("return")
+  }
+}
+
+onMounted(() => {
+  if (props.unordered && displayButtons.value.length >= 2) {
+    popupOrderDevWarn(props.title || scopeName)
+  }
+})
 
 const onClick = button => {
   const data = { value: button.value }

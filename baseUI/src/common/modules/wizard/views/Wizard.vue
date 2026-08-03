@@ -52,12 +52,14 @@
           <div class="wizard-navigation">
             <BngButton
               v-if="showBackButton && !isFirstStep"
+              :bng-scoped-nav-autofocus="autofocusTargetType === 'navigation' && autofocusTargetValue === 'previous' ? 'true' : null"
               :disabled="!canGoBack"
               :accent="ACCENTS.secondary"
               @click="previousStep"
             >{{ $tt(backButtonText) }}</BngButton>
             <BngButton
               v-if="allowSkip && !isLastStep && currentStep?.type !== 'choice'"
+              :bng-scoped-nav-autofocus="autofocusTargetType === 'navigation' && autofocusTargetValue === 'skip' ? 'true' : null"
               :accent="ACCENTS.secondary"
               @click="skip"
             >{{ $tt(skipButtonText) }}</BngButton>
@@ -66,8 +68,9 @@
               <BngButton
                 v-for="choice in currentStepChoices"
                 :key="choice.value"
+                :bng-scoped-nav-autofocus="autofocusTargetType === 'choice' && autofocusTargetValue === choice.value ? 'true' : null"
                 :class="getChoiceButtonClass(choice.value, currentStep?.modelValue?.choice || null)"
-                :accent="ACCENTS.custom"
+                :accent="ACCENTS.custom_old"
                 :icon="currentStep?.modelValue?.choice === choice.value ? icons.checkmark : null"
                 :disabled="currentStep?.advanceDisabled"
                 @click="handleChoiceClick(choice)"
@@ -75,12 +78,14 @@
             </div>
             <BngButton
               v-if="!isLastStep && currentStep?.type !== 'choice'"
+              :bng-scoped-nav-autofocus="autofocusTargetType === 'navigation' && autofocusTargetValue === 'next' ? 'true' : null"
               :disabled="!canGoNext"
               :accent="ACCENTS.primary"
               @click="nextStep"
             >{{ $tt(nextButtonText) }}</BngButton>
             <BngButton
               v-else-if="isLastStep"
+              :bng-scoped-nav-autofocus="autofocusTargetType === 'navigation' && autofocusTargetValue === 'finish' ? 'true' : null"
               :disabled="!canFinish"
               :accent="ACCENTS.primary"
               @click="handleFinish"
@@ -140,7 +145,7 @@ export const wizardProps = {
 </script>
 
 <script setup>
-import { provide, computed, watch, nextTick, getCurrentInstance } from "vue"
+import { provide, computed, nextTick, getCurrentInstance } from "vue"
 import { BngScreenHeading, BngCard, BngCardHeading, BngButton, ACCENTS, icons } from "@/common/components/base"
 import { vBngUiNavScroll } from "@/common/directives"
 import ProgressSteps from "../components/ProgressSteps.vue"
@@ -226,6 +231,10 @@ provide("unregisterWizardStep", stepId => {
 })
 
 const currentStepChoices = computed(() => currentStep.value?.choices || [])
+const currentStepAutoFocusTarget = computed(() => currentStep.value?.autoFocusTarget || null)
+
+const autofocusTargetType = computed(() => currentStepAutoFocusTarget.value?.type || null)
+const autofocusTargetValue = computed(() => currentStepAutoFocusTarget.value?.value || null)
 
 const getChoiceButtonClass = (choiceValue, selectedChoice) =>
   !selectedChoice ? "unanswered" :
@@ -341,7 +350,8 @@ $main-height: var(--wizard-height, 45rem);
   flex: 0 0 auto;
   position: relative;
   display: inline-flex;
-  flex-flow: column nowrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   align-items: center;
   width: fit-content;
   height: $main-height;

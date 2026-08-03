@@ -1,15 +1,20 @@
 <template>
-  <div
+  <LayoutMenu
     class="layer-edit-view"
-    bng-ui-scope="layer-edit-scope"
-    v-bng-on-ui-nav:back="goBack"
-    v-bng-on-ui-nav:menu="saveChanges"
-    v-bng-on-ui-nav:rotate_h_cam="noop"
-    v-bng-on-ui-nav:rotate_v_cam="noop">
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    :show-breadcrumb-back-button="true"
+    heading="Layer Edit"
+    @breadcrumb-click="onBreadcrumbClick"
+    @breadcrumb-back="onBreadcrumbBack">
+    <div
+      class="main-view-content"
+      v-bng-on-ui-nav:back="goBack"
+      v-bng-on-ui-nav:menu="saveChanges"
+      v-bng-on-ui-nav:rotate_h_cam="noop"
+      v-bng-on-ui-nav:rotate_v_cam="noop">
       <div class="menu-container">
         <BngImageTile
           v-for="item in MENU_ITEMS"
@@ -22,7 +27,7 @@
           @click="onMenuItemClicked(item)" />
       </div>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script>
@@ -49,39 +54,48 @@ const noop = () => {}
 <script setup>
 import { onBeforeMount, onBeforeUnmount, onMounted, ref } from "vue"
 import { useInfoBar } from "@/services/infoBar"
-import { useUINavScope } from "@/services/uiNav"
 import { vBngOnUiNav, vBngBlur } from "@/common/directives"
 import { lua, useBridge } from "@/bridge"
 import { BngButton, BngCardHeading, BngIcon, BngImageTile, BngList, icons, ACCENTS, LIST_LAYOUTS } from "@/common/components/base"
-import { useEditorHeaderStore, useDecalSelectorStore } from "@/modules/liveryEditor/stores"
+import { LayoutMenu } from "@/common/layouts"
+import { useDecalSelectorStore } from "@/modules/liveryEditor/stores"
 import { useLiveryEditorStore, useLiveryMainStore } from "@/modules/liveryEditor/stores"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
 import DecalSelectorItem from "@/modules/liveryEditor/components/DecalSelectorItem.vue"
-import router from "@/router"
+import { useLiveryBreadcrumbNavigation } from "@/modules/liveryEditor/composables/useLiveryBreadcrumbNavigation"
 
-const headerStore = useEditorHeaderStore()
 const store = useDecalSelectorStore()
 const mainStore = useLiveryMainStore()
 const infobar = useInfoBar()
 
-const uiNav = useUINavScope("layer-edit-scope")
+const { breadcrumbItems, onBreadcrumbClick, onBreadcrumbBack } = useLiveryBreadcrumbNavigation({
+  handleBack: () => {
+    goBack()
+    return true
+  },
+  handleNavigate: async item => {
+    if (!item?.routeName || item.abstract || item.decorator) return true
+    mainStore.exitLayerEdit()
+    await lua.extensions.ui_router.navigate(item.routeName, item.params)
+    return true
+  },
+})
 
 function onMenuItemClicked(item) {
   switch (item.value) {
     case "transform":
-      router.push({ name: "LayerTransform" })
+      lua.extensions.ui_router.navigate("livery.editor.decals.transform", null, null)
       break
     case "materials":
-      router.push({ name: "LayerMaterials" })
+      lua.extensions.ui_router.navigate("livery.editor.decals.materials", null, null)
       break
     case "projection":
-      router.push({ name: "LayerProjection" })
+      lua.extensions.ui_router.navigate("livery.layerProjection", null, null)
       break
   }
 }
 
 function goBack() {
-  router.replace({ name: "LiveryDecals" })
+  lua.extensions.ui_router.navigate("livery.editor.decals", null, null)
   mainStore.exitLayerEdit()
 }
 

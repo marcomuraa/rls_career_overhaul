@@ -107,7 +107,7 @@ const data = computed(() => ({
   }
 
   display: flex;
-  flex-flow: row;
+  flex-direction: row;
   flex-wrap: nowrap;
   justify-content: stretch;
   align-content: stretch;

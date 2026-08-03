@@ -100,21 +100,27 @@
 }
 
 @mixin set-ui-rem($base-rem: 16px) {
-  --ui-rem: #{$base-rem};                 // 16
+  --ui-rem-base: #{$base-rem};            // 16
+  --ui-rem-breakpoint-factor: 1;
+  --ui-rem: calc(
+    var(--ui-rem-base, #{$base-rem}) *
+    var(--ui-rem-breakpoint-factor, 1) *
+    var(--ui-scale, 1)
+  );
   @media screen and (max-width: 1500px), screen and (max-height: 900px) {
-    --ui-rem: #{calc($base-rem * 0.875)}; // 14
+    --ui-rem-breakpoint-factor: 0.875;    // 14
   }
   @media screen and (max-width: 1400px), screen and (max-height: 800px) {
-    --ui-rem: #{calc($base-rem * 0.75)};  // 12
+    --ui-rem-breakpoint-factor: 0.75;     // 12
   }
   @media screen and (max-width: 1100px), screen and (max-height: 700px) {
-    --ui-rem: #{calc($base-rem * 0.625)}; // 10
+    --ui-rem-breakpoint-factor: 0.625;    // 10
   }
   @media screen and (max-width: 940px), screen and (max-height: 600px) {
-    --ui-rem: #{calc($base-rem * 0.5)};   // 8
+    --ui-rem-breakpoint-factor: 0.5;      // 8
   }
   @media screen and (max-width: 760px), screen and (max-height: 500px) {
-    --ui-rem: #{calc($base-rem * 0.375)}; // 6
+    --ui-rem-breakpoint-factor: 0.375;    // 6
   }
 }
 
@@ -123,5 +129,13 @@
     @return var(--ui-rem, #{$base-rem});
   } @else {
     @return calc(var(--ui-rem, #{$base-rem}) * #{$rem});
+  }
+}
+
+@function ui-scale($factor: 1) {
+  @if $factor == 1 {
+    @return var(--ui-scale, 1);
+  } @else {
+    @return calc(var(--ui-scale, 1) * #{$factor});
   }
 }

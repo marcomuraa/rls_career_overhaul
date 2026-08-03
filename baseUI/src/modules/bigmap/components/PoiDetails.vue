@@ -1,43 +1,61 @@
-<!-- PoiDetails - Component for displaying detailed POI information -->
 <template>
-  <div v-if="selectedPoisList.length >= 1" class="poi-icons" v-bng-blur="true">
-    <div
-      v-for="(poi, index) in selectedPoisList"
-      :key="poi.id || index"
-      class="poi-icon"
-      :class="{ 'active': index === currentPoiIndex }"
-      @click="selectPoi(index)"
-    >
-      <BngSpriteIcon :src="'map_' + poi.spriteIcon" style="width: 100%; height: 100%" />
-    </div>
-  </div>
-  <div class="poi-details" v-if="selectedPoi" v-bng-blur="true">
-    <!-- Display icons for multiple POIs if there are more than one -->
-    <div class="poi-content">
-      <bngAdvCardHeading class="poi-details-header" type="line" :preheadings="preheadings">
+  <div
+    v-if="selectedPoi"
+    class="poi-details"
+    v-bng-blur="true"
+  >
+    <template v-if="selectedPoisList.length > 1">
+      <div class="poi-icons-wrapper">
+        <BngBinding
+          class="poi-icon-binding"
+          ui-event="tab_l"
+          controller
+        />
+        <div class="poi-icons">
+          <div
+            v-for="(poi, index) in selectedPoisList"
+            :key="poi.id || index"
+            class="poi-icon"
+            :class="{ 'active': index === currentPoiIndex }"
+            @click="selectPoi(index)"
+          >
+            <BngSpriteIcon :src="'map_' + poi.spriteIcon" style="width: 100%; height: 100%" />
+          </div>
+        </div>
+        <BngBinding
+          class="poi-icon-binding"
+          ui-event="tab_r"
+          controller
+        />
+      </div>
+    </template>
+    <div class="poi-details-header-wrapper">
+      <BngScreenHeadingV2 type="3" class="poi-details-header">
         {{ safeTranslate(selectedPoi.name) }}
-      </bngAdvCardHeading>
+      </BngScreenHeadingV2>
+    </div>
+    <div class="poi-content-section">
       <div class="poi-scrollable">
         <AspectRatio
-          class="poi-thumbnail"
           v-if="preview"
+          class="poi-thumbnail"
           ratio="16:9"
-          :externalImage="preview"
-          imageMode="cover"
+          :external-image="preview"
+          image-mode="cover"
         >
           <div class="poi-aggregate-display" v-if="aggregatePrimary || selectedPoi.formattedProgress">
             <div class="poi-stars" v-if="selectedPoi.formattedProgress">
               <div class="stars">
                 <BngMainStars
-                  v-if="selectedPoi.formattedProgress.unlockedStars"
-                  :individualStars="selectedPoi.formattedProgress.unlockedStars.defaults"
+                  v-if="defaultStars"
+                  :individual-stars="defaultStars"
                   class="main-stars"
                   :scale="0.8"
                   reverse
                 />
                 <BngMainStars
-                  v-if="selectedPoi.formattedProgress.unlockedStars && selectedPoi.formattedProgress.unlockedStars.totalBonusStarCount > 0"
-                  :individualStars="selectedPoi.formattedProgress.unlockedStars.bonus"
+                  v-if="bonusStars && unlockedStars?.totalBonusStarCount"
+                  :individual-stars="bonusStars"
                   class="bonus-stars"
                   :scale="0.8"
                 />
@@ -51,54 +69,88 @@
         </AspectRatio>
 
         <div class="poi-description" v-if="selectedPoi.description">
-          {{ safeTranslate(selectedPoi.description) }}
+          <template v-for="(part, i) in descriptionParts" :key="`desc-${i}`">
+            <span v-if="part.t === 'text'" class="poi-inline-text" v-html="part.v" />
+            <BngBinding v-else :action="part.action" show-unassigned />
+          </template>
         </div>
 
-      </div>
-
-      <div class="poi-actions">
-        <BngButton v-for="action in selectedPoi.actions"  :key="action.id"
-          :accent="ACCENTS.secondary"
-          :icon-right="action.icon"
-          :label="action.label"
-          @click="onAction(action)"
+        <VehicleClassRequirementPanel
+          :required-vehicle-class="selectedPoi.requiredVehicleClass"
+          :current-vehicle-class="selectedPoi.defaultVehicleClass"
+          :state="selectedPoi.requirementState || 'auto'"
+          variant="overlay"
+          sticker-size="md"
+          badge-size="2.5rem"
         />
       </div>
+    </div>
+    <div class="poi-actions">
+      <BngButton
+        v-for="action in visibleActions"
+        :key="action.id"
+        :icon-left="action.icon"
+        :accent="ACCENTS.secondary"
+        :sound-class="action.soundClass"
+        @click="onAction(action)"
+      >
+        {{ $tt(action.label) }}
+        <BngBinding
+          v-if="actionBindingEvent[action.id]"
+          :ui-event="actionBindingEvent[action.id]"
+          controller
+        />
+      </BngButton>
     </div>
   </div>
 </template>
 
 <script setup>
 import { vBngBlur } from "@/common/directives"
-import { ref, computed } from 'vue'
-import { $translate } from '@/services/translation'
-import { BngButton, ACCENTS, icons, BngSpriteIcon, BngMainStars } from '@/common/components/base'
-import bngAdvCardHeading from '@/modules/missions/components/bngAdvCardHeading.vue'
-import AspectRatio from '@/common/components/utility/aspectRatio.vue'
-
-
+import { computed } from "vue"
+import { $translate } from "@/services/translation"
+import { $content } from "@/services"
+import { BngButton, BngBinding, ACCENTS, BngSpriteIcon, BngMainStars, BngScreenHeadingV2 } from "@/common/components/base"
+import AspectRatio from "@/common/components/utility/aspectRatio.vue"
+import VehicleClassRequirementPanel from "@/modules/career/components/vehiclePerformance/VehicleClassRequirementPanel.vue"
 
 const props = defineProps({
-  store: {
+  selectedPoi: {
     type: Object,
-    required: true
+    default: null
+  },
+  selectedPoiIds: {
+    type: Array,
+    default: () => []
+  },
+  poiData: {
+    type: Object,
+    default: () => ({})
+  },
+  isTaxiMode: {
+    type: Boolean,
+    default: false
+  },
+  taxiDestinationPreviewed: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['setRoute', 'teleport'])
+const emit = defineEmits(["selectPoi", "executePoiAction"])
 
-// Get selectedPoi from the store
-const { selectedPoi, selectedPoiIds, poiData, debugLog } = props.store
+const actionBindingEvent = {
+  setRoute: "ok",
+  quickTravel: "action_2",
+}
 
-// Add debug logging for component lifecycle
-debugLog('PoiDetails', 'Component initialized', {
-  selectedPoiId: selectedPoi.value?.id,
-  selectedPoiIdsCount: selectedPoiIds.value?.length || 0
-})
+const selectedPoi = computed(() => props.selectedPoi || null)
+const selectedPoiIds = computed(() => (Array.isArray(props.selectedPoiIds) ? props.selectedPoiIds : []))
+const poiData = computed(() => props.poiData || {})
 
 // Computed list of currently selected POIs
 const selectedPoisList = computed(() => {
-  if (!selectedPoiIds.value || selectedPoiIds.value.length === 0) {
+  if (!selectedPoiIds.value?.length) {
     return selectedPoi.value ? [selectedPoi.value] : []
   }
 
@@ -111,11 +163,9 @@ const selectedPoisList = computed(() => {
     }
   }
 
-  debugLog('PoiDetails', 'Final pois list', pois)
   return pois
 })
 
-// Current POI index in the list
 const currentPoiIndex = computed(() => {
   if (selectedPoisList.value.length <= 1) return 0
 
@@ -123,97 +173,162 @@ const currentPoiIndex = computed(() => {
   const index = selectedPoisList.value.findIndex(poi =>
     poi.id === selectedPoi.value?.id
   )
-  return index >= 0 ? index : 0
+
+  // return the first item if the index not found
+  return Math.max(index, 0)
 })
 
-// Function to select a different POI from the list
-const selectPoi = (index) => {
+function selectPoi(index) {
   if (index >= 0 && index < selectedPoisList.value.length) {
     const newSelectedPoi = selectedPoisList.value[index]
-    selectedPoi.value = newSelectedPoi
+    if (newSelectedPoi?.id) {
+      emit("selectPoi", newSelectedPoi.id)
+    }
   }
 }
 
-const preheadings = computed(() => {
-  const headings = []
-  if (selectedPoi.value?.label) {
-    headings.push($translate.instant(selectedPoi.value.label))
-  }
-  return headings
-})
-
 const preview = computed(() => {
-  if (selectedPoi.value?.previewFiles?.length > 0) {
+  if (selectedPoi.value?.previewFiles?.length) {
     return selectedPoi.value.previewFiles[0]
   }
   return selectedPoi.value?.thumbnailFile || null
 })
 
-// Helper function to safely handle translations
-const safeTranslate = (key) => {
-  if (!key) return ''
+/**
+ * translates the argument as a string or uses the $translate.contextTranslate method if it's an object
+ * @param {string | {txt?: string, context?: string}} key The key to translate
+ * @returns {string} empty string if the translation fails
+ */
+function safeTranslate(key) {
+  if (!key) return ""
   try {
-    // Handle different types of translation keys
-    if (typeof key === 'string') {
+    if (typeof key === "string") {
       return $translate.instant(key)
-    } else if (typeof key === 'object' && key.txt) {
+    } else if (typeof key === "object" && key.txt) {
       return $translate.contextTranslate(key)
     } else {
       return $translate.contextTranslate(key)
     }
   } catch (e) {
-    console.warn('Translation failed for key:', key, e)
-    return typeof key === 'string' ? key : (key?.txt || '')
+    console.warn("Translation failed for key:", key, e)
+    return typeof key === "string" ? key : (key?.txt || "")
   }
 }
+
+const localRegex = /\[action=([^\]]+)\]/gi
+
+function partsFromText(text) {
+  const raw = text != null ? String(text) : ""
+  const parts = []
+  localRegex.lastIndex = 0
+  let lastIndex = 0
+  let match
+
+  while ((match = localRegex.exec(raw)) !== null) {
+    const head = raw.slice(lastIndex, match.index)
+    if (head) parts.push({ t: "text", v: $content.bbcode.parse(head) })
+    parts.push({ t: "binding", action: match[1].trim() })
+    lastIndex = match.index + match[0].length
+  }
+
+  const tail = raw.slice(lastIndex)
+  if (tail) parts.push({ t: "text", v: $content.bbcode.parse(tail) })
+
+  return parts.length ? parts : [{ t: "text", v: $content.bbcode.parse(raw) }]
+}
+
+const descriptionParts = computed(() => partsFromText(safeTranslate(selectedPoi.value?.description)))
 
 const aggregatePrimary = computed(() => {
   const poi = selectedPoi.value
   return poi?.aggregatePrimary?.label && poi?.aggregatePrimary?.value ? poi.aggregatePrimary : null
 })
 
-const onSetRoute = () => {
-  emit('setRoute', selectedPoi.value)
+/**
+ * @param {unknown[] | object} value The value to ensure is an array
+ * @returns {unknown[] | null} the input value or its Object.values or null
+ */
+function ensureArray(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value)
+  }
+  return null
 }
 
-const onTeleport = () => {
-  emit('teleport', selectedPoi.value)
-}
+const unlockedStars = computed(() => {
+  return selectedPoi.value?.formattedProgress?.unlockedStars
+})
 
-const onAction = (action) => {
-  props.store.executePoiAction(action.actionId)
+const defaultStars = computed(() => {
+  return ensureArray(unlockedStars.value?.defaults)
+})
+
+const bonusStars = computed(() => {
+  return ensureArray(unlockedStars.value?.bonus)
+})
+
+const visibleActions = computed(() => {
+  const actions = selectedPoi.value?.actions
+  if (!actions) return []
+  if (props.isTaxiMode) {
+    return actions
+      .filter(a => a.id !== "quickTravel")
+      .map(a => {
+        if (a.id === "setRoute" && props.taxiDestinationPreviewed)
+          return { ...a, label: "ui.taxi.bigmap.confirmDestination" }
+        return a
+      })
+  }
+  return actions
+})
+
+function onAction(action) {
+  emit("executePoiAction", action?.actionId)
 }
 </script>
 
 <style lang="scss" scoped>
 .poi-details {
-  background: rgba(40, 40, 40, 0.9);
+  background-color: rgba(16, 16, 16, 0.5);
   border-radius: 0.5rem 0 0 0.5rem;
-  padding: 0.5rem;
-  color: white;
+  color: var(--bng-off-white);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
 }
 
-.poi-content {
-  flex: 1;
+.poi-content-section {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  padding: 0.5rem;
+  flex-shrink: 0;
+}
+
+.poi-icons-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background-color: rgba(16, 16, 16, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+  min-height: fit-content;
+  border-radius: 0.5rem 0 0 0;
 }
 
 .poi-icons {
+  flex: 1 1 auto;
+  gap: 0.5rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
   overflow-x: auto;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 0.5rem 0 0 0.5rem;
+  padding: 0.5rem;
 }
 
 .poi-icon {
@@ -223,16 +338,27 @@ const onAction = (action) => {
   border-radius: 0.25rem;
   cursor: pointer;
   border: 2px solid transparent;
-  background: rgba(0, 0, 0, 0.3);
+  background-color: rgba(16, 16, 16, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    border-color: rgba(255, 255, 255, 0.3);
+    background-color: var(--bng-cool-gray-700);
   }
 
   &.active {
-    border-color: var(--bng-orange-300);
-    box-shadow: 0 0 0.5rem rgba(255, 165, 0, 0.3);
+    background-color: var(--bng-cool-gray-600);
+    border-color: var(--bng-orange-500);
   }
+}
+
+.poi-icon-binding {
+  align-self: center;
+  justify-self: flex-start;
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+  padding: 0.5rem;
 }
 
 .poi-icon-image {
@@ -245,32 +371,51 @@ const onAction = (action) => {
 .poi-icon-placeholder {
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.1);
+  background-color: rgba(16, 16, 16, 0.5);
   border-radius: 0.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--bng-cool-gray-300);
 }
 
 .poi-scrollable {
-  flex: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0;
-  margin-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.poi-details-header-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  background-color: rgba(16, 16, 16, 0.75);
+  --bng-heading-background-opacity: 0;
+  min-height: 3.6rem;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
 }
 
 .poi-details-header {
-  background: rgba(0, 0, 0, 0.6);
-  margin: -1rem -1rem 0.5rem -1rem;
-  padding-top: 0.5rem;
-  :deep(.decorator) {
-    margin-bottom: 0;
+  --bng-heading-background-opacity: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: -0.5rem;
+
+  :deep(.header) {
+    > h1 {
+      font-weight: 1000 !important;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
   }
 }
 
@@ -280,17 +425,20 @@ const onAction = (action) => {
 
 .poi-description {
   flex: 0;
-  background: rgba(255, 255, 255, 0.1);
+  background-color: rgba(16, 16, 16, 0.6);
   border-radius: 0.5rem;
   padding: 0.5rem;
   text-align: justify;
   position: relative;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--bng-off-white);
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
+}
 
+.poi-inline-text {
+  color: inherit;
 }
 
 .poi-aggregate-display {
@@ -300,15 +448,12 @@ const onAction = (action) => {
   z-index: 1;
 }
 
-.poi-stars {
-}
-
 .aggregate-primary {
   z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(0,0,0,0.6);
+  background-color: rgba(16, 16, 16, 0.6);
   padding: 0.5rem;
   border-radius: 0.5rem;
   font-size: 0.8rem;
@@ -316,19 +461,17 @@ const onAction = (action) => {
   .label {
     font-weight: 300;
   }
-
-  .value {
-  }
 }
 
 .stars {
   display: flex;
-  flex-flow: row;
+  flex-direction: row;
+  align-items: center;
   gap: 0.5rem;
   & > * {
     min-height: fit-content;
     max-width: fit-content;
-    background-color: rgba(0,0,0,0.6);
+    background-color: rgba(16, 16, 16, 0.6);
     border-radius: 0.5rem;
   }
   > .main-stars {
@@ -349,7 +492,7 @@ const onAction = (action) => {
   display: flex;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.2);
+  background-color: rgba(16, 16, 16, 0.6);
   border-radius: 0.25rem;
   flex-wrap: wrap;
 }
@@ -361,7 +504,7 @@ const onAction = (action) => {
 }
 
 .stat-value {
-  color: white;
+  color: var(--bng-off-white);
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
@@ -369,12 +512,16 @@ const onAction = (action) => {
 .poi-actions {
   display: flex;
   flex-direction: column;
-  padding-top: 0.5rem;
+  padding: 0.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 
   :deep(.bng-button) {
-    width: 100%;
-    max-width: 100%;
+    max-width: unset;
+    width: calc(100% - 0.25rem);
+  }
+
+  :deep(.binding-wrapper) {
+    margin-left: 0.25rem;
   }
 }
 </style>

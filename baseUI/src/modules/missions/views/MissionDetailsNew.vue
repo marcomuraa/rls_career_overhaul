@@ -1,10 +1,12 @@
 <template>
   <LayoutSingle
-    v-bng-scoped-nav="{ activateOnMount: true, actionsOnSuspend: [ACTIONS_ON_SUSPEND.allowNavigationLastNavItem] }"
+    v-bng-scoped-nav="{ scopeId: 'root', trapPolicy: SCOPE_TRAP_POLICIES.ALWAYS }"
     v-bng-on-ui-nav:tab_l="() => navigateToPage(-1)"
     v-bng-on-ui-nav:tab_r="() => navigateToPage(1)"
     v-bng-on-ui-nav:menu="gotoControl"
     class="mission-details-layout"
+    @activate="handleActivate"
+    @suspend="handleSuspend"
     @deactivate="handleExit">
     <div class="mission-details-layout-content">
       <div v-bng-blur class="mission-details-topbar">
@@ -13,9 +15,19 @@
           <BngBinding ui-event="tab_l" deviceMask="xinput" :style="{ '--page-nav-icon': `'${icons.arrowSmallLeft.glyph}'` }" class="page-nav-icon" />
         </BngButton>
         <div class="details-pages-container">
-          <span v-for="page of availablePages" :key="page.value" class="page" :class="{ 'current-page': currentPage === page.value }">
-            <BngIcon :type="page.icon" class="page-icon-button" @click="currentPage = page.value" />
-          </span>
+          <Button
+            v-for="page of availablePages"
+            :key="page.value"
+            class="page"
+            :class="{ 'current-page': currentPage === page.value }"
+            :tab-index="-1"
+            :nav-item="false"
+            bng-no-nav="true"
+            @mousedown.prevent
+            @click="(event) => { currentPage = page.value; event.currentTarget.blur() }"
+          >
+            <BngIcon :type="page.icon" class="page-icon-button" />
+          </Button>
         </div>
         <BngButton :accent="ACCENTS.text" bng-no-nav="true" class="page-nav" @click="navigateToPage(1)">
           <BngBinding ui-event="tab_r" deviceMask="xinput" :style="{ '--page-nav-icon': `'${icons.arrowSmallRight.glyph}'` }" class="page-nav-icon" />
@@ -27,7 +39,7 @@
         <div class="available-missions-container">
           <InfoCard v-if="context === 'ongoingMission' || showTasks">
             <template #header>
-              <BngCardHeading type="ribbon"> Ongoing Challenge </BngCardHeading>
+              <BngCardHeading type="ribbon">{{ $tt("ui.missions.details.ongoingChallenge") }}</BngCardHeading>
             </template>
             <template #content>
               <TaskList class="task-list" :header="tasksStore.header" :tasks="tasksStore.tasks" />
@@ -39,13 +51,13 @@
                   v-bng-on-ui-nav:ok.asMouse.focusRequired
                   :accent="ACCENTS.secondary"
                   :icon-right="icons.catalog02"
-                  label="Main Menu"
+                  :label="$tt('ui.missions.details.pauseMenu')"
                   class="large"
-                  @click="handleMainMenu" />
+                  @click="handlePauseMenu" />
 
                 <!-- Recovery Options -->
                 <div v-if="recoveryOptions.length > 0 && !isTutorialEnabled && !hideRecoveryOptions" class="recovery-options-container">
-                  <div class="recovery-options-header">Recovery Options</div>
+                  <div class="recovery-options-header">{{ $tt("ui.missions.details.recoveryOptions") }}</div>
                   <div class="recovery-options-list">
                     <BngButton
                       v-for="option in recoveryOptions"
@@ -53,7 +65,7 @@
                       v-bng-on-ui-nav:ok.asMouse.focusRequired
                       :accent="ACCENTS.secondary"
                       :icon-right="icons[option.icon]"
-                      :label="option.label"
+                      :label="$tt(option.label)"
                       :disabled="!option.active || !option.enabled"
                       class="recovery-option-button"
                       @click="handleRecoveryOption(option.key)" />
@@ -64,7 +76,7 @@
                   v-bng-on-ui-nav:ok.asMouse.focusRequired
                   :accent="ACCENTS.secondary"
                   :icon-right="icons.restart"
-                  :label="'Restart'"
+                  :label="$tt('missions.missions.general.panel.restart')"
                   :disabled="!store.customRecoveryOptionsActiveState?.restartMission?.active"
                   class="large"
                   @click="store.restartMission" />
@@ -73,15 +85,16 @@
                   v-bng-on-ui-nav:ok.asMouse.focusRequired
                   :accent="ACCENTS.secondary"
                   :icon-right="icons.adjust"
-                  :label="'Reconfigure'"
+                  :label="$tt('ui.missions.details.reconfigure')"
                   class="large"
                   @click="gotoSettings" />
                 <BngButton
                   v-if="missionStartableDetails.abandonVisible"
+                  :disabled="disableAbandonButton"
                   v-bng-on-ui-nav:ok.asMouse.focusRequired
                   :icon-right="icons.abandon"
                   :accent="ACCENTS.attention"
-                  label="Abandon"
+                  :label="$tt('missions.missions.general.panel.abandon')"
                   class="large"
                   @click="store.abandonMission" />
                 <BngButton
@@ -89,14 +102,14 @@
                   v-bng-on-ui-nav:ok.asMouse.focusRequired
                   bng-scoped-nav-autofocus
                   :icon-right="icons.fastTravel"
-                  label="Continue"
+                  :label="$tt('missions.missions.general.end.continue')"
                   class="large"
                   @click="handleContinue" />
                 <BngButton
                   v-if="!missionStartableDetails.startableVisible && !missionStartableDetails.continueVisible"
                   v-bng-on-ui-nav:ok.asMouse.focusRequired
                   :icon-right="icons.lockClosed"
-                  label="Locked"
+                  :label="$tt('ui.missions.details.locked')"
                   class="large"
                   disabled />
               </div>
@@ -105,7 +118,7 @@
 
           <InfoCard v-else>
             <template #header>
-              <BngCardHeading type="ribbon"> Available Challenges </BngCardHeading>
+              <BngCardHeading type="ribbon">{{ $tt("ui.missions.details.availableChallenges") }}</BngCardHeading>
             </template>
             <template #content>
               <div class="mission-card-container">
@@ -126,14 +139,16 @@
                       v-for="id in missionCards.groupsByKey[groupKey].tileIdsUnsorted"
                       v-bng-on-ui-nav:ok.asMouse.focusRequired
                       :key="id"
+                      :bng-no-nav="isRootScopeSuspended && selectedMission.id !== id"
                       :data-mission-id="id"
                       :bng-scoped-nav-autofocus="
                         selectedMission.id === id || (!selectedMission.id && id === missionCards.groupsByKey[groupKey].tileIdsUnsorted[0])
                       "
                       :mission="missionCards.tilesById[id]"
+                      :inactive="isDetailsScopeActive && selectedMission.id !== id"
                       :class="{ highlighted: selectedMission.id === id }"
                       class="mission-card"
-                      @click.stop="selectMission(id)"
+                      @click.stop="selectMission(id, $event)"
                       @focusin="store.selectMission(id)" />
                   </div>
                 </div>
@@ -147,19 +162,16 @@
                 bng-no-nav="true"
                 class="exit-button"
                 @click="handleBack">
-                <BngBinding v-if="!scopeNavState.missionDetailsActivated" ui-event="back" deviceMask="xinput" />
-                Back
+                <BngBinding v-if="isRootScopeActive" ui-event="back" deviceMask="xinput" />
+                {{ $tt("ui.common.back") }}
               </BngButton>
             </template>
           </InfoCard>
         </div>
-        <div
-          v-bng-scoped-nav="{ activated: scopeNavState.missionDetailsActivated, type: 'container' }"
-          class="current-details-container"
-          @activate="onDetailScopeChanged(true, $event)"
-          @deactivate="onDetailScopeChanged(false, $event)">
+        <div v-bng-scoped-nav="{ scopeId: 'details-scope', type: 'container', bubbleWhitelistEvents: ['tab_l', 'tab_r', 'menu'] }" class="current-details-container">
           <InfoCard v-if="missionBasicInfo" @click="onDetailsClick">
             <template #header>
+
               <BngAdvCardHeading mute divider :preheadings="preheadings" :icon="missionBasicInfo.icon" class="current-details-header">
                 {{ $ctx_t(missionBasicInfo.name) }}
               </BngAdvCardHeading>
@@ -168,20 +180,20 @@
                 {{ missionInfoString }}
               </div>
               <BngButton
-                v-if="scopedNav.isGamepadActive && scopeNavState.missionDetailsActivated"
+                v-if="isDetailsScopeActive"
                 v-bng-sound-class="'bng_back_generic'"
                 :accent="ACCENTS.attention"
                 bng-no-nav="true"
                 tabindex="-1"
-                class="details-back-binding"
-                @click.stop="scopeNavState.missionDetailsActivated = false">
+                class="details-back-binding">
                 <BngIcon :type="icons.arrowSmallLeft" />
                 <BngBinding ui-event="back" deviceMask="xinput" />
-                {{ context === "ongoingMission" ? "Back" : "Return to list" }}
+                {{ context === "ongoingMission" ? $tt("ui.common.back") : $tt("ui.missions.details.returnToList") }}
               </BngButton>
             </template>
             <template #content>
               <div class="details-content-container">
+
                 <div class="details-content-entry">
                   <template v-if="currentPage === 'info'">
                     <div class="details-info-container">
@@ -189,6 +201,12 @@
                         <BngImageCarousel :images="missionBasicInfo.images" transition external />
                       </AspectRatio>
                       <div class="details-info-description">{{ $ctx_t(missionBasicInfo.description) }}</div>
+                      <VehicleClassRequirementPanel
+                        :required-vehicle-class="missionBasicInfo.requiredVehicleClass"
+                        :current-vehicle-class="selectedVehicleClass"
+                        background-color="rgba(255, 255, 255, 0.1)"
+                        sticker-size="lg"
+                        badge-size="3rem" />
                     </div>
                   </template>
                   <template v-else-if="currentPage === 'settings'">
@@ -216,15 +234,17 @@
             <template #button>
               <div v-if="context === 'ongoingMission' && currentPage === 'settings'" class="ongoing-mission-reconfigure-button">
                 <BngButton
-                v-bng-on-ui-nav:ok.asMouse.focusRequired
-                :accent="ACCENTS.secondary"
-                :icon-right="icons.reconfigure"
-                :disabled="sameUserSettingsAsLast"
-                label="Reconfigure and Restart mission"
-                class="large"
-                @click="store.reconfigureMission" />
+                  v-bng-on-ui-nav:ok.asMouse.focusRequired
+                  :accent="ACCENTS.secondary"
+                  :icon-right="icons.reconfigure"
+                  :disabled="sameUserSettingsAsLast"
+                  :label="$tt('ui.missions.details.reconfigureAndRestart')"
+                  class="large"
+                  @click="store.reconfigureMission" />
               </div>
-              <div v-else-if="context === 'ongoingMission' && currentPage !== 'settings'" class="ongoing-mission-text">{{ $t("missions.missions.general.challengeCurrentlyInProgress") }}</div>
+              <div v-else-if="context === 'ongoingMission' && currentPage !== 'settings'" class="ongoing-mission-text">
+                {{ $t("missions.missions.general.challengeCurrentlyInProgress") }}
+              </div>
               <div v-else-if="context === 'availableMissions'" class="current-details-buttons">
                 <div
                   v-if="currentPage === 'info' && context === 'availableMissions' && missionSettings && missionSettings.length > 0"
@@ -237,7 +257,7 @@
                 </div>
 
                 <div v-if="missionBasicInfo && missionBasicInfo.entryFee" class="entry-fee">
-                  <span class="label">Entry Fee:</span>
+                  <span class="label">{{ $tt("ui.missions.details.entryFee") }}</span>
                   <RewardsPills class="tiny-rewards" :rewards="missionBasicInfo.entryFee" />
                 </div>
                 <div v-if="missionStartableDetails.needsRepair" class="repair-item">
@@ -255,19 +275,17 @@
                   bng-scoped-nav-autofocus
                   :icon-left="icons.wrench"
                   :disabled="!missionStartableDetails.startableEnabled"
-                  :label="missionStartableDetails.selectedRepairTypeLabel"
+                  :label="missionStartableDetails.selectedRepairTypeLabel ? $ctx_t(missionStartableDetails.selectedRepairTypeLabel) : $tt('ui.missions.details.startChallenge')"
                   class="large"
                   @click="startMission" />
                 <BngButton
                   v-else
                   v-bng-on-ui-nav:ok.asMouse.focusRequired
                   bng-scoped-nav-autofocus
-                  :disabled="!missionStartableDetails.startableEnabled"
-                  :label="missionStartableDetails.selectedRepairTypeLabel"
+                  :disabled="!missionStartableDetails.startableEnabled || !missionStartableDetails.startableVisible"
+                  :label="missionStartableDetails.selectedRepairTypeLabel ? $ctx_t(missionStartableDetails.selectedRepairTypeLabel) : $tt('ui.missions.details.startChallenge')"
                   class="large"
-                  @click="startMission">
-                  Start Challenge
-                </BngButton>
+                  @click="startMission" />
               </div>
             </template>
           </InfoCard>
@@ -281,17 +299,17 @@
 const AVAILABLE_PAGES = [
   {
     value: "info",
-    label: "Info",
+    label: "ui.common.info",
     icon: "medal",
   },
   {
     value: "settings",
-    label: "Settings",
+    label: "ui.missions.details.settings",
     icon: "adjust",
   },
   {
     value: "leaderboards",
-    label: "Leaderboards",
+    label: "ui.missions.details.leaderboards",
     icon: "chartBars",
   },
 ]
@@ -299,27 +317,30 @@ const AVAILABLE_PAGES = [
 
 <script setup>
 import { ref, onBeforeMount, computed, reactive, onMounted, provide, onUnmounted, watch } from "vue"
+import { useRoute } from "vue-router"
 import { storeToRefs } from "pinia"
 import { BngBinding, BngSelect, BngIcon, icons, BngCardHeading, BngButton, ACCENTS, BngMainStars, BngImageCarousel } from "@/common/components/base"
 import { vBngBlur, vBngSoundClass, vBngOnUiNav, vBngScopedNav } from "@/common/directives"
-import { ACTIONS_ON_SUSPEND } from "@/common/directives/BngScopedNav"
+import { SCOPE_TRAP_POLICIES } from "@/services/scopedNav/types"
 import { $translate } from "@/services"
 import { lua } from "@/bridge"
 import { LayoutSingle } from "@/common/layouts"
 import useControls from "@/services/controls"
-import { useScopedNav } from "@/services/scopedNav"
+// import { useScopedNav } from "@/services/scopedNav"
+import { useScopedNav } from "@/services/scopedNav/api"
 import { useMissionDetailsStore } from "@/modules/missions/stores/missionDetailsStore"
-import { useTasksStore } from "@/modules/tasks"
+import { useTasksStore } from "@/services/tasklistStore"
 import InfoCard from "../components/InfoCard.vue"
 import BngAdvCardHeading from "../components/bngAdvCardHeading.vue"
 import MissionCard from "@/modules/career/components/progress/MissionCard.vue"
-import { AspectRatio } from "@/common/components/utility"
+import { AspectRatio, Button } from "@/common/components/utility"
 import MissionSettings from "../components/MissionSettings.vue"
 import MissionObjectives from "../components/MissionObjectives.vue"
 import MissionSettingsSimple from "../components/MissionSettingsSimple.vue"
 import MissionLeaderboards from "../components/MissionLeaderboards.vue"
 import RewardsPills from "@/modules/career/components/progress/RewardsPills.vue"
 import TaskList from "@/modules/tasks/components/TaskList.vue"
+import VehicleClassRequirementPanel from "@/modules/career/components/vehiclePerformance/VehicleClassRequirementPanel.vue"
 
 const store = useMissionDetailsStore()
 const {
@@ -333,12 +354,15 @@ const {
   isTutorialEnabled,
   hideReconfigureButton,
   hideRecoveryOptions,
+  disableAbandonButton,
   sameUserSettingsAsLast,
   preselectedPage,
+  availableVehicles,
 } = storeToRefs(store)
 const controls = useControls()
 const scopedNav = useScopedNav()
 const tasksStore = useTasksStore()
+const route = useRoute()
 
 const currentPage = ref("info")
 
@@ -353,13 +377,32 @@ watch(
   { immediate: true }
 )
 
+// The "Yours" sticker reflects the vehicle currently selected in mission settings,
+// not the player's own vehicle. Vehicle selector settings carry the resolved
+// `vehicleClass` per option (or `type === "player"` to fall back to the live
+// player vehicle class). If no vehicle setting exists we fall back to the player
+// vehicle directly.
+const selectedVehicleClass = computed(() => {
+  const settings = availableVehicles.value
+  if (settings && settings.length > 0) {
+    for (const s of settings) {
+      const opt = s?.currentOption
+      if (!opt) continue
+      if (opt.type === "player") return missionBasicInfo.value?.playerVehicleClass || null
+      if (opt.vehicleClass) return opt.vehicleClass
+    }
+    return null
+  }
+  return missionBasicInfo.value?.playerVehicleClass || null
+})
+
 const availablePages = computed(() => {
   return AVAILABLE_PAGES.filter(page => !(page.value === "settings" && hideReconfigureButton.value))
 })
 
-const scopeNavState = reactive({
-  missionDetailsActivated: false,
-})
+// const scopeNavState = reactive({
+//   missionDetailsActivated: false,
+// })
 const uiState = reactive({
   missionStarted: false,
   settingsTriggered: false,
@@ -371,7 +414,7 @@ const preheadings = computed(() => missionBasicInfo.value.missionTypeLabels.map(
 const restartProperties = computed(() => {
   const showRestart = (isGamepadAvailable && isGamepadAvailable.value) || sameUserSettingsAsLast.value
   return {
-    label: showRestart ? "Restart" : "Reconfigure",
+    label: showRestart ? "missions.missions.general.panel.restart" : "ui.missions.details.reconfigure",
     icon: showRestart ? icons.restart : icons.reconfigure,
   }
 })
@@ -399,8 +442,6 @@ const recoveryOptions = computed(() => {
     .map(([key, option]) => ({ key, ...option }))
 })
 
-let unpauseOnUnmount = true
-
 /* Start provide */
 const playAudio = () => lua.Engine.Audio.playOnce("AudioGui", "event:>UI>Career>Checkbox")
 provide("animationSettings", {
@@ -414,19 +455,23 @@ provide("animationSettings", {
 })
 /* End provide */
 
-onMounted(() => {
-  lua.simTimeAuthority.pause(true)
+const isRootScopeActive = computed(() => {
+  console.log("isRootScopeActive", scopedNav.current.value)
+  return scopedNav.current.value?.id === "root"
+})
+const isDetailsScopeActive = computed(() => {
+  console.log("isDetailsScopeActive", scopedNav.current.value)
+  return scopedNav.current.value?.id === "details-scope"
 })
 
 onBeforeMount(async () => {
+  lua.simTimeAuthority.pushPauseRequest('missionDetails')
   await store.init()
 })
 
 onUnmounted(() => {
   store.$dispose()
-  if (unpauseOnUnmount) {
-    lua.simTimeAuthority.pause(false)
-  }
+  lua.simTimeAuthority.popPauseRequest('missionDetails')
 })
 
 const startMission = () => {
@@ -436,14 +481,12 @@ const startMission = () => {
   store.startMission()
 }
 
-const selectMission = id => {
-  scopeNavState.missionDetailsActivated = true
+const selectMission = (id, event) => {
+  console.log("selectMission", id, event)
+  if (event?.fromController) {
+    scopedNav.activateScope("details-scope")
+  }
   store.selectMission(id)
-}
-
-const onDetailScopeChanged = (activated, event) => {
-  // console.log("onDetailScopeChanged", activated, event)
-  scopeNavState.missionDetailsActivated = activated
 }
 
 const navigateToPage = (direction = 1) => {
@@ -453,7 +496,15 @@ const navigateToPage = (direction = 1) => {
 }
 
 const handleBack = () => {
-  window.bngVue.gotoGameState("play")
+  if (route.name === "pause.career.branch.missionDetails") {
+    window.bngVue.gotoGameState("pause.career.branch", { params: { pathId: route.params?.pathId } })
+    return
+  }
+  if (route.name === "pause.career.missionDetails") {
+    window.bngVue.gotoGameState("pause.career")
+    return
+  }
+  lua.extensions.ui_router.back()
 }
 
 const handleContinue = async () => {
@@ -461,7 +512,7 @@ const handleContinue = async () => {
   if (isMissionActive) {
     const isMissionStartOrEndScreen = await lua.extensions.gameplay_missions_missionScreen.isMissionStartOrEndScreenActive()
     if (isMissionStartOrEndScreen) {
-      window.bngVue.gotoGameState("mission-control", { params: { mode: isMissionStartOrEndScreen } })
+      window.bngVue.gotoGameState("mission.control", { params: { mode: isMissionStartOrEndScreen } })
       return
     }
   }
@@ -469,46 +520,48 @@ const handleContinue = async () => {
   window.bngVue.gotoGameState("play")
 }
 
-const handleMainMenu = () => {
-  unpauseOnUnmount = false
-  gotoMenu()
+const handlePauseMenu = () => {
+  window.bngVue.gotoGameState("pause")
 }
 
 const gotoMenu = () => {
-  // console.log("gotoMenu")
-  lua.career_career.isActive().then(isActive => {
-    if (isActive) {
-      window.bngVue.gotoAngularState("menu.careerPause")
-    } else {
-      window.bngVue.gotoAngularState("menu.mainmenu")
-    }
-  })
+  console.log("gotoMenu")
+  // lua.career_career.isActive().then(isActive => {
+  //   if (isActive) {
+  //     window.bngVue.gotoAngularState("menu.careerPause")
+  //   } else {
+  //     window.bngVue.gotoAngularState("menu")
+  //   }
+  // })
+  window.globalAngularRootScope?.$broadcast("MenuToggle")
 }
 
 const gotoControl = () => {
-  // UINav doesn't support async functions yet
-  lua.extensions.gameplay_missions_missionScreen.isAnyMissionActive().then(isMissionActive => {
-    if (isMissionActive) {
-      lua.extensions.gameplay_missions_missionScreen.isMissionStartOrEndScreenActive().then(isMissionStartOrEndScreen => {
-        if (isMissionStartOrEndScreen) {
-          window.bngVue.gotoGameState("mission-control", { params: { mode: isMissionStartOrEndScreen } })
-          return
-        }
-      })
-    }
-    window.bngVue.gotoGameState("play")
-  })
+  // // UINav doesn't support async functions yet
+  // lua.extensions.gameplay_missions_missionScreen.isAnyMissionActive().then(isMissionActive => {
+  //   if (isMissionActive) {
+  //     return lua.extensions.gameplay_missions_missionScreen.isMissionStartOrEndScreenActive().then(isMissionStartOrEndScreen => {
+  //       if (isMissionStartOrEndScreen) {
+  //         window.bngVue.gotoGameState("mission.control", { params: { mode: isMissionStartOrEndScreen } })
+  //       } else {
+  //         window.bngVue.gotoGameState("play")
+  //       }
+  //     })
+  //   }
+  //   window.bngVue.gotoGameState("play")
+  // })
+  window.globalAngularRootScope?.$broadcast("MenuToggle")
 }
 
 const gotoSettings = () => {
   currentPage.value = "settings"
-  scopeNavState.missionDetailsActivated = true
+  scopedNav.activateScope("details-scope")
   uiState.settingsTriggered = true
 }
 
 const onDetailsClick = event => {
   // console.log("onDetailsClick", event.target)
-  if (!scopeNavState.missionDetailsActivated) scopeNavState.missionDetailsActivated = true
+  scopedNav.activateScope("details-scope")
 }
 
 const handleRecoveryOption = optionKey => {
@@ -516,7 +569,7 @@ const handleRecoveryOption = optionKey => {
 }
 
 async function handleExit(event) {
-  // console.log("handleExit", event)
+  console.log("handleExit", event)
 
   // the scope is deactivated due to the component being unmounted, likely due to a reroute
   // if so, prevent reroute
@@ -524,7 +577,13 @@ async function handleExit(event) {
 
   // if abandoning or starting a mission, ignore
   const taskDataType = await lua.extensions.gameplay_missions_missionManager.getCurrentTaskdataTypeOrNil()
+  console.log("taskDataType", taskDataType)
   if (taskDataType) {
+    return
+  }
+
+  if (route.name === "pause.career.branch.missionDetails" || route.name === "pause.career.missionDetails") {
+    handleBack()
     return
   }
 
@@ -535,16 +594,22 @@ async function handleExit(event) {
     gotoMenu()
   }
 }
+
+const isRootScopeSuspended = ref(false)
+const handleActivate = () => {
+  isRootScopeSuspended.value = false
+}
+
+const handleSuspend = () => {
+  isRootScopeSuspended.value = true
+}
 </script>
 
 <style lang="scss" scoped>
 $background-color: rgba(var(--bng-off-black-rgb), 0.75);
 
 .mission-details-layout {
-  --safezone-top: 2.75em;
-  --safezone-bottom: var(--safezone-new-info-bar, 4.75em);
-  --content-flow: column nowrap;
-
+  --content-flow: column;
 
   .mission-details-layout-content {
     display: flex;
@@ -564,7 +629,6 @@ $background-color: rgba(var(--bng-off-black-rgb), 0.75);
     padding: 0 0.25rem;
   }
 }
-
 
 .mission-details-topbar {
   display: flex;
@@ -800,6 +864,7 @@ $background-color: rgba(var(--bng-off-black-rgb), 0.75);
       margin-bottom: 0;
     }
   }
+
   .mission-info {
     opacity: 0.5;
     position: absolute;
@@ -846,7 +911,8 @@ $background-color: rgba(var(--bng-off-black-rgb), 0.75);
   > .details-content-entry {
     display: flex;
     gap: 0.5rem;
-    flex-flow: row wrap;
+    flex-direction: row;
+    flex-wrap: wrap;
     // max-width: 100%;
   }
 }
@@ -904,35 +970,46 @@ $background-color: rgba(var(--bng-off-black-rgb), 0.75);
     position: relative;
     text-align: center;
   }
+
 }
 
 .details-objectives-container {
   flex: 0.5 0.5 25rem;
   // margin-left: 1.5rem;
   --bng-info-card-width: auto;
-  min-width: 15rem;
-  max-width: 30rem;
 }
 
 .details-pages-container > .page {
-  padding: 0.3rem 0.3rem 0.3rem 0.3rem;
-  cursor: pointer;
+  --bng-button-min-width: auto;
+  --bng-button-max-width: none;
+  --bng-button-margin: 0.25rem;
+  --bng-button-padding: 0.3rem;
+  --bng-button-padding-top: 0.3rem;
+  --bng-button-padding-bottom: 0.3rem;
+  --bng-bg-border-radius: 0.5rem;
+  --bng-bg-border-width: 0;
+  --bng-bg-enabled: transparent;
+  --bng-bg-hover: transparent;
+  --bng-bg-active: transparent;
+  --bng-bg-focus: transparent;
+  --bng-bg-disabled: transparent;
+  --bng-bg-border-enabled: transparent;
+  --bng-bg-border-hover: transparent;
+  --bng-bg-border-active: transparent;
+  --bng-bg-border-focus: transparent;
+  --bng-bg-border-disabled: transparent;
+
   // height: 100%;
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
-  margin-left: 0.25rem;
-  margin-right: 0.25rem;
   //font-size: 1.2rem;
   --bng-icon-color: var(--bng-off-white);
   --bng-icon-size: 1.8em;
 
   &.current-page {
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 0.5rem;
-
-    > :first-child {
-      color: var(--bng-orange-300);
-    }
+    --bng-bg-enabled: rgba(255, 255, 255, 0.2);
+    --bng-bg-hover: rgba(255, 255, 255, 0.2);
+    --bng-bg-active: rgba(255, 255, 255, 0.2);
+    --bng-bg-focus: rgba(255, 255, 255, 0.2);
+    --bng-icon-color: var(--bng-orange-300);
   }
 }
 

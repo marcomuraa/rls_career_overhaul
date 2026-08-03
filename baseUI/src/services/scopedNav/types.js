@@ -36,6 +36,15 @@ export const SCOPE_TYPES = {
   NONAV: "nonav",
 }
 
+/**
+ * Axes for the `wrapNavigation` option.
+ */
+export const WRAP_NAVIGATION = {
+  VERTICAL: "vertical",
+  HORIZONTAL: "horizontal",
+  BOTH: "both",
+}
+
 export const SCOPE_STATUS = {
   ACTIVE: "active",
   PARTIAL: "partial",
@@ -43,8 +52,25 @@ export const SCOPE_STATUS = {
   INACTIVE: "inactive",
 }
 
+export const SCOPED_NAV_DOM_EVENTS = {
+  activate: "activate",
+  deactivate: "deactivate",
+  suspend: "suspend",
+}
+
 export const INPUT_MODES = {
   MOUSE: "mouse",
   CONTROLLER: "controller",
   HYBRID: "hybrid",
+}
+
+export const SCOPE_TRAP_POLICIES = {
+  /**
+   * Always trap events when scope is active (original and default behavior)
+   */
+  ALWAYS: "always",
+  /**
+   * Only trap events when controller is active
+   */
+  CONTROLLER_ONLY: "controller-only",
 }

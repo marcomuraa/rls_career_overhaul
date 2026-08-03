@@ -30,7 +30,8 @@ const props = defineProps({
 .rewards-pills-container {
   display: flex;
   align-items: baseline;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   margin: -0.125rem;
   > * {
     margin-left: 0.125rem;

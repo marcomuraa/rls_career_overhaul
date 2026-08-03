@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "name": "ui.photomode.overlay.builtin.teamOffroadRight",
+  "author": "BeamNG",
+  "layers": [
+    {
+      "image": "corner.png",
+      "imageFit": "x",
+      "imagePosition": "left top",
+      "height": "100%",
+      "width": "30%",
+      "x": "0%",
+      "y": "0%"
+    },
+    {
+      "image": "text.png",
+      "imageFit": "x",
+      "imagePosition": "right bottom",
+      "height": "100%",
+      "width": "60%",
+      "x": "100%",
+      "y": "0%"
+    }
+  ]
+}

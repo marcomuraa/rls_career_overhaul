@@ -62,7 +62,7 @@ const
     'cancel': 'cui_cancel',
     'action_2': 'cui_action_2',
     'action_3': 'cui_action_3',
-    'gameplay_interact': 'cui_gameplay_interact',
+    'gameplay_interact': 'gameplay_interact',
     'context': 'cui_context',
   },
 
@@ -200,8 +200,8 @@ const activateMenuActionMap = (state=true) => {
  */
 const attachEventListener = (state=true) => {
   if (!eventBus) return
-  eventBus.off(GAME_UI_NAVIGATION_EVENT)
-  eventBus.off(GAME_UI_NAV_MAP_ENABLED_EVENT)
+  eventBus.off(GAME_UI_NAVIGATION_EVENT, gameUIEventHandler)
+  eventBus.off(GAME_UI_NAV_MAP_ENABLED_EVENT, handleEnabledChangeFromLua)
   if (state) {
     eventBus.on(GAME_UI_NAVIGATION_EVENT, gameUIEventHandler)
     eventBus.on(GAME_UI_NAV_MAP_ENABLED_EVENT, handleEnabledChangeFromLua)
@@ -382,12 +382,6 @@ const handleGlobalUINavEvent = e => {
 
   // some default stuff (only if Crossfire didn't do a preventDefault)
   if (e.defaultPrevented) return
-
-  if (d.value === 1 && d.name === "tab_l") {
-    window.bridge.events.emit("ui_topBar_selectPrevious")
-  } else if (d.value === 1 && d.name === "tab_r") {
-    window.bridge.events.emit("ui_topBar_selectNext")
-  }
 
   // TODO: check if all the below is sensible??
 

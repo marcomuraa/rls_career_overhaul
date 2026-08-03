@@ -564,7 +564,7 @@ function createOverlay() {
     height: 100%;
     pointer-events: none;
     z-index: 999999;
-    font-family: monospace;
+    font-family: var(--fnt-mono), monospace;
     font-size: 48px;
     color: magenta;
     pointer-events: none;

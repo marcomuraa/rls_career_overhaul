@@ -7,6 +7,8 @@
     :accent="ACCENTS.text"
     :disabled="!data.action"
     @click.stop="onClick"
+    data-info-bar-hint
+    :data-info-bar-hint-event="primaryUiEvent"
     bng-no-nav
     tabindex="-1"
   >
@@ -40,12 +42,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { ref, computed, onMounted, onBeforeUnmount, inject } from "vue"
 import { BngBinding, BngIcon, BngButton, ACCENTS } from "@/common/components/base"
 import { NAVIGABLE_ELEMENTS_SELECTOR } from "@/services/crossfire"
 import { setFocus } from "@/services/uiNavFocus"
 import useControls from "@/services/controls"
 
+const $simplemenu = inject("$simplemenu")
 const Controls = useControls()
 
 const props = defineProps({
@@ -136,16 +139,23 @@ const labelView = computed(() =>
   hintContent.value.find(item => typeof item === "string") ||
   bindingView.value.find(item => item.label)?.label
 )
+const primaryUiEvent = computed(() =>
+  bindingView.value.find(item => item.type === "binding" && item.props?.uiEvent)?.props.uiEvent || undefined
+)
 
 const bindingDisplayed = computed(() => {
-  // show when all bindings are displayed
+  // show when some bindings are displayed
   if (bindingRefs.value.some(ref => ref.displayed)) return true
   // show when there is an icon
   if (bindingView.value.some(item => item.type === "icon")) return true
   // show when there is a label
-  if (labelView.value) return true
+  if (labelView.value) return !$simplemenu.value
   // hide otherwise
   return false
+})
+
+defineExpose({
+  displayed: bindingDisplayed,
 })
 
 function onClick(evt) {
@@ -174,7 +184,7 @@ function trackFocus(evt) {
   }
   if (target === lastFocused) return
   const button = hintRef.value?.getElement?.()
-  if (target !== button && !button.contains(target)) lastFocused = target
+  if (button && target !== button && !button.contains(target)) lastFocused = target
 }
 
 onMounted(() => window.addEventListener("uinav-focus", trackFocus))
@@ -183,6 +193,9 @@ onBeforeUnmount(() => window.removeEventListener("uinav-focus", trackFocus))
 
 <style lang="scss" scoped>
 .hint {
+  --bng-bg-enabled-opacity: 0;
+  --bng-bg-disabled-opacity: 0;
+
   margin: 0 !important;
   padding-top: 0;
   padding-bottom: 0;
@@ -200,14 +213,16 @@ onBeforeUnmount(() => window.removeEventListener("uinav-focus", trackFocus))
 
   .binding-container {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
   }
 
   .hint-content {
     display: flex;
     align-items: center;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 0.25em;
     max-width: 100%;
     .hint-text {

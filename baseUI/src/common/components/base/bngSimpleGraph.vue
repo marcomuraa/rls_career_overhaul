@@ -5,7 +5,7 @@
       <div class="y-values">
         <div class="max-value">{{ yMaxFormatted }}</div>
         <div class="axis-label">
-          {{ config.yAxis.label }}
+          {{ $t(config.yAxis.label) }}
           <span v-if="config.yAxis.unit" class="unit">({{ config.yAxis.unit }})</span>
         </div>
         <div class="min-value">{{ yMinFormatted }}</div>
@@ -183,7 +183,7 @@
       <div class="x-values">
         <div class="min-value">{{ xMinFormatted }}</div>
         <div class="axis-label">
-          {{ config.xAxis.label }}
+          {{ $t(config.xAxis.label) }}
           <span v-if="config.xAxis.unit" class="unit">({{ config.xAxis.unit }})</span>
         </div>
         <div class="max-value">{{ xMaxFormatted }}</div>
@@ -194,6 +194,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { $translate } from "@/services"
 
 const props = defineProps({
   // Configuration object for graph appearance and behavior

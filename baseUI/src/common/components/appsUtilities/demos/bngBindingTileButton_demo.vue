@@ -32,13 +32,8 @@
 
 <script setup>
 import { BngBindingTileButton } from "@/common/components/appsUtilities"
-import { BngBinding, BngIcon, icons } from "@/common/components/base"
-
-// Demo support outside of game: feed mocked bindings so BngBinding renders
-import { inject, ref } from "vue"
-import { runInBrowser, getMockedData } from "@/utils/"
-const $game = inject("$game")
-runInBrowser(() => getMockedData("inputBindings.sample").then(data => $game.events.emit("InputBindingsChanged", data)))
+import { BngBinding } from "@/common/components/base"
+import { ref } from "vue"
 
 // sample values
 const value = ref(0.35)

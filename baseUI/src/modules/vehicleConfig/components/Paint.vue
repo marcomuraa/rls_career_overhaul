@@ -18,23 +18,43 @@
         navigable
       >
         <template #caption>
-          Multi Paint Setups
+          {{ $t("ui.color.paint.multiPaintSetups") }}
         </template>
         <div class="multi-paint-setups-content">
           <template v-for="paint in multipaint" :key="paint.name">
-              <BngPaintTile
-                class="multi-paint-setup-item"
-                :paint-id="`${configId}:${paint.id}`"
-                :paint="paint.paints"
-                :paint-name="paint.name"
-                :paint-names="paint.paintNames"
-                :width="72"
-                :height="24"
-                with-menu
-                @click="paint.apply"
-                @menu-click="paint.apply"
-              />
+            <BngPaintTile
+              class="multi-paint-setup-item"
+              :paint-id="`${configId}:${paint.id}`"
+              :paint="paint.paints"
+              :paint-name="paint.name"
+              :paint-names="paint.paintNames"
+              :width="72"
+              :height="24"
+              with-menu
+              @click="paint.apply"
+              @menu-click="paint.apply"
+            />
           </template>
+          <div v-if="multipaint.length > 0" class="multi-paint-setup-item multi-paint-randomize-item">
+            <BngPaintTile
+              :paint-name="$t('ui.color.paint.randomMultipaintSetup')"
+              :width="72"
+              :height="24"
+              @click="applyRandomMultipaint"
+            />
+            <BngIcon type="dice24" class="multi-paint-randomize-icon" />
+          </div>
+          <div v-if="availablePaintNames.length > 0" class="multi-paint-setup-item multi-paint-randomize-item">
+            <BngPaintTile
+              :paint-name="$t('ui.color.paint.randomizeEachPaint')"
+              :width="72"
+              :height="24"
+              @click="applyRandomPaintPerSlot"
+            />
+            <BngIcon type="dice24" class="multi-paint-randomize-icon left " />
+            <BngIcon type="dice24" class="multi-paint-randomize-icon middle" />
+            <BngIcon type="dice24" class="multi-paint-randomize-icon right" />
+          </div>
         </div>
       </AccordionItem>
       <AccordionItem
@@ -46,7 +66,7 @@
         :style="previewStyles[idx - 1]"
       >
         <template #caption>
-          {{ $t("ui.trackBuilder.matEditor.paint") + " " + idx }}
+          {{ $t("ui.color.paint.unnamed", { index: idx }) }}
         </template>
         <div class="paint-picker-wrapper" v-bng-scoped-nav="{bubbleWhitelistEvents: ['menu']}" @deactivate="resetScroll">
           <PaintPicker
@@ -59,8 +79,10 @@
             :presets="vehiclePaintPresets"
             :legacy="legacy"
           />
+          <div v-if="bottomSpacer" class="paint-bottom-spacer" aria-hidden="true" />
         </div>
       </AccordionItem>
+      <div v-if="bottomSpacer" class="paint-bottom-spacer" aria-hidden="true" />
     </Accordion>
   </div>
   <div
@@ -78,8 +100,9 @@
       presets-editable
       :presets="vehiclePaintPresets"
       :legacy="legacy"
-    >{{ $t("ui.trackBuilder.matEditor.paint") }} {{ idx }}</PaintPicker>
+    >{{ $t("ui.color.paint.unnamed", { index: idx }) }}</PaintPicker>
     <div v-if="color.length % 2 === 1"></div>
+    <div v-if="bottomSpacer" class="paint-bottom-spacer" aria-hidden="true" />
   </div>
 </template>
 
@@ -88,7 +111,7 @@ import { ref, reactive, onMounted, nextTick, computed } from "vue"
 import { lua } from "@/bridge"
 import { useEvents } from "@/services/events"
 import { Accordion, AccordionItem } from "@/common/components/utility"
-import { BngPaintTile } from "@/common/components/base"
+import { BngPaintTile, BngIcon } from "@/common/components/base"
 import { vBngBlur, vBngScopedNav } from "@/common/directives"
 import PaintPicker from "./PaintPicker.vue"
 import PaintPreview from "./PaintPreview.vue"
@@ -113,6 +136,7 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  bottomSpacer: Boolean,
 })
 
 const events = useEvents()
@@ -231,6 +255,8 @@ const multipaint = computed(() => {
   return res
 })
 
+const availablePaintNames = computed(() => Object.keys(vehiclePaintPresets.value || {}).filter(name => !!vehiclePaintPresets.value[name]))
+
 function applyMultipaint(setup, index = -1) {
   console.log("applyMultipaint", index)
   const paintNames = [setup.paintName1, setup.paintName2, setup.paintName3]
@@ -246,6 +272,27 @@ function applyMultipaint(setup, index = -1) {
         updateColor(i, false)
       }
     }
+  }
+  nextTick(updateAllPaints)
+}
+
+function applyRandomMultipaint() {
+  if (!multipaint.value.length) return
+  const randomIndex = Math.floor(Math.random() * multipaint.value.length)
+  multipaint.value[randomIndex].apply()
+}
+
+function applyRandomPaintPerSlot() {
+  if (!availablePaintNames.value.length) return
+  for (let i = 0; i < color.value.length; i++) {
+    const randomIndex = Math.floor(Math.random() * availablePaintNames.value.length)
+    const randomPaintName = availablePaintNames.value[randomIndex]
+    const paintData = vehiclePaintPresets.value[randomPaintName]
+    if (!paintData) continue
+    const paint = new Paint({ legacy: props.legacy })
+    paint.paint = paintData
+    color.value[i] = paint.paintString
+    updateColor(i, false)
   }
   nextTick(updateAllPaints)
 }
@@ -320,8 +367,9 @@ $bg-color: rgba(0, 0, 0, 0.6);
       overflow: hidden;
       :deep(.bng-accitem-content) {
         flex: 1 1 auto;
-        margin: 0 -0.5em;
-        overflow: hidden auto;
+        margin: 0.1em -0.5em;
+        padding: 0.25em;
+        overflow-y: auto;
       }
     }
   }
@@ -344,6 +392,7 @@ $bg-color: rgba(0, 0, 0, 0.6);
     width: 100%;
     height: 100%;
     overflow: visible;
+    @include modify-focus(var(--bng-corners-2), 0.01em);
   }
 }
 
@@ -352,6 +401,12 @@ $bg-color: rgba(0, 0, 0, 0.6);
   height: 100%;
   overflow: auto;
 }
+
+.paint-bottom-spacer {
+  flex: 0 0 3rem;
+  height: 3rem;
+}
+
 .paint-container {
   display: flex;
   flex-direction: row;
@@ -398,7 +453,8 @@ $bg-color: rgba(0, 0, 0, 0.6);
 
 .paint-preview-container {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: center;
   align-items: center;
   width: 100%;
@@ -417,5 +473,38 @@ $bg-color: rgba(0, 0, 0, 0.6);
 
 .multi-paint-setup-item {
   height: 24px;
+}
+
+.multi-paint-randomize-item {
+  position: relative;
+  //border: 2px solid rgba(255, 255, 255, 0.5);
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 0.25em;
+}
+
+.multi-paint-randomize-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -46%);
+  pointer-events: none;
+  --bng-icon-size: 1.5em;
+
+
+  &.left {
+    left: 0;
+    transform: translate(0, -46%);
+    --bng-icon-color: rgba(255, 128, 128, 1);
+  }
+  &.middle {
+    --bng-icon-color: rgba(128, 255, 128, 1);
+  }
+  &.right {
+    right: 0;
+    left: auto;
+    transform: translate(0, -46%);
+    --bng-icon-color: rgba(128, 128, 255, 1);
+  }
 }
 </style>

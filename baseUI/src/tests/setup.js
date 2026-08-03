@@ -12,6 +12,7 @@ vi.mock("bng:directives", () => ({
   vBngScopedNav: {},
   vBngPopover: {},
   vBngUiNavScroll: {},
+  vBngUiNav: {},
 }))
 
 vi.mock("bng:base-components", () => ({}))

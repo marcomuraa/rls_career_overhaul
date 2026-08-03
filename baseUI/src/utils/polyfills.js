@@ -8,8 +8,8 @@ if (!("fromEntries" in Object)) {
       return obj
     }, {})
   }
-} else {
-  console.info('Object.fromEntries polyfill was not needed')
+// } else {
+//   console.info('Object.fromEntries polyfill was not needed')
 }
 
 // Array.prototype.at
@@ -23,8 +23,8 @@ if (!("at" in Array.prototype)) {
       }
     },
   })
-} else {
-  console.info('Array.prototype.at polyfill was not needed')
+// } else {
+//   console.info('Array.prototype.at polyfill was not needed')
 }
 
 // Array.prototype.findLastIndex
@@ -37,6 +37,6 @@ if (!("findLastIndex" in Array.prototype)) {
       return -1
     },
   })
-} else {
-  console.info('Array.prototype.findLastIndex polyfill was not needed')
+// } else {
+//   console.info('Array.prototype.findLastIndex polyfill was not needed')
 }

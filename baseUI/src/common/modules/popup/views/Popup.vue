@@ -5,7 +5,9 @@
     ref="wrapper"
     :class="['popup-wrapper', `popup-type-${type}`]"
     v-bng-blur="popupsWrapper.blur"
-    v-bng-on-ui-nav:back,menu="handleUINavEvents">
+    v-bng-ui-nav="type === 'default'"
+    v-on="onInputEvents"
+  >
     <Transition name="popup-background">
       <div v-if="shown.popups" :class="['popup-background', ...popupsWrapper.style.map(name => 'background-style-' + name)]"></div>
     </Transition>
@@ -39,10 +41,12 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch, nextTick } from "vue"
+import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted } from "vue"
 import { popupsView } from "@/services/popup"
-import { vBngBlur, vBngOnUiNav } from "@/common/directives"
+import { vBngBlur, vBngUiNav } from "@/common/directives"
 import { priorityFocus } from "@/services/uiNavFocus"
+import { useScopedNav } from "@/services/scopedNav/api"
+import { playCancelSound, resolveOutsideCancelButton } from "../buttonRoles.js"
 
 const props = defineProps({
   type: {
@@ -55,6 +59,10 @@ const props = defineProps({
 const popups = computed(() => popupsView[props.type === "default" ? "popups" : "activities"])
 const popupsWrapper = computed(() => popupsView[props.type === "default" ? "popupsWrapper" : "activitiesWrapper"])
 
+const { beginActivationBarrier, endActivationBarrier, current: currentScope, isActiveScope } = useScopedNav()
+const ACTIVATION_BARRIER_ID = "default-popup-wrapper"
+let barrierActive = false
+
 const wrapper = ref()
 const innerWrapper = ref()
 const shown = reactive({
@@ -62,6 +70,69 @@ const shown = reactive({
   popups: false,
 })
 let tmr
+const capturedInputEvents = [
+  "wheel",
+  "scroll",
+  "keydown",
+  "keyup",
+  "keypress",
+  "beforeinput",
+  "input",
+  "change",
+  "pointerdown",
+  "pointerup",
+  "pointermove",
+  "pointercancel",
+  "mousedown",
+  "mouseup",
+  "click",
+  "dblclick",
+  "auxclick",
+  "contextmenu",
+  "touchstart",
+  "touchmove",
+  "touchend",
+  "touchcancel",
+]
+const capturedInputEventsAll = [
+  "ui_nav",
+  ...capturedInputEvents,
+]
+
+const stopDefaultPopupInput = event => {
+  if (props.type === "default") event.stopPropagation()
+}
+
+const onInputEvents = Object.fromEntries(capturedInputEvents.map(name => [name, stopDefaultPopupInput]))
+
+const activePopup = () => popups.value && popups.value.find(popup => popup.active)
+
+const getOutsideCancelResult = (popup, cancelButton) => {
+  if (popup.componentName === "FormDialog") return { value: cancelButton.value }
+  return cancelButton.value
+}
+
+const cancelActivePopupFromOutsideClick = () => {
+  const popup = activePopup()
+  const cancelButton = resolveOutsideCancelButton(popup && popup.props && popup.props.buttons)
+  if (!popup || !cancelButton) return false
+  playCancelSound(cancelButton)
+  popup.return(getOutsideCancelResult(popup, cancelButton))
+  return true
+}
+
+const captureDefaultPopupInput = event => {
+  if (props.type !== "default" || !shown.wrapper || !wrapper.value) return
+  const activePopupContent = wrapper.value.querySelector(".popup-container.popup-active > .popup-content")
+  const popupPopoverContainer = wrapper.value.querySelector(".popover-container")
+  const isInsideActivePopup = activePopupContent && event.target instanceof Node && activePopupContent.contains(event.target)
+  const isInsidePopupPopover = popupPopoverContainer && event.target instanceof Node && popupPopoverContainer.contains(event.target)
+  if (isInsideActivePopup || isInsidePopupPopover) return
+  if (event.type === "click" && cancelActivePopupFromOutsideClick()) {
+    event.preventDefault()
+  }
+  event.stopPropagation()
+}
 
 watch(
   () => !!popups.value,
@@ -77,12 +148,18 @@ watch(
     tmr && clearTimeout(tmr)
     if (cur) {
       shown.wrapper = true
+      if (props.type === "default" && !barrierActive) {
+        barrierActive = true
+        beginActivationBarrier(ACTIVATION_BARRIER_ID)
+      }
       // sadly, this has to go in two ticks
       nextTick(() => {
         if (props.type === "default" && wrapper.value && typeof wrapper.value.showModal === "function") {
           wrapper.value.showModal()
         }
-        nextTick(() => (shown.popups = true))
+        nextTick(() => {
+          shown.popups = true
+        })
       })
       popupsWrapper.value.fade && body.classList.add("popup-show-hide")
     } else {
@@ -92,19 +169,52 @@ watch(
         body.classList.remove("popup-show-hide")
         shown.popups = false
         shown.wrapper = false
-        nextTick(() => priorityFocus())
+        nextTick(() => {
+          // Release the barrier only now that the dialog/wrapper is gone from the
+          // DOM, which flushes any deferred normal-scope resume.
+          let scopedNavResumed = false
+          if (barrierActive) {
+            barrierActive = false
+            endActivationBarrier(ACTIVATION_BARRIER_ID)
+            const resumed = currentScope.value
+            scopedNavResumed = !!resumed && isActiveScope(resumed.id)
+          }
+          if (!scopedNavResumed) priorityFocus()
+        })
       }, 200) // sleep for animation length
     }
   }
 )
 
-function handleUINavEvents(event) {
-  console.log("POPUP handleUINavEvents stopPropagation", event)
-  event.stopPropagation()
+// Escape key interceptor for modal dialogs intercept at keydown level
+// because vue is late to intercept with the event handler
+const escapeHandler = (event) => {
+  if (event.key === "Escape" && props.type === "default" && shown.wrapper) {
+    event.preventDefault()
+    event.stopPropagation()
+    event.stopImmediatePropagation()
+  }
 }
+
+onMounted(() => {
+  // Use capturing phase (true) to intercept before dialog's internal handler
+  document.addEventListener("keydown", escapeHandler, true)
+  capturedInputEventsAll.forEach(name => document.addEventListener(name, captureDefaultPopupInput, true))
+})
+
+onUnmounted(() => {
+  document.removeEventListener("keydown", escapeHandler, true)
+  capturedInputEventsAll.forEach(name => document.removeEventListener(name, captureDefaultPopupInput, true))
+  if (barrierActive) {
+    barrierActive = false
+    endActivationBarrier(ACTIVATION_BARRIER_ID)
+  }
+})
 </script>
 
 <style lang="scss">
+@use "@/styles/modules/variables/z-index" as *;
+
 .popup-show-hide {
   > *:not(#vue-app),
   > #vue-app > *:not(.popup-wrapper):not(.vue-app-main),
@@ -123,6 +233,37 @@ function handleUINavEvents(event) {
     filter: grayscale(50%);
     pointer-events: none !important;
   }
+}
+
+// The modal dialog is rendered in the browser top layer, so shared
+// ancestor-scoped focus styles may not match popup descendants reliably.
+.popup-wrapper .focus-visible {
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    left: -4px;
+    right: -4px;
+    border-radius: 6px;
+    border: 2px solid var(--bng-orange-b400);
+    pointer-events: none;
+    z-index: $focus !important;
+  }
+
+  &.no-focus-frame,
+  &.no-focus-visible {
+    &::before {
+      display: none !important;
+    }
+  }
+}
+
+// Disable native browser focus ring in popup content.
+.popup-wrapper *:focus {
+  outline: none;
+  box-shadow: none;
 }
 </style>
 

@@ -22,7 +22,7 @@
             {{ option.checkboxLabel }}
           </BngSwitch>
 
-          <BngInputNew
+          <BngInput
             v-else-if="option.type === 'number'"
             :modelValue="option.value"
             :min="option.min"
@@ -36,16 +36,17 @@
 
     <!-- Reset button -->
     <div class="reset-button-container" v-if="detailsMode === 'displayControls'">
-      <BngButton @click="resetToDefaults" accent="attention" iconLeft="trashBin1" class="reset-button"> Reset to Defaults </BngButton>
+      <BngButton @click="resetToDefaults" accent="attention" iconLeft="trashBin1" class="reset-button"> {{ $t('ui.menu.gridSelector.displayOptions.resetToDefaults') }} </BngButton>
     </div>
   </div>
 </template>
 
 <script setup>
-import { BngButton, BngInputNew } from "@/common/components/base"
-import { computed } from "vue"
+import { BngButton, BngInput } from "@/common/components/base"
+import { computed, inject } from "vue"
 import { BngSmartSelect, BngSwitch } from "@/common/components/base"
 import BngTooltip from "@/common/components/base/bngTooltip.vue"
+const $simplemenu = inject("$simplemenu")
 
 const props = defineProps({
   displayData: {
@@ -56,21 +57,14 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  updateDisplayData: {
-    type: Function,
-    required: true,
-  },
-  resetDisplayDataToDefaults: {
-    type: Function,
-    required: true,
-  },
-  setDetailsMode: {
-    type: Function,
-    required: true,
-  },
 })
 
-const emit = defineEmits(["focus-item"])
+const emit = defineEmits([
+  "focus-item",
+  "display-data-update",
+  "display-data-reset",
+  "details-mode-change",
+])
 
 const booleanToStringByKey = computed(() => {
   let valuesByKey = {}
@@ -90,6 +84,7 @@ const booleanToStringByKey = computed(() => {
 const controls = computed(() => {
   return props.displayData
     .filter(x => x.showInModes?.[props.detailsMode])
+    .filter(x => !($simplemenu.value && x.hideInSimpleMenu))
     .map(x => ({
       ...x,
       checkboxLabel: x.type === "checkbox" ? booleanToStringByKey.value[x.key]?.[x.value] : undefined,
@@ -97,16 +92,12 @@ const controls = computed(() => {
 })
 
 const onOptionChanged = (key, newValue) => {
-  props.updateDisplayData(key, newValue)
+  emit("display-data-update", key, newValue)
   emit("focus-item", key)
 }
 
 const resetToDefaults = () => {
-  props.resetDisplayDataToDefaults()
-}
-
-const setDetailsModeToDisplayControls = () => {
-  props.setDetailsMode("displayControls")
+  emit("display-data-reset")
 }
 </script>
 

@@ -1,5 +1,5 @@
 import { useBridge } from "@/bridge"
-import { useSteamDeckInput } from "@/services/steamdeck"
+import { setupOnScreenKeyboard } from "@/services/onScreenKeyboard"
 import { uniqueId } from "@/services/uniqueId"
 
 let bridge
@@ -13,6 +13,7 @@ const focus = id => async () => {
     await bridge.lua.setCEFTyping(true)
     focused = true
   }
+  elms[id]?.onFocusForScreenKeyboard?.(elms[id].el)
 }
 const blur = id => async () => {
   elms[id].active = false
@@ -20,6 +21,7 @@ const blur = id => async () => {
     focused = Object.values(elms).some(e => e.active)
     if (!focused) await bridge.lua.setCEFTyping(false)
   }
+  elms[id]?.onBlurForScreenKeyboard?.(elms[id].el)
 }
 
 export default {
@@ -37,7 +39,11 @@ export default {
     }
     el.addEventListener("focus", elms[id].onFocus)
     el.addEventListener("blur", elms[id].onBlur)
-    useSteamDeckInput(el)
+    setupOnScreenKeyboard(el).then(([screenKbd]) => {
+      if (!elms[id] || !screenKbd) return
+      elms[id].onFocusForScreenKeyboard = screenKbd.onFocus
+      // elms[id].onBlurForScreenKeyboard = screenKbd.onBlur
+    })
   },
   beforeUnmount(el) {
     const id = el[elmid]

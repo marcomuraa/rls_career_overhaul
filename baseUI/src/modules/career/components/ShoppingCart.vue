@@ -1,59 +1,72 @@
 <template>
-  <BngCard class="cart" :class="{ expanded }">
-    <BngCardHeading>
-      Shopping Cart
-    </BngCardHeading>
-    <BngButton
-      class="cart-expand"
-      :accent="ACCENTS.outlined"
-      :icon="expanded ? icons.arrowLargeDown : icons.arrowLargeUp"
-      @click="expanded = !expanded" />
+  <ComputerPanel
+    class="cart"
+    :class="{ expanded }"
+    :active="active"
+    :heading-hint-start-icon="icons.arrowLargeRight"
+    :heading-hint-start-binding-event="activateBindingUiEvent"
+  >
+    <template #heading-content>
+      <div class="cart-heading">
+        <span class="cart-heading-text">{{ $translate.instant("ui.career.shoppingCart.title") }}</span>
+        <BngButton
+          class="cart-expand"
+          bng-no-nav="true"
+          v-bng-on-ui-nav:action_2="() => (expanded = !expanded)"
+          v-bng-ui-nav-label:action_2="$translate.instant('ui.career.shoppingCart.toggleExpanded')"
+          :accent="ACCENTS.outlined"
+          :icon="expanded ? icons.arrowLargeDown : icons.arrowLargeUp"
+          @click="expanded = !expanded" />
+      </div>
+    </template>
     <div class="cart-main">
       <div class="cart-row cart-header">
         <div></div>
-        <div>Part</div>
-        <div>Price</div>
+        <div>{{ $translate.instant("ui.career.shoppingCart.part") }}</div>
+        <div>{{ $translate.instant("ui.career.shoppingCart.price") }}</div>
       </div>
       <div class="cart-list" bng-nav-scroll>
-        <div v-if="cartData" v-for="item in cartData.items" class="cart-row" :class="item.type ? [`type-${item.type}`] : null">
-          <div>
-            <BngButton
-              v-if="item.removeShow"
-              accent="attention"
-              :icon="icons.abandon"
-              :disabled="item.removeDisabled"
-              @click="item.remove()" />
-          </div>
-          <div :style="{ paddingLeft: item.level ? `${item.level - 1}em` : undefined }">
-            {{ item.name }}
-            <div v-if="item.extraInfo" class="extra-info-text">
-              {{ item.extraInfo }}
+        <template v-if="cartData">
+          <div v-for="item in cartData.items" :key="item.name" class="cart-row" :class="item.type ? [`type-${item.type}`] : null">
+            <div>
+              <BngButton
+                v-if="item.removeShow"
+                accent="attention"
+                :icon="icons.abandon"
+                :disabled="item.removeDisabled"
+                @click="emit('remove-item', item)" />
             </div>
+            <div :style="{ paddingLeft: item.level ? `${item.level - 1}em` : undefined }">
+              {{ item.name }}
+              <div v-if="item.extraInfo" class="extra-info-text">
+                {{ item.extraInfo }}
+              </div>
+            </div>
+            <div v-if="!item.priceHide">
+              {{ units.beamBucks(item.price) }}
+            </div>
+            <div v-else></div>
           </div>
-          <div v-if="!item.priceHide">
-            {{ units.beamBucks(item.price) }}
-          </div>
-          <div v-else></div>
-        </div>
+        </template>
         <div class="cart-row cart-subtotal">
           <div></div>
-          <div>Subtotal</div>
+          <div>{{ $translate.instant("ui.career.shoppingCart.subtotal") }}</div>
           <div>{{ units.beamBucks(subtotal) }}</div>
         </div>
         <div class="cart-row cart-tax">
           <div></div>
-          <div>Sales Tax (7%)</div>
+          <div>{{ $translate.instant("ui.career.shoppingCart.salesTax", { rate: 7 }) }}</div>
           <div>{{ units.beamBucks(salesTax) }}</div>
         </div>
       </div>
       <div class="cart-row cart-total">
         <div></div>
-        <div>Total</div>
+        <div>{{ $translate.instant("ui.career.shoppingCart.total") }}</div>
         <!-- <div>{{ units.beamBucks(cartData.total) }}</div> -->
         <div><BngUnit :money="cartData ? cartData.total : 0" /></div>
       </div>
     </div>
-    <template #buttons>
+    <template #footer>
       <!-- <div class="total-price">
         <span>Total</span>
         <BngUnit :money="cartData ? cartData.total : 0" />
@@ -61,36 +74,37 @@
       <BngButton
         show-hold
         :disabled="
-          !apply ||
           !cartData ||
           cartData.items.length === 0 ||
           cartData.total > 0 &&cartData.total > playerMoney
         "
         v-bng-on-ui-nav:ok.asMouse.focusRequired
         v-bng-click="{
-          holdCallback: apply,
+          holdCallback: completeHoldSound,
           holdDelay: 1000,
           repeatInterval: 0,
-        }">
-        {{ confirmButtonText || "Purchase" }}
+          holdSoundInstanceId: 'shopping-cart-purchase',
+        }"
+      >
+        {{ confirmButtonText || $translate.instant("ui.career.vehiclePurchase.purchase") }}
       </BngButton>
       <BngButton
-        :disabled="!cancel"
-        @click="props.cancel()"
+        @click="emit('cancel')"
         :accent="ACCENTS.secondary">
-        Cancel
+        {{ $translate.instant("ui.common.cancel") }}
       </BngButton>
     </template>
-  </BngCard>
+  </ComputerPanel>
 </template>
 
 <script setup>
-import { ref, computed } from "vue"
+import { ref, computed, watch } from "vue"
 import { useBridge } from "@/bridge"
-import { BngButton, ACCENTS, BngCard, BngCardHeading, BngUnit, icons } from "@/common/components/base"
-import { openConfirmation } from "@/services/popup"
+import { BngButton, ACCENTS, BngUnit, icons } from "@/common/components/base"
+import ComputerPanel from "./ComputerPanel.vue"
 import { $translate } from "@/services/translation"
-import { vBngClick, vBngOnUiNav } from "@/common/directives"
+import { vBngClick, vBngOnUiNav, vBngUiNavLabel } from "@/common/directives"
+import { useUINavBlocker } from "@/services/uiNavTracker"
 
 /** Item of the cart
  * @typedef {object} CartItem
@@ -101,7 +115,6 @@ import { vBngClick, vBngOnUiNav } from "@/common/directives"
  * @prop {boolean} [priceHide] Hides the price
  * @prop {boolean} [removeShow] Shows the remove button
  * @prop {boolean} [removeDisabled] Disables the remove button
- * @prop {function} [remove] Function to call on remove button
  */
 
 /** Cart data object
@@ -115,14 +128,26 @@ const props = defineProps({
   /** @type CartData */
   cartData: Object,
   playerMoney: Number,
-  apply: Function,
-  cancel: Function,
   confirmButtonText: String,
+  activateBindingUiEvent: {
+    type: String,
+    default: "context",
+  },
+  active: Boolean,
 })
+
+const emit = defineEmits(["apply", "cancel", "remove-item"])
 
 const { units } = useBridge()
 
 const expanded = ref(false)
+
+const navBlocker = useUINavBlocker()
+watch(
+  () => props.active,
+  show => (show ? navBlocker.blockOnly() : navBlocker.blockOnly(["action_2"])),
+  { immediate: true }
+)
 
 const subtotal = computed(() =>
   props.cartData && props.cartData.total && props.cartData.taxes
@@ -131,6 +156,15 @@ const subtotal = computed(() =>
 )
 
 const salesTax = computed(() => props.cartData && props.cartData.taxes ? props.cartData.taxes : 0)
+
+function isPrimaryInteraction(event) {
+  return !event || event.fromController || event.button === 0
+}
+
+function completeHoldSound(event) {
+  if (!isPrimaryInteraction(event)) return
+  emit("apply")
+}
 </script>
 
 <style scoped lang="scss">
@@ -140,7 +174,8 @@ const salesTax = computed(() => props.cartData && props.cartData.taxes ? props.c
   flex: 1 0 auto;
   height: 27em;
   color: white;
-  background-color: #000e;
+  background-color: rgba(0, 0, 0, 0.85);
+  transition: background-color 0.15s ease;
   & :deep(.card-cnt) {
     background-color: transparent;
   }
@@ -151,10 +186,19 @@ const salesTax = computed(() => props.cartData && props.cartData.taxes ? props.c
   }
 }
 
+.cart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5em;
+}
+
+.cart-heading-text {
+  flex: 0 1 auto;
+}
+
 .cart-expand {
-  position: absolute;
-  top: 0.2em;
-  right: 0.2em;
+  margin-left: auto;
 }
 
 .cart-main {
@@ -166,7 +210,8 @@ const salesTax = computed(() => props.cartData && props.cartData.taxes ? props.c
 
   .cart-row {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: stretch;
     $size: 3rem;

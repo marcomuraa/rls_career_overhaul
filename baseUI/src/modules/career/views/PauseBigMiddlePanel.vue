@@ -6,17 +6,17 @@
       <div class="pause-body-wrapper">
         <CareerStatus class="pause-profile-status" />
         <div class="left-content">
-          <BngImageTile :label="'Exit Career'" :icon="icons.abandon" @click="onExitCareerButtonClicked" :ratio="ICON_RATIO" />
+          <BngImageTile :label="$translate.instant('ui.career.pause.exitCareer')" :icon="icons.abandon" @click="onExitCareerButtonClicked" :ratio="ICON_RATIO" />
           <BngCard class="system-buttons">
-            <BngButton tabindex="1" :accent="ACCENTS.text" @click="onSaveButtonClicked">Save</BngButton>
-            <BngButton tabindex="1" :accent="ACCENTS.text" @click="onLoadButtonClicked">Load</BngButton>
-            <BngButton tabindex="1" :accent="ACCENTS.text" @click="onSettingsButtonClicked">Settings</BngButton>
+            <BngButton tabindex="1" :accent="ACCENTS.text" @click="onSaveButtonClicked">{{ $translate.instant("ui.common.save") }}</BngButton>
+            <BngButton tabindex="1" :accent="ACCENTS.text" @click="onLoadButtonClicked">{{ $translate.instant("ui.common.load") }}</BngButton>
+            <BngButton tabindex="1" :accent="ACCENTS.text" @click="onSettingsButtonClicked">{{ $translate.instant("ui.career.pause.settings") }}</BngButton>
           </BngCard>
         </div>
         <BngCard class="main-content grid">
           <!-- Replace the div's children components with one "tabs selector", it may require some CSS change tho -->
           <div class="tabs-group">
-            <BngButton class="button prev-button" @click="onMiddlePillsSelectPrevious" tabindex="0" :accent="ACCENTS.text">Previous</BngButton>
+            <BngButton class="button prev-button" @click="onMiddlePillsSelectPrevious" tabindex="0" :accent="ACCENTS.text">{{ $translate.instant("ui.career.pause.previous") }}</BngButton>
             <BngPillFiltersContainer
               class="tabs-track"
               ref="middlePillsContainerRef"
@@ -26,7 +26,7 @@
               @valueChanged="middlePillsValueChanged"
               :required="true"
               :has-checked-icon="false" />
-            <BngButton class="button next-button" @click="onMiddlePillsSelectNext" tabindex="0" :accent="ACCENTS.text">Next</BngButton>
+            <BngButton class="button next-button" @click="onMiddlePillsSelectNext" tabindex="0" :accent="ACCENTS.text">{{ $translate.instant("ui.career.pause.next") }}</BngButton>
           </div>
           <!-- End -->
           <div class="tab-content">
@@ -34,7 +34,7 @@
             <PauseMilestonesPreview v-if="currentPillTypeSelected == 'Milestones'" />
             <AspectRatio v-if="currentPillTypeSelected === undefined" style="background: red" v-bng-sound-class="'bng_click_generic'" :ratio="'4:3'">
               <div style="position: absolute; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.5)">
-                <BngCardHeading style="color: white" type="ribbon">Undefined Pill Type!</BngCardHeading>
+                <BngCardHeading style="color: white" type="ribbon">{{ $translate.instant("ui.career.pause.undefinedPillType") }}</BngCardHeading>
               </div>
             </AspectRatio>
           </div>
@@ -43,16 +43,16 @@
           <BngImageTile v-for="btn in contextButtons" :label="btn.label" :icon="icons[btn.icon]" @click="onContextButtonClicked(btn)" :ratio="ICON_RATIO" />
         </div>
         <div class="bottom-content">
-          <BngImageTile class="photo-mode" :label="'Photo Mode'" :icon="icons.photo" :ratio="ICON_RATIO" />
+          <BngImageTile class="photo-mode" :label="$translate.instant('ui.career.pause.photoMode')" :icon="icons.photo" :ratio="ICON_RATIO" />
           <BngCard class="tod">
-            <div class="icon-box">I'm an icon box!</div>
+            <div class="icon-box">{{ $translate.instant("ui.career.pause.iconBoxPlaceholder") }}</div>
             <BngSlider ref="iptChanged" :min="0" :max="1" :step="0.1" v-model="todSliderValue" @valueChanged="onTODChanged" />
             <BngInput class="tod-value" />
           </BngCard>
         </div>
       </div>
     </div>
-    <div style="background: green; height: 5em">FOOTER</div>
+    <div style="background: green; height: 5em">{{ $translate.instant("ui.career.pause.footerPlaceholder") }}</div>
   </div>
 </template>
 
@@ -71,6 +71,7 @@ import { CareerStatus, CareerSimpleStats } from "@/modules/career/components"
 
 import PauseMapPreview from "../components/pause/PauseMapPreview.vue"
 import PauseMilestonesPreview from "../components/pause/PauseMilestonesPreview.vue"
+import { $translate } from "@/services/translation"
 
 useUINavScope("pause") // UI Nav events to fire from (or from focused element inside) element with attribute: bng-ui-scope="pause"
 
@@ -79,15 +80,15 @@ const ICON_RATIO = "2.25:1"
 
 //middle section pills
 const MIDDLE_PILL_OPTIONS = [
-  { value: 0, label: "Map", type: "Map" },
-  { value: 1, label: "Milestones", type: "Milestones" },
-  { value: 2, label: "Engine" },
-  { value: 3, label: "Transmission" },
-  { value: 4, label: "Suspension" },
-  { value: 5, label: "Electrics" },
-  { value: 6, label: "Electrics1" },
-  { value: 7, label: "Electrics2" },
-  { value: 8, label: "Electrics3" },
+  { value: 0, label: $translate.instant("ui.career.pause.map"), type: "Map" },
+  { value: 1, label: $translate.instant("ui.career.milestones.title"), type: "Milestones" },
+  { value: 2, label: $translate.instant("ui.career.pause.pill.engine") },
+  { value: 3, label: $translate.instant("ui.career.pause.pill.transmission") },
+  { value: 4, label: $translate.instant("ui.career.pause.pill.suspension") },
+  { value: 5, label: $translate.instant("ui.career.pause.pill.electrics") },
+  { value: 6, label: $translate.instant("ui.career.pause.pill.electrics1") },
+  { value: 7, label: $translate.instant("ui.career.pause.pill.electrics2") },
+  { value: 8, label: $translate.instant("ui.career.pause.pill.electrics3") },
 ]
 
 const currentPillTypeSelected = ref(MIDDLE_PILL_OPTIONS[0].type)
@@ -182,7 +183,7 @@ hr {
     display: flex;
     flex: 1 1 auto;
     align-self: stretch;
-    flex-flow: column;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     .pause-body-wrapper {

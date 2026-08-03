@@ -8,22 +8,22 @@
 
     </div>
     <div :class="{'flex-row':!detail }">
-      <div v-if="detail" class="description">
-        {{organization.description}}
+      <div v-if="detail && organization.description" class="description">
+        {{ $ctx_t(organization.description) }}
       </div>
       <!--
         -->
         <div v-if="detail" class="pills">
           <template v-if="organization.hasUnlocks">
             <template v-for="unlock in organization.reputationLevels[organization.reputation.level+1].unlocks">
-            <BngPropVal :iconType="icons[unlock.icon]" :keyLabel="'Available Loaners'" :valueLabel="unlock.label"/>
+            <BngPropVal :iconType="icons[unlock.icon]" :keyLabel="'Available Loaners'" :valueLabel="$ctx_t(unlock.label)"/>
             </template>
           </template>
           <template v-if="organization.loanableVehicles">
           <BngPropVal :iconType="icons.carCoins" :keyLabel="'Loaner Cut'" :valueLabel="((organization.reputationLevels[organization.reputation.level+1].loanerCut.value) * 100).toFixed(0) + '%'" />
           </template>
           <template v-for="fac in organization.associatedFacilities">
-          <BngPropVal :iconType="icons.garage01" :keyLabel="'Facility'" :valueLabel="fac.name" />
+          <BngPropVal :iconType="icons.garage01" :keyLabel="'Facility'" :valueLabel="$ctx_t(fac.name)" />
           </template>
         </div>
     </div>
@@ -44,12 +44,7 @@
 
 <script setup>
 
-import { AspectRatio } from "@/common/components/utility"
-import { BngIcon, icons, BngPropVal } from "@/common/components/base"
-
-import BngProgressBar from "@/common/components/base/bngProgressBar"
-
-import { ref, computed } from "vue"
+import { BngIcon, icons, BngPropVal, BngProgressBar } from "@/common/components/base"
 
 const props = defineProps({
   organization: Object,
@@ -89,14 +84,14 @@ const getProgressBarColor = level => {
   height: 100%;
   color: white;
   display: flex;
-  flex-flow:column;
+  flex-direction: column;
 
 
   > .header {
     flex: 0 0 auto;
     align-items: auto;
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     > .name {
       font-weight: 800;
       font-size: 1.25rem;
@@ -125,7 +120,7 @@ const getProgressBarColor = level => {
   > .flex-row {
     flex: 1 1 auto;
     display:flex;
-    flex-flow:row;
+    flex-direction: row;
     flex-wrap: wrap;
     > * {
       flex: 1 1 auto;
@@ -137,7 +132,7 @@ const getProgressBarColor = level => {
     padding: 0.25rem;
     flex: 1 1 auto;
     display:flex;
-    flex-flow:row;
+    flex-direction: row;
     flex-wrap: wrap;
     > * {
       flex: 1 1 auto;

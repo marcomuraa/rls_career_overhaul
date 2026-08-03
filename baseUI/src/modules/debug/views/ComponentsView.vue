@@ -1,10 +1,14 @@
 <template>
-  <div class="components-demo" bng-ui-scope="compdemo" v-bng-on-ui-nav:back,menu="() => false">
+  <div v-bng-scoped-nav="{ scopeId: 'root'}" class="components-demo">
     <h1>BNG UI - Documentation</h1>
     Components:
     <div class="demo-layout">
       <Accordion class="index" :expanded="true">
-        <AccordionItem v-for="[listName, componentList] in Object.entries(componentLists)" :key="listName">
+        <AccordionItem
+          v-for="[listName, componentList] in Object.entries(componentLists)"
+          :key="listName"
+          navigable
+        >
           <template #caption>
             <h3>{{ listName }}</h3>
           </template>
@@ -15,6 +19,7 @@
                 current: current === component.name,
                 'no-demo': !component.hasDemo,
               }"
+              bng-nav-item
               @click="() => navDemo(component.name)"
             >
               {{ component.name }}
@@ -22,7 +27,7 @@
           </ul>
         </AccordionItem>
       </Accordion>
-      <div class="demo" :class="[current]">
+      <div v-bng-scoped-nav="{ scopeId: 'demo', type: SCOPED_NAV_TYPES.container }" class="demo" :class="[current]">
         <div class="demo-pre" v-if="demoView">
           <h2>
             {{ current }}<span class="friendly-title" v-if="demoView.title"> : {{ demoView.title }}</span>
@@ -33,6 +38,7 @@
             v-html="markdown.parse(demoView.description || demoView.desc)"
           ></div>
           <template v-for="(section, key) in {
+            Slots: demoView.slotInfo,
             Props: demoView.propInfo,
             Attrs: demoView.attrInfo,
             Events: demoView.eventInfo,
@@ -89,7 +95,7 @@
 import hljs from "highlight.js"
 import "highlight.js/styles/obsidian.css"
 import { Accordion, AccordionItem } from "@/common/components/utility"
-import { vBngOnUiNav } from "@/common/directives"
+import { vBngScopedNav } from "@/common/directives"
 import * as BaseComponentExports from "@/common/components/base"
 import * as UtilityComponentExports from "@/common/components/utility"
 import * as AppsUtilitiesExports from "@/common/components/appsUtilities"
@@ -98,7 +104,7 @@ import * as LayoutExports from "@/common/layouts"
 import { ref, computed, watch, provide, onMounted, nextTick, markRaw } from "vue"
 import { useRoute } from "vue-router"
 import { markdown } from "@/services/content"
-import { useUINavScope } from "@/services/uiNav"
+import { SCOPED_NAV_TYPES } from "@/services/scopedNav/constants.js"
 
 const BaseComponentDemos = BaseComponentExports.DEMOS
 const UtilityComponentDemos = UtilityComponentExports.DEMOS
@@ -106,19 +112,16 @@ const AppsUtilitiesDemos = AppsUtilitiesExports.DEMOS
 const DirectiveDemos = DirectiveExports.DEMOS
 const LayoutDemos = LayoutExports.DEMOS
 const ModuleComponents = import.meta.hot ? {
-  Wizard: import("@/common/modules/wizard/examples/AllExamples.vue"),
+  Wizard: import("@/common/modules/wizard/demos/AllExamples.vue"),
 } : {}
 const SpecialComponents = import.meta.hot ? {
   PairingTest: import("../components/PairingTest.vue"),
   PopupDemo: import("../components/PopupDemo.vue"),
   IconBrowser: import("../components/IconBrowser.vue"),
-  TranslationCheck: import("../components/TranslationCheck.vue"),
   UINavComponents: import("../components/UINavComponents.vue"),
   // UINavTester: import("../components/UINavTester.vue"),
   Colours: import("../components/Colours.vue"),
 } : {}
-
-useUINavScope("compdemo")
 
 onMounted(async () => {
   highlightBlocks()
@@ -140,7 +143,7 @@ watch(
   val => openDemo(val)
 )
 function navDemo(name) {
-  window.bngVue.gotoGameState("components", { params: { component: name } })
+  window.bngVue.gotoGameState("debug.components", { params: { component: name } })
 }
 
 const current = ref(route.params.component || "")
@@ -315,7 +318,7 @@ pre.sample-code  * {
 }
 
 :deep(.sample-code) {
-  font-family: "Fira Code", "Consolas", "Andale Mono", "Lucida Console", "Monaco", "Ubuntu Mono", "Source", "Courier New", Courier, monospace;
+  font-family: var(--fnt-mono), monospace;
   font-size: 14px;
   background: #112028;
   padding: 1em;
@@ -362,6 +365,7 @@ pre.sample-code  * {
   list-style: none;
   padding: 0;
   li {
+    position: relative;
     padding: 0.25em 0.5em;
     border-radius: var(--bng-corners-1);
     cursor: pointer;

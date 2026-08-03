@@ -143,7 +143,7 @@ provide("accordion-item-unregister", item => {
 .bng-accordion-container {
   position: relative;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
   height: auto;
   max-height: 100%;
   padding: 0 0.5rem;

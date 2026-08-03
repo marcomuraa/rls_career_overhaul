@@ -1,63 +1,52 @@
 <template>
   <!--div class="vehicle-shop-wrapper"-->
-  <BngCard class="vehicle-shop-wrapper" v-bng-blur bng-ui-scope="vehicleList">
-    <div class="site-body" bng-nav-scroll bng-nav-scroll-force>
+  <BngCard class="vehicle-shop-wrapper" v-bng-blur>
+    <div class="site-body">
       <div class="heading">
         <span class="header-text">{{ getHeaderText() }}</span>
-        <span class="price-notice"><span>*&nbsp;</span><span>Additional taxes and fees are applicable</span></span>
+        <span class="price-notice">
+          <div><span>*&nbsp;</span><span>{{ $translate.instant("ui.career.vehicleShopping.additionalTaxesNotice") }}</span></div>
+          <div v-if="vehicleShoppingStore.currentSeller?.remotePurchaseOnly"><span>{{ $translate.instant("ui.career.vehicleShopping.remotePurchaseOnly") }}</span></div>
+        </span>
       </div>
-      <!-- <div class="layo-ut">
-        <span v-for="(layout, key) of layouts" :key="key" @click="switchLayout(key)" :class="{'layout-selected': layout.selected}">{{ layout.name }}</span>
-      </div> disabled temporarily -->
-      <div v-if="vehicleShoppingStore" class="vehicle-list">
+      <BngList
+        v-if="vehicleShoppingStore"
+        :layout="LIST_LAYOUTS.LIST"
+        no-background
+        nav-scroll-enabled
+        class="vehicle-list"
+        >
         <VehicleCard
           v-for="(vehicle, key) in vehicleShoppingStore.filteredVehicles"
-          :key="key"
+          :key="`available-${key}`"
           :vehicleShoppingData="vehicleShoppingStore.vehicleShoppingData"
           :vehicle="vehicle" />
-      </div>
-      <div v-if="vehicleShoppingStore && vehicleShoppingStore.filteredSoldVehicles && vehicleShoppingStore.filteredSoldVehicles.length > 0" class="vehicle-list sold-list">
-        <div class="list-section-title">Recently Sold Vehicles You Viewed ({{ vehicleShoppingStore.filteredSoldVehicles.length }})</div>
-        <VehicleCard
-          v-for="(vehicle, key) in vehicleShoppingStore.filteredSoldVehicles"
-          :key="key"
-          :vehicleShoppingData="vehicleShoppingStore.vehicleShoppingData"
-          :vehicle="vehicle" />
-      </div>
+        <template v-if="vehicleShoppingStore.filteredSoldVehicles && vehicleShoppingStore.filteredSoldVehicles.length > 0">
+          <div bng-list-title class="list-section-title">{{ $translate.instant("ui.career.vehicleShopping.recentlySoldVehicles", { count: vehicleShoppingStore.filteredSoldVehicles.length }) }}</div>
+          <VehicleCard
+            v-for="(vehicle, key) in vehicleShoppingStore.filteredSoldVehicles"
+            :key="`sold-${key}`"
+            class="sold-vehicle-card"
+            :vehicleShoppingData="vehicleShoppingStore.vehicleShoppingData"
+            :vehicle="vehicle" />
+        </template>
+      </BngList>
     </div>
   </BngCard>
   <!--/div-->
 </template>
 
 <script setup>
-import { reactive } from "vue"
 import VehicleCard from "./VehicleCard.vue"
-import { BngCard, BngButton, ACCENTS, BngBinding } from "@/common/components/base"
-import { vBngBlur, vBngOnUiNav } from "@/common/directives"
-import { lua } from "@/bridge"
+import { BngCard, BngList, LIST_LAYOUTS } from "@/common/components/base"
+import { vBngBlur } from "@/common/directives"
+import { $translate } from "@/services"
 import { useVehicleShoppingStore } from "../../stores/vehicleShoppingStore"
-
-import { useUINavScope } from "@/services/uiNav"
-useUINavScope("vehicleList")
 
 const vehicleShoppingStore = useVehicleShoppingStore()
 
 const getHeaderText = () => {
-  return vehicleShoppingStore?.currentSeller?.name || "BeamCar24"
-}
-
-const getWebsiteText = () => {
-  const headerText = getHeaderText()
-  return headerText.replace(/\s+/g, "-") + ".com"
-}
-
-const layouts = reactive([
-  { name: "switch", selected: true, class: "" },
-  { name: "me", selected: false, class: "" },
-  { name: "please", selected: false, class: "" },
-])
-function switchLayout(key) {
-  for (let i = 0; i < layouts.length; i++) layouts[i].selected = key === i
+  return vehicleShoppingStore?.currentSeller?.name || $translate.instant("ui.career.vehicleShopping.defaultSiteName")
 }
 </script>
 
@@ -66,14 +55,21 @@ function switchLayout(key) {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  //background-color: var(--bng-black-8);
-  & :deep(.card-cnt) {
-    background-color: rgba(0, 0, 0, 0);
+  display: flex;
+  padding: 0.5rem;
+  flex-direction: column;
+
+  // BngCard clips its inner content height by default; let it fill the wrapper
+  // so the scroll region below is the element that actually overflows.
+  :deep(.card-cnt) {
+    min-height: 0;
+    height: 100%;
   }
+
   .address-bar {
     flex: 0 0 auto;
     display: flex;
-    flex-flow: row;
+    flex-direction: row;
     align-items: center;
     background-color: var(--bng-cool-gray-700);
     padding: 0.5rem;
@@ -109,8 +105,11 @@ function switchLayout(key) {
   }
 
   .site-body {
+    flex: 1 1 auto;
     min-height: 0;
-    overflow: auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     color: white;
   }
   .layo-ut {
@@ -124,8 +123,9 @@ function switchLayout(key) {
     background: var(--bng-cool-gray-800);
   }
   .price-notice {
-    display: inline-flex;
-    justify-content: flex-end;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
     width: 100%;
     color: var(--bng-cool-gray-200);
   }
@@ -144,20 +144,17 @@ function switchLayout(key) {
     }
   }
   .vehicle-list {
-    display: flex;
-    flex-flow: row wrap;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    width: 100%;
-    overflow-y: auto;
-    // height: 90%;
+    flex: 1 1 auto;
     min-height: 0;
-    // background: #bdc8d1;
-  }
-  .sold-list {
-    & :deep(.vehicle-card) {
-      filter: grayscale(0.6) brightness(0.8);
+    width: 100%;
+    padding: 0.75rem;
+
+    :deep(.list-content > .list-items) {
+      padding-bottom: 0.5rem;
     }
+  }
+  :deep(.sold-vehicle-card) {
+    filter: grayscale(0.6) brightness(0.8);
   }
   .list-section-title {
     width: 100%;

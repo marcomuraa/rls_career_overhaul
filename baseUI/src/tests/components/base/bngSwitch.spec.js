@@ -1,10 +1,22 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 import { BngSwitch } from '@/common/components/base'
+import { bootstrapUiNavForTest } from '@/tests/bootstrapUiNav'
+import { DOM_UI_NAVIGATION_EVENT } from '@/services/uiNav'
 
 const valueChangedEventName = 'valueChanged'
 
+// space/controller "ok" presses reach the component as a DOM_UI_NAVIGATION_EVENT
+// dispatched on the focused element (see BngOnUiNav.js asMouse handling), not as a
+// native keyup - so activation must be simulated through that event, not wrapper.trigger()
+const fireOkNavEvent = (element, value) =>
+    element.dispatchEvent(new CustomEvent(DOM_UI_NAVIGATION_EVENT, { detail: { name: 'ok', value, modified: false } }))
+
 describe('bngSwitch.vue Test', () => {
+    beforeEach(() => {
+        bootstrapUiNavForTest()
+    })
+
     it('should emit valueChanged event on click', async () => {
         const wrapper = shallowMount(BngSwitch)
 
@@ -15,9 +27,12 @@ describe('bngSwitch.vue Test', () => {
     })
 
     it('should emit valueChanged event on space key ', async () => {
-        const wrapper = shallowMount(BngSwitch)
+        const wrapper = shallowMount(BngSwitch, { attachTo: document.body })
+        wrapper.element.focus()
 
-        await wrapper.trigger('keyup.space')
+        fireOkNavEvent(wrapper.element, 1)
+        fireOkNavEvent(wrapper.element, 0)
+        await wrapper.vm.$nextTick()
 
         expect(wrapper.emitted(valueChangedEventName)).toHaveLength(1)
         expect(wrapper.emitted(valueChangedEventName)[0]).toEqual([true])
@@ -32,9 +47,12 @@ describe('bngSwitch.vue Test', () => {
     })
 
     it('should not emit valueChanged event on space key when disabled', async () => {
-        const wrapper = shallowMount(BngSwitch, {propsData: {disabled: true}})
+        const wrapper = shallowMount(BngSwitch, { propsData: { disabled: true }, attachTo: document.body })
+        wrapper.element.focus()
 
-        await wrapper.trigger('keyup.space')
+        fireOkNavEvent(wrapper.element, 1)
+        fireOkNavEvent(wrapper.element, 0)
+        await wrapper.vm.$nextTick()
 
         expect(wrapper.emitted()).not.toHaveProperty(valueChangedEventName)
     })

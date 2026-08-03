@@ -2,7 +2,6 @@ import { defineStore, storeToRefs } from "pinia"
 import { ref, watch } from "vue"
 import { lua, useBridge } from "@/bridge"
 import useControls from "@/services/controls"
-import router from "@/router"
 
 export const useLiveryMainStore = defineStore("liveryMain", () => {
   const Controls = useControls()
@@ -30,8 +29,8 @@ export const useLiveryMainStore = defineStore("liveryMain", () => {
   }
 
   function onChangeView(view) {
-    console.log("onChangeView", view)
-    router.push({ name: view })
+    // console.log("onChangeView", view)
+    lua.extensions.ui_router.navigate(view, null, null)
   }
 
   async function setup() {

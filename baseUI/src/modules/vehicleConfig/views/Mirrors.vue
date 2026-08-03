@@ -1,24 +1,27 @@
 <template>
   <LayoutSingle
     class="layout-content-full layout-align-hstart"
-    bng-ui-scope="vehicle-config-mirrors"
+    v-bng-scoped-nav="{ activateOnMount: true, trapPolicy: SCOPE_TRAP_POLICIES.ALWAYS, canDeactivate: canDeactivateScope }"
     v-bng-on-ui-nav:menu,back="exitAdjustmentMode"
     v-bng-on-ui-nav:action_2="() => selectedMirror && exitAdjustmentMode()">
     <BngCard class="mirrors-card" v-bng-blur="true">
       <BngCardHeading>{{ $t("ui.mirrors.name") }}</BngCardHeading>
       <div v-if="!selectedMirror" class="content buttons-grid">
         <BngImageTile
-          v-for="mirror in mirrors"
-          @click="selectedMirror = mirror"
-          class="mirror-button"
+          v-for="(mirror, index) in mirrors"
+          :key="index"
           :class="[mirror.position]"
           :icon="icons[mirror.mirrorIcon] || icons.placeholder"
           :label="mirror.description"
-          bng-nav-item />
+          :bng-scoped-nav-autofocus="mirror.position === 'left'"
+          bng-nav-item
+          class="mirror-button"
+          @click="selectedMirror = mirror"
+          />
       </div>
-      <MirrorAdjust v-else class="content" :mirror="selectedMirror" />
+      <MirrorAdjust v-else class="content" :mirror="selectedMirror" @deactivate="selectedMirror = null" />
       <template #buttons>
-        <BngButton @click="exitAdjustmentMode">
+        <BngButton bng-no-nav="true" @click="exitAdjustmentMode">
           <BngBinding v-if="selectedMirror" controller ui-event="action_2" />
           <BngBinding v-else controller ui-event="back" />
           {{ $t(selectedMirror ? 'ui.common.apply' : 'ui.common.close') }}
@@ -32,13 +35,11 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import { useBridge } from "@/bridge"
 import { LayoutSingle } from "@/common/layouts"
-import { vBngBlur, vBngOnUiNav } from "@/common/directives"
+import { vBngBlur, vBngOnUiNav, vBngScopedNav } from "@/common/directives"
 import { BngBinding, BngButton, BngCard, BngCardHeading, BngImageTile, icons } from "@/common/components/base"
 import { $translate } from "@/services/translation"
+import { SCOPE_TRAP_POLICIES } from "@/services/scopedNav/types"
 import MirrorAdjust from "../components/MirrorAdjust.vue"
-
-import { useUINavScope } from "@/services/uiNav"
-useUINavScope("vehicle-config-mirrors")
 
 const comp = ref(null)
 const { lua, events } = useBridge()
@@ -62,7 +63,8 @@ async function exitAdjustmentMode() {
     comp.value = null // Ensure the dynamic component is not rendered
     await lua.extensions.core_vehicle_mirror.focusOnMirror(false)
   } else {
-    bngVue.gotoAngularState(props.exitRoute)
+    // await lua.extensions.ui_router.navigate(props.exitRoute)
+    await lua.extensions.ui_router.back()
   }
 }
 
@@ -110,6 +112,10 @@ async function getVehicleMirrors() {
     })
   }
   mirrors.value.sort((a, b) => a.row - b.row)
+}
+
+const canDeactivateScope = () => {
+  return !selectedMirror.value
 }
 
 onMounted(async () => {

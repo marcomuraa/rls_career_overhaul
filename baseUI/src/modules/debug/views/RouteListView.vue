@@ -16,7 +16,7 @@ import router from "@/router"
 
 const routes = router
 	.getRoutes()
-	.filter(r => r.name !== "routelist")
+	.filter(r => r && r.name !== "routelist")
 	.sort((a, b) => a.name.localeCompare(b.name))
 
 function go(route) {

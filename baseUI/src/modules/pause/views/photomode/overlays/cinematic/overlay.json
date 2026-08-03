@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "name": "ui.photomode.overlay.builtin.cinematic",
+  "author": "BeamNG",
+  "layers": [
+    {
+      "height":"8%",
+      "image":"bar.svg",
+      "imageFit":"cover",
+      "width":"100%",
+      "x":"0%",
+      "y":"0%"
+    },
+    {
+      "height":"8%",
+      "image":"bar.svg",
+      "imageFit":"cover",
+      "width":"100%",
+      "x":"0%",
+      "y":"100%"
+    },
+    {
+      "height":"100%",
+      "image":"grain.svg",
+      "imageRepeat":"xy",
+      "opacity":0.1,
+      "width":"100%",
+      "x":"0%",
+      "y":"0%"
+    },
+    {
+      "height":"5%",
+      "image":"logo.svg",
+      "imageFit":"contain",
+      "opacity":0.9,
+      "width":"15%",
+      "x":"2%",
+      "y":"-2%"
+    }
+  ]
+}

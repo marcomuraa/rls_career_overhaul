@@ -1,9 +1,12 @@
 <template>
-  <div class="settings-main-view" bng-ui-scope="settings-main-scope" v-bng-on-ui-nav:back,menu="goBack">
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+  <LayoutMenu
+    class="settings-main-view"
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    heading="Settings">
+    <div class="main-view-content" v-bng-on-ui-nav:back,menu="goBack">
       <BngCard v-bng-blur>
         <BngCardHeading>Settings</BngCardHeading>
         <div class="settings-container">
@@ -14,24 +17,24 @@
         </div>
       </BngCard>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script setup>
-import { ref, onBeforeMount, onMounted, onBeforeUnmount, watch } from "vue"
+import { computed, ref, onBeforeMount, onMounted, onBeforeUnmount, watch } from "vue"
 import { useInfoBar } from "@/services/infoBar"
+import { useRouteDataStore } from "@/services/routeData"
 import { vBngOnUiNav, vBngBlur, vBngUiNavFocus, vBngFocusIf } from "@/common/directives"
-import { useUINavScope } from "@/services/uiNav"
-import { useEditorHeaderStore } from "@/modules/liveryEditor/stores"
 import { lua, useBridge } from "@/bridge"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
+import { LayoutMenu } from "@/common/layouts"
 import { BngCard, BngCardHeading, BngSwitch } from "@/common/components/base"
 
-const headerStore = useEditorHeaderStore()
 const infobar = useInfoBar()
-const uiNav = useUINavScope("settings-main-scope")
+const routeDataStore = useRouteDataStore()
 const { events } = useBridge()
 const stateData = ref(null)
+
+const breadcrumbItems = computed(() => (Array.isArray(routeDataStore.breadcrumbs) ? routeDataStore.breadcrumbs : []))
 
 const useSurfaceNormal = ref(false)
 
@@ -47,8 +50,6 @@ const NAV_HINTS = [{ id: "back", content: { type: "binding", props: { uiEvent: "
 onBeforeMount(() => {
   infobar.clearHints()
   infobar.addHints(NAV_HINTS)
-  headerStore.setHeader("Decals")
-  headerStore.setPreheader(["Settings"])
 })
 
 onMounted(async () => {
@@ -69,7 +70,7 @@ function onSettingsData(data) {
 }
 
 function goBack(event) {
-  window.bngVue.gotoGameState("LiveryMain")
+  lua.extensions.ui_router.navigate("livery.editor", null, null)
   event.stopPropagation()
 }
 </script>

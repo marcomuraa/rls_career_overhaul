@@ -52,8 +52,17 @@ export default {
     SHOW_TOOLTIP_EVENTS.forEach(eventName => el.removeEventListener(eventName, el.__showTooltip))
     HIDE_TOOLTIP_EVENTS.forEach(eventName => el.removeEventListener(eventName, el.__hideTooltip))
     const data = el[DATA_PROP]
-    if (data.dispose) data.dispose()
+    if (data.hideDelay) {
+      clearTimeout(data.hideDelay)
+      data.hideDelay = null
+    }
+    if (data.tooltipAnimationFrame) {
+      cancelAnimationFrame(data.tooltipAnimationFrame)
+      data.tooltipAnimationFrame = null
+    }
+    data.pendingTooltipState = null
     removeTooltip(el)
+    if (data.dispose) data.dispose()
   },
 }
 

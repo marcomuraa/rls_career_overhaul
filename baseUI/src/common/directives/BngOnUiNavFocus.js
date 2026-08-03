@@ -1,6 +1,5 @@
-import { vBngOnUiNav, vBngClick } from "@/common/directives"
 // import { UI_EVENTS } from "@/bridge/libs/UINavEvents"
-import { UI_EVENTS } from "@/services/uiNav"
+import { UI_EVENTS, getUINavHandlers } from "@/services/uiNav"
 
 const DIRECTIONS = {
   horizontal: {
@@ -13,17 +12,40 @@ const DIRECTIONS = {
   },
 }
 
+// analog thumbstick axis that mirrors each discrete direction
+const AXIS_EVENTS = {
+  horizontal: UI_EVENTS.focus_lr,
+  vertical: UI_EVENTS.focus_ud,
+}
+
 const HOLD_DELAY = 400
 const REPEAT_INTERVAL = 100
+const AXIS_THRESHOLD = 0.5
+
+// hold to accelerate
+const ACCEL_DELAY = 500 // grace period before acceleration kicks in
+const ACCEL_DOUBLE = 500 // step doubles every this many ms past the delay
+const ACCEL_MAX_RANGE_FRACTION = 0.05 // cap accelerated step at this fraction of (max - min)
 
 const ELEMENT_FLAG = "__BNG_ONUINAVFOCUS"
+
+function formatDirectiveDebugName(binding) {
+  if (!__BNG_DEV__) return ""
+  const direction = binding.arg ? `:${binding.arg}` : ""
+  const modifiers = Object.keys(binding.modifiers || {})
+    .filter(name => binding.modifiers[name])
+    .sort()
+    .map(name => `.${name}`)
+    .join("")
+  return `v-bng-on-ui-nav-focus${direction}${modifiers}`
+}
 
 /**
  * Convenience directive to bind on navigation focus move (discrete) events sent.
  *
  * Arguments:
- *  "horizontal" (default) - will bind to focus_l and focus_r events
- *  "vertical"             - will bind to focus_d and focus_u events
+ *  "horizontal" (default) - will bind to focus_l/focus_r and the focus_lr axis
+ *  "vertical"             - will bind to focus_d/focus_u and the focus_ud axis
  *
  * Modifiers:
  *  "repeat"               - will repeat the callback after a short delay
@@ -74,89 +96,252 @@ const ELEMENT_FLAG = "__BNG_ONUINAVFOCUS"
  *   ...
  *  />
  */
-export default {
-  mounted: (element, binding, vnode) => {
-    if (!binding.value) return
 
-    const opts = {
-      direction: binding.arg || "horizontal",
-      repeat: !!binding.modifiers.repeat,
-      holdDelay: HOLD_DELAY,
-      repeatInterval: REPEAT_INTERVAL,
-      min: -Infinity,
-      max: Infinity,
-      step: 1,
-      value: null,
-      callback: null,
-      ...(typeof binding.value === "object" ? binding.value : typeof binding.value === "function" ? { callback: binding.value } : {}),
+/**
+ * Builds the per-element controller that owns the navigation handlers and repeat timers.
+ * Returns an object carrying the bound `value` (for update diffing) and a `cleanup` function.
+ */
+function createInstance(element, binding) {
+  const opts = {
+    direction: binding.arg || "horizontal",
+    repeat: !!binding.modifiers.repeat,
+    holdDelay: HOLD_DELAY,
+    repeatInterval: REPEAT_INTERVAL,
+    min: -Infinity,
+    max: Infinity,
+    step: 1,
+    value: null,
+    callback: null,
+    ...(typeof binding.value === "object" ? binding.value : typeof binding.value === "function" ? { callback: binding.value } : {}),
+  }
+  !opts.events && (opts.events = DIRECTIONS[opts.direction])
+
+  const axisEvent = AXIS_EVENTS[opts.direction] || null
+  const debugSource = formatDirectiveDebugName(binding)
+
+  function accelerateStep(baseStep, elapsedMs) {
+    if (!opts.repeat || !(elapsedMs > ACCEL_DELAY)) return baseStep
+    const multiplier = Math.max(1, Math.round(2 ** ((elapsedMs - ACCEL_DELAY) / ACCEL_DOUBLE)))
+    let accelerated = baseStep * multiplier
+    const range = opts.max - opts.min
+    // cap to a fraction of the range when bounds are known, but never below the base step
+    if (Number.isFinite(range) && range > 0) {
+      accelerated = Math.min(accelerated, Math.max(baseStep, range * ACCEL_MAX_RANGE_FRACTION))
     }
-    !opts.events && (opts.events = DIRECTIONS[opts.direction])
+    return accelerated
+  }
 
-    function process(evt) {
-      const detail = evt.fromController || evt.detail
-      if (!detail || !(detail.name in opts.events)) return
-      let dir = opts.events[detail.name]
-      let val = undefined
+  function applyStep(dir, elapsedMs, evt, detail) {
+    if (!dir) return
+    let val = undefined
+    const context = { dir, elapsedMs, event: evt, detail }
 
-      if (typeof opts.value === "function") {
-        const cur = opts.value()
-        const step = typeof opts.step === "function" ? opts.step() : opts.step
+    if (typeof opts.value === "function") {
+      const cur = opts.value()
+      const baseStep = typeof opts.step === "function" ? opts.step(context) : opts.step
+      const step = accelerateStep(baseStep, elapsedMs)
 
-        // apply
-        let res = cur + step * dir
-        // bounds
-        if (dir < 0 && res < opts.min) {
-          res = opts.min
-        } else if (dir > 0 && res > opts.max) {
-          res = opts.max
-        }
-        // floating point error fix
-        const precision = 10 ** (opts.step + ".").split(/[.,]/)[1].length
-        if (precision > 0) {
-          res = Math.round(res * precision) / precision
-        } else {
-          res = Math.round(res)
-        }
-        // check and finalise
-        if (cur !== res) {
-          val = res
-        } else {
-          dir = 0
-        }
+      // apply
+      let res = cur + step * dir
+      // bounds
+      if (dir < 0 && res < opts.min) {
+        res = opts.min
+      } else if (dir > 0 && res > opts.max) {
+        res = opts.max
       }
-
-      dir && opts.callback && opts.callback(dir, val)
+      // floating point error fix
+      const precision = 10 ** (step + ".").split(/[.,]/)[1].length
+      if (precision > 0) {
+        res = Math.round(res * precision) / precision
+      } else {
+        res = Math.round(res)
+      }
+      // check and finalise
+      if (cur !== res) {
+        val = res
+      } else {
+        dir = 0
+      }
     }
 
-    const dirUINav = {
-      //v-bng-on-ui-nav:focus_l,focus_r.focusRequired.asMouse
-      arg: Object.keys(opts.events).join(","),
-      modifiers: {
-        focusRequired: true,
-        asMouse: true,
+    dir && opts.callback && opts.callback(dir, val, context)
+  }
+
+  // discrete dpad handling (focus_l/focus_r or focus_u/focus_d).
+  // Both the press (value=1) and release (value=0) edges are received so the
+  // repeat can be started on press and stopped on release of the held direction.
+  let pressedDir = 0
+  let discreteHoldStartedAt = 0
+  let discreteHoldDelayTimer = null
+  let discreteRepeatTimer = null
+  let discreteEventRef = null
+  let discreteDetailRef = null
+
+  function clearDiscreteTimers() {
+    if (discreteHoldDelayTimer) {
+      clearTimeout(discreteHoldDelayTimer)
+      discreteHoldDelayTimer = null
+    }
+    if (discreteRepeatTimer) {
+      clearInterval(discreteRepeatTimer)
+      discreteRepeatTimer = null
+    }
+  }
+
+  function stopDiscreteRepeat() {
+    clearDiscreteTimers()
+    pressedDir = 0
+  }
+
+  function discreteStep() {
+    applyStep(pressedDir, Date.now() - discreteHoldStartedAt, discreteEventRef, discreteDetailRef)
+  }
+
+  function processDiscrete(evt) {
+    const detail = evt.fromController || evt.detail
+    if (!detail || !(detail.name in opts.events)) return true
+    const dir = opts.events[detail.name]
+    const pressed = !!detail.value
+    if (pressed) {
+      pressedDir = dir
+      discreteHoldStartedAt = Date.now()
+      discreteEventRef = evt
+      discreteDetailRef = detail
+      applyStep(dir, 0, evt, detail)
+      if (opts.repeat) {
+        clearDiscreteTimers()
+        discreteHoldDelayTimer = setTimeout(() => {
+          discreteHoldDelayTimer = null
+          discreteRepeatTimer = setInterval(discreteStep, opts.repeatInterval)
+        }, opts.holdDelay)
+      }
+    } else if (dir === pressedDir) {
+      stopDiscreteRepeat()
+    }
+    return false
+  }
+
+  // analog thumbstick handling
+  let axisPressed = false
+  let axisDir = 0
+  let axisHoldStartedAt = 0
+  let axisHoldDelayTimer = null
+  let axisRepeatTimer = null
+  let axisEventRef = null
+  let axisDetailRef = null
+
+  function stopAxisRepeat() {
+    if (axisHoldDelayTimer) {
+      clearTimeout(axisHoldDelayTimer)
+      axisHoldDelayTimer = null
+    }
+    if (axisRepeatTimer) {
+      clearInterval(axisRepeatTimer)
+      axisRepeatTimer = null
+    }
+    axisPressed = false
+    axisDir = 0
+  }
+
+  function axisStep() {
+    applyStep(axisDir, Date.now() - axisHoldStartedAt, axisEventRef, axisDetailRef)
+  }
+
+  function processAxis(evt) {
+    const detail = evt.fromController || evt.detail
+    if (!detail || detail.name !== axisEvent) return true
+    const raw = Number(detail.value) || 0
+    const pressed = Math.abs(raw) >= AXIS_THRESHOLD
+    if (pressed === axisPressed) return false
+    if (pressed) {
+      axisPressed = true
+      axisDir = raw >= 0 ? 1 : -1
+      axisHoldStartedAt = Date.now()
+      axisEventRef = evt
+      axisDetailRef = detail
+      axisStep()
+      if (opts.repeat) {
+        axisHoldDelayTimer = setTimeout(() => {
+          axisHoldDelayTimer = null
+          axisRepeatTimer = setInterval(axisStep, opts.repeatInterval)
+        }, opts.holdDelay)
+      }
+    } else {
+      stopAxisRepeat()
+    }
+    return false
+  }
+
+  // a held button/stick that loses focus never sends a release event, so stop on blur
+  const onBlur = () => {
+    stopDiscreteRepeat()
+    stopAxisRepeat()
+  }
+
+  const discreteHandler = getUINavHandlers().add(
+    element,
+    {
+      name: name => name in opts.events,
+      value: undefined, // match both press and release edges
+      focusRequired: element,
+      eventNames: Object.keys(opts.events),
+      source: debugSource,
+    },
+    processDiscrete
+  )
+
+  let axisHandler = null
+  if (axisEvent) {
+    axisHandler = getUINavHandlers().add(
+      element,
+      {
+        name: axisEvent,
+        value: undefined,
+        focusRequired: element,
+        eventNames: [axisEvent],
+        source: debugSource,
       },
-    }
+      processAxis
+    )
+  }
 
-    const dirClick = {
-      // v-bng-click="navEventOpts"
-      value: {
-        clickCallback: process,
-        holdCallback: opts.repeat ? process : undefined,
-        holdDelay: HOLD_DELAY,
-        repeatInterval: REPEAT_INTERVAL,
-      },
-    }
+  element.addEventListener("blur", onBlur)
 
-    vBngOnUiNav.mounted(element, dirUINav, vnode)
-    vBngClick.mounted(element, dirClick, vnode)
+  return {
+    value: binding.value,
+    cleanup() {
+      onBlur()
+      element.removeEventListener("blur", onBlur)
+      if (discreteHandler) getUINavHandlers().remove(element, discreteHandler)
+      if (axisHandler) getUINavHandlers().remove(element, axisHandler)
+    },
+  }
+}
 
-    element[ELEMENT_FLAG] = true
+function setup(element, binding) {
+  if (!binding.value) {
+    // keep an inert record so `updated` can detect a later transition to a truthy value
+    element[ELEMENT_FLAG] = { value: binding.value, cleanup() {} }
+    return
+  }
+  element[ELEMENT_FLAG] = createInstance(element, binding)
+}
+
+export default {
+  mounted: (element, binding) => {
+    setup(element, binding)
+  },
+
+  updated: (element, binding) => {
+    const instance = element[ELEMENT_FLAG]
+    // nothing changed - keep the live timers/handlers intact (important during an active repeat)
+    if (instance && instance.value === binding.value) return
+    instance?.cleanup?.()
+    setup(element, binding)
   },
 
   beforeUnmount: element => {
-    if (element[ELEMENT_FLAG]) {
-      vBngClick.beforeUnmount(element)
-      vBngOnUiNav.beforeUnmount(element)
-    }
+    element[ELEMENT_FLAG]?.cleanup?.()
+    delete element[ELEMENT_FLAG]
   },
 }

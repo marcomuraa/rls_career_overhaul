@@ -15,6 +15,7 @@
       :value="selectedValue"
       :options="activityOptions"
       :config="selectConfig"
+      bng-no-nav
       mute
       loop
       @change="onValueChanged"
@@ -95,7 +96,8 @@ const defaultMissionIcon = computed(() => `url("${getAssetURL("icons/temp_debug/
 
 .activity-selector {
   display: flex;
-  flex-flow: column nowrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   align-items: stretch;
   justify-content: flex-start;
   min-width: 10rem;
@@ -133,7 +135,8 @@ const defaultMissionIcon = computed(() => `url("${getAssetURL("icons/temp_debug/
 
   .selector-display {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
     color: white;

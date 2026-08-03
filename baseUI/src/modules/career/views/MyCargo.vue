@@ -2,14 +2,14 @@
   <div style="color:white">#Hello</div>
   <ComputerWrapper
     v-if="cargoOverviewStore.cargoData"
-    :path="['My Cargo']"
-    :title="'My Cargo 2'"
+    :path="[$translate.instant('ui.career.myCargo.title')]"
+    :title="$translate.instant('ui.career.myCargo.title2')"
     back @back="close">
 
     <template #status>
-      Delivery Lvl 2 |
-      Car Jockey Lvl 3 |
-      Facility Reputation: Good
+      {{ $translate.instant("ui.career.myCargo.deliveryLvl2") }} |
+      {{ $translate.instant("ui.career.myCargo.carJockeyLvl3") }} |
+      {{ $translate.instant("ui.career.myCargo.facilityReputationGood") }}
       <!--
       <div class="item">
         Penalty for abandoning deliveries:
@@ -28,7 +28,7 @@
 
     <template #top>
       <div style="width: 100%; padding: 0.3em; background:#8888ff;">
-        FILTERTABS
+        {{ $translate.instant("ui.career.myCargo.filterTabs") }}
       </div>
     </template>
 
@@ -37,13 +37,13 @@
 
       <BngCard class="content-row provided-orders-panel">
         <BngCardHeading type="ribbon" class="cardHeading">
-          My Cargo
+          {{ $translate.instant("ui.career.myCargo.title") }}
         </BngCardHeading>
-        <BngSwitch v-model="cargoOverviewStore.automaticRoute"> Automatic route </BngSwitch>
+        <BngSwitch v-model="cargoOverviewStore.automaticRoute"> {{ $translate.instant("ui.career.cargoOverview.automaticRoute") }} </BngSwitch>
         <BngSlider :min="0" :max="cargoOverviewStore.cargoData.playerCardGroupSets.length-1" :step="1" v-model="cargoOverviewStore.playerGroupingIdx" @change="cargoOverviewStore.setGroupingAndSorting" />
         <BngSlider :min="0" :max="cargoOverviewStore.cargoData.sortingSets.length-1" :step="1" v-model="cargoOverviewStore.playerSortingIdx" @change="cargoOverviewStore.setGroupingAndSorting" />
         <BngCardHeading type="ribbon" class="cardHeading">
-          Grouped {{cargoOverviewStore.cargoData.playerCardGroupSets[cargoOverviewStore.playerGroupingIdx].label}}, Sorted {{cargoOverviewStore.cargoData.sortingSets[cargoOverviewStore.playerSortingIdx].label}}
+          {{ $translate.instant("ui.career.myCargo.groupedSorted", { group: cargoOverviewStore.cargoData.playerCardGroupSets[cargoOverviewStore.playerGroupingIdx].label, sort: cargoOverviewStore.cargoData.sortingSets[cargoOverviewStore.playerSortingIdx].label }) }}
         </BngCardHeading>
         <div style="overflow-y: scroll;">
           <ProvidedOrdersPanel
@@ -61,7 +61,7 @@
       <div class="content-row selected-and-map-panel">
         <BngCard class="cargo-detail">
           <BngCardHeading type="ribbon" class="cardHeading">
-            Details View
+            {{ $translate.instant("ui.career.myCargo.detailsView") }}
           </BngCardHeading>
           <div class="content" v-if="cargoOverviewStore.focusedCargo" >
             <CargoCard  :card="cargoOverviewStore.focusedCargo" detailed />
@@ -77,18 +77,18 @@
                   :disabled="!cargoOverviewStore.focusedCargo.enabled || cargoOverviewStore.focusedCargo.transientMoveCounts == 0"
                   accent="text"
                   @click="cargoOverviewStore.clearLoad(cargoOverviewStore.focusedCargo)">
-                  Clear Load
+                  {{ $translate.instant("ui.career.myCargo.clearLoad") }}
                 </BngButton>
                 <BngButton
                   :disabled="!cargoOverviewStore.focusedCargo.enabled || cargoOverviewStore.focusedCargo.autoLoadLocations && cargoOverviewStore.focusedCargo.autoLoadLocations.length == 0"
                   accent="text"
                   @click="cargoOverviewStore.loadCargoCustom(cargoOverviewStore.focusedCargo)">
-                  Custom Load
+                  {{ $translate.instant("ui.career.myCargo.customLoad") }}
                 </BngButton>
                 <BngButton
                   :disabled="!cargoOverviewStore.focusedCargo.enabled || cargoOverviewStore.focusedCargo.autoLoadLocations && cargoOverviewStore.focusedCargo.autoLoadLocations.length <= cargoOverviewStore.focusedCargo.transientMoveCounts"
                   @click="cargoOverviewStore.loadCargoAuto(cargoOverviewStore.focusedCargo)">
-                  Auto Load
+                  {{ $translate.instant("ui.career.myCargo.autoLoad") }}
                 </BngButton>
               </template>
               <template v-if="cargoOverviewStore.focusedCargo.isPlayerCard">
@@ -96,12 +96,12 @@
                   accent="text"
                   :disabled="cargoOverviewStore.focusedCargo.transientCargo"
                   @click="cargoOverviewStore.changeDistribution(cargoOverviewStore.focusedCargo)">
-                  Change Distribution
+                  {{ $translate.instant("ui.career.myCargo.changeDistribution") }}
                 </BngButton>
                 <BngButton
                   :disabled="cargoOverviewStore.focusedCargo.transientCargo"
                   @click="cargoOverviewStore.clearLoad(cargoOverviewStore.focusedCargo)">
-                  Clear Load
+                  {{ $translate.instant("ui.career.myCargo.clearLoad") }}
                 </BngButton>
               </template>
             </template>
@@ -110,7 +110,7 @@
                 <BngButton
                   :disabled="!cargoOverviewStore.focusedCargo.enabled"
                   @click="cargoOverviewStore.loadStorageCustom(cargoOverviewStore.focusedCargo)">
-                  Load Custom
+                  {{ $translate.instant("ui.career.myCargo.loadCustom") }}
                 </BngButton>
               </template>
 
@@ -120,7 +120,7 @@
                 <BngButton
                   :disabled="!cargoOverviewStore.focusedCargo.enabled"
                   @click="cargoOverviewStore.loadOffer(cargoOverviewStore.focusedCargo)">
-                  {{cargoOverviewStore.focusedCargo.spawnWhenCommitingCargo ? 'Don\'t bring out' : 'Bring Out'}}
+                  {{cargoOverviewStore.focusedCargo.spawnWhenCommitingCargo ? $translate.instant("ui.career.myCargo.dontBringOut") : $translate.instant("ui.career.myCargo.bringOut")}}
                 </BngButton>
 
             </template>
@@ -132,7 +132,7 @@
           </template>
         </BngCard>
         <BngCard class="map">
-          Map Screen
+          {{ $translate.instant("ui.career.myCargo.mapScreen") }}
         </BngCard>
       </div>
 
@@ -143,14 +143,14 @@
 </template>
 <script>
 const TAB_HEADINGS = {
-  parcels: "Parcels",
-  smallFluids: "Fluid Orders",
-  largeFluids: "Fluid Custom",
-  smallDryBulk: "Dry Bulk Orders",
-  largeDryBulk: "Dry Bulk Custom",
-  vehicles: "Vehicles",
-  trailers: "Trailers",
-  loaners: "Loaners",
+  parcels: "ui.career.myCargo.tabs.parcels",
+  smallFluids: "ui.career.myCargo.tabs.smallFluids",
+  largeFluids: "ui.career.myCargo.tabs.largeFluids",
+  smallDryBulk: "ui.career.myCargo.tabs.smallDryBulk",
+  largeDryBulk: "ui.career.myCargo.tabs.largeDryBulk",
+  vehicles: "ui.career.myCargo.tabs.vehicles",
+  trailers: "ui.career.myCargo.tabs.trailers",
+  loaners: "ui.career.myCargo.tabs.loaners",
 }
 </script>
 
@@ -173,6 +173,7 @@ import { openScreenOverlay, addPopup } from "@/services/popup"
 import CargoLoadPopup from "../components/cargoOverview/CargoLoadPopup.vue"
 
 import ComputerWrapper from "./ComputerWrapper.vue"
+import { $translate } from "@/services/translation"
 
 const playerGroupingIdx = ref(3)
 const playerSortingIdx = ref(1)
@@ -287,7 +288,7 @@ onUnmounted(kill)
 .cargoLists {
   display: flex;
   align-self: flex-start;
-  flex-flow: column;
+  flex-direction: column;
   flex: 1 1 auto;
   max-width: 80em;
   max-height: 70vh;

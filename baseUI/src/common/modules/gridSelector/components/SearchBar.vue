@@ -2,7 +2,7 @@
   <div class="search-container" :class="{ 'full-width': fullWidth }">
     <BngInput
       class="search-input"
-      :modelValue="searchText"
+      v-model="localSearchText"
       :placeholder="placeholder"
       @valueChanged="onSearchChanged"
       @keydown.enter="commitSearch"
@@ -10,7 +10,7 @@
       @focus="emit('focus-item', 'search')"
     />
     <div class="search-icon-container" @click="clearSearch"
-    :class="{ 'active': searchText }">
+    :class="{ 'active': localSearchText }">
       <BngIcon
         :type="icons.search"
         class="search-icon show-unhovered"
@@ -24,20 +24,18 @@
 </template>
 
 <script setup>
-import { BngButton, BngIcon, BngInput, icons } from '@/common/components/base'
+import { ref, watch, onUnmounted } from "vue"
+import { BngIcon, BngInput, icons } from "@/common/components/base"
+import { debounce } from "@/utils/rateLimit"
 
 const props = defineProps({
   searchText: {
     type: String,
     required: true
   },
-  setSearchText: {
-    type: Function,
-    required: true
-  },
   placeholder: {
     type: String,
-    default: 'Search...'
+    default: 'ui.menu.gridSelector.searchPlaceholder'
   },
   fullWidth: {
     type: Boolean,
@@ -49,29 +47,46 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['focus-item', 'clear-all'])
+const emit = defineEmits([
+  "focus-item",
+  "clear-all",
+  "search-text-change",
+])
 
 // searchText is now passed as a prop
+const localSearchText = ref(props.searchText)
+
+const debouncedSearchTextChange = debounce((value) => {
+  emit("search-text-change", value)
+}, 500)
+
+// Sync localSearchText when searchText changes externally (e.g. clearing from outside)
+watch(() => props.searchText, (newVal) => {
+  localSearchText.value = newVal
+})
 
 // Search functionality
 const clearSearch = () => {
-  props.setSearchText('')
-  emit('focus-item', 'search')
+  localSearchText.value = ""
+  debouncedSearchTextChange.cancel()
+  emit("search-text-change", "")
+  emit("focus-item", "search")
 }
 
 const commitSearch = () => {
-  // No need to commit since we're using the new filter system
-  // The search is already applied when updateFilterOption is called
+  debouncedSearchTextChange.cancel()
+  emit("search-text-change", localSearchText.value)
 }
 
 const onSearchChanged = (value) => {
-  props.setSearchText(value)
-  emit('focus-item', 'search')
+  localSearchText.value = value
+  debouncedSearchTextChange(value)
+  emit("focus-item", "search")
 }
 
-const clearAll = () => {
-  emit('clear-all')
-}
+onUnmounted(() => {
+  debouncedSearchTextChange.cancel()
+})
 </script>
 
 <style scoped lang="scss">

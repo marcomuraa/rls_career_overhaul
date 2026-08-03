@@ -132,6 +132,11 @@ export default {
       type: "Object",
       desc: "Object with two methods: `label` and `value` - for transforming an 'option' into its corresponding 'label' and 'value'. Defaults to: `{ label: opt => opt, value: opt => opt}`",
     },
+    {
+      name: "textScroller",
+      type: "Boolean",
+      desc: "Use TextScroller for the selected label. This is useful for long dynamic labels and follows the select or BngRow focus target.",
+    },
   ],
   attrInfo: [],
 }

@@ -110,6 +110,25 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+
+  autoFocusTarget: {
+    type: Object,
+    default: null,
+    validator: value => value === null || (
+      typeof value === "object" &&
+      (
+        (
+          value.type === "choice" &&
+          value.value !== undefined &&
+          value.value !== null &&
+          value.value !== ""
+        ) || (
+          value.type === "navigation" &&
+          ["previous", "skip", "next", "finish"].includes(value.value)
+        )
+      )
+    ),
+  },
 })
 
 const modelValue = defineModel({ default: () => ({}) })
@@ -150,6 +169,7 @@ onMounted(() => {
     validate: props.validator,
     component: props.component,
     componentProps: props.componentProps,
+    autoFocusTarget: props.autoFocusTarget,
     choices: props.choices,
     get modelValue() {
       return modelValue.value

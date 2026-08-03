@@ -3,12 +3,16 @@
 </template>
 
 <script setup>
-import { ref, watch, onUnmounted, nextTick } from "vue"
+import { ref, computed, watch, onUnmounted, nextTick } from "vue"
 import { getAssetURL } from "@/utils"
 
 const props = defineProps({
   images: Array, // array of images
-  transition: Boolean, // enables fade transition effect
+  transition: {
+    type: [Boolean, Number],
+    default: false,
+    validator: v => typeof v === "boolean" || (typeof v === "number" && v > 0),
+  }, // enables fade transition effect. If number, it sets the FPS of the transition
   delay: { // delay between images
     type: Number,
     default: 10000,
@@ -24,10 +28,21 @@ const imgIndex = ref(-1)
 let sequence = [], sequenceIndex = -1
 let tmrMain, tmrAnim
 let wImages, wParent
+let paused = false
+
+const transitionTiming = computed(() => {
+  if (typeof props.transition === "number") {
+    return `steps(${Math.round(props.transition)})`
+  }
+  return "ease"
+})
 
 defineExpose({
   imgIndex,
   nextImage,
+  pause,
+  play,
+  resume: play,
   carousel: {showNext: nextImage}, // for compat with carousel
 })
 
@@ -41,6 +56,19 @@ function stopTimers() {
   if (tmrAnim) {
     clearTimeout(tmrAnim)
     tmrAnim = null
+  }
+}
+
+function pause() {
+  paused = true
+  stopTimers()
+}
+
+function play() {
+  if (!paused) return
+  paused = false
+  if (!props.parent && props.images?.length > 1) {
+    tmrMain = setTimeout(nextImage, props.delay)
   }
 }
 
@@ -80,7 +108,9 @@ watch(() => props.parent, parent => {
 }, { immediate: true })
 
 function nextImage() {
+  if (paused) return
   stopTimers()
+  if (!props.images?.length) return
   // without parent, switch to the next image
   if (!props.parent) {
     if (props.shuffle && sequence.length > 0) {
@@ -90,6 +120,7 @@ function nextImage() {
       imgIndex.value = ++imgIndex.value % props.images.length
     }
   }
+  if (imgIndex.value < 0 || imgIndex.value >= props.images.length) return
   const img = `url("${getAssetURL(props.images[imgIndex.value])}")`
   if (props.transition) {
     // with transition, set class and start animation timer
@@ -106,7 +137,7 @@ function nextImage() {
     // without transition
     imgPrev.value = img
   }
-  if (!props.parent && props.images.length > 1) {
+  if (!paused && !props.parent && props.images.length > 1) {
     // without parent, start timer for the next image if there is more than one image
     tmrMain = setTimeout(nextImage, props.delay)
   }
@@ -132,7 +163,7 @@ div::after {
 
 .anim::after {
   opacity: 1;
-  transition: opacity 1000ms;
+  transition: opacity 1000ms v-bind(transitionTiming);
 }
 
 div,

@@ -1,162 +1,182 @@
 <template>
-  <div class="details" :class="{ 'inline': inline }" v-bng-ui-nav-scroll.force bng-nav-scroll>
+  <div class="vehicle-details" :class="{ 'inline': inline }">
+    <div class="details" v-bng-ui-nav-scroll.force="isAuxillaryScopeActive" bng-nav-scroll>
 
-    <div class="preview">
-      <BngCardHeading type="none" class="header-title" v-if="showHeaderTitle">
-        {{ activeItemDetails.headerTitle }}
-      </BngCardHeading>
-      <div class="tags-and-preview" :class="{ 'has-header-title': showHeaderTitle }" >
-        <div class="general-tags"  v-if="activeItemDetails?.iconTags?.length > 0">
-          <BngTooltip v-for="icon in activeItemDetails?.iconTags" :key="icon.icon" :text="icon.label" position="left">
-            <BngIcon v-if="icon.icon" :type="icon.icon" :label="icon.label" @click="goToMod(icon.goToMod)" :class="{ 'favourite-icon': icon.goToMod }" />
-            <span class="icon-text-tag" v-if="icon.iconText">{{ icon.iconText }}</span>
-          </BngTooltip>
-        </div>
-
-        <AspectRatio class="preview-image" :class="{ 'has-header-title': showHeaderTitle }" :ratio="'16:8'" :external-image="activeItemDetails?.preview">
-          <BngIcon
-            v-if="!inline"
-            class="favourite-icon"
-            :type="activeItemDetails?.isFavourite ? 'star' : 'starSecondary'"
-            @click="toggleFavourite"
-            :color="activeItemDetails?.isFavourite ? 'var(--bng-ter-yellow-50)' : 'var(--bng-cool-gray-100)'" />
-
-          <!-- Paint tile in bottom right corner -->
-          <BngPaintTile
-            v-if="hasPaintData"
-            :paint-id="`${activeItem?.id || 'vehicle'}:${paintData.paint}`"
-            :paint="paintData.paints"
-            :paint-name="paintData.paintNames.join(', ')"
-            :width="48 + 8"
-            :height="24"
-            class="preview-paint-tile"
-            bng-no-nav="true"
-            tabindex="-1"
-          />
-        </AspectRatio>
-      </div>
-    </div>
-
-    <div class="vehicle-text-header">
-      <div class="general-specs" v-if="activeItemDetails?.generalSpecs?.length > 0">
-        <div class="spec-value" v-for="spec in activeItemDetails?.generalSpecs" :key="spec.key">
-          <template v-if="Array.isArray(spec.value)">
-            {{ $tt(spec.value[0].text) }}
-          </template>
-          <template v-else>{{ spec.value }}</template>
-        </div>
-      </div>
-      <div class="divider" v-if="activeItemDetails?.generalSpecs.length > 0"></div>
-      <div class="vehicle-tags">
-        <template v-for="tag in activeItemDetails?.tags" :key="tag.key">
-          <div class="source-icon-container" :class="{ 'auxiliary-icon': tag.auxiliary }" @click="tagClicked(tag)">
-            <BngIcon v-if="tag.icon" :type="tag.icon" />
-            <img class="svg-icon" v-if="tag.svg" :src="tag.svg" />
-            {{ tag.label }}
+      <div class="preview">
+        <BngCardHeading type="none" class="header-title" v-if="showHeaderTitle">
+          {{ activeItemDetails.headerTitle }}
+        </BngCardHeading>
+        <div class="tags-and-preview" :class="{ 'has-header-title': showHeaderTitle }" >
+          <div class="general-tags"  v-if="activeItemDetails?.iconTags?.length > 0">
+            <BngTooltip v-for="icon in activeItemDetails?.iconTags" :key="icon.icon" :text="icon.label" position="left">
+              <BngIcon v-if="icon.icon" :type="icon.icon" :label="icon.label" @click="goToMod(icon.goToMod)" :class="{ 'favourite-icon': icon.goToMod }" />
+              <span class="icon-text-tag" v-if="icon.iconText">{{ icon.iconText }}</span>
+            </BngTooltip>
           </div>
-        </template>
-        <div v-if="activeItemDetails?.sourceIcon" class="source-icon-container">
-          <BngIcon :type="activeItemDetails?.sourceIcon.icon" @click="goToMod(activeItemDetails?.sourceIcon.goToMod)" /> {{ activeItemDetails?.sourceIcon.label }}
+
+          <AspectRatio class="preview-image" :class="{ 'has-header-title': showHeaderTitle }" :ratio="'16:9'" :external-image="activeItemDetails?.preview">
+            <div v-if="!inline" class="favourite-icon-container">
+              <BngBinding
+                v-if="showActionBindings"
+                :ui-event="'action_4'"
+                controller
+                class="favourite-icon-binding"
+              />
+              <BngIcon
+                class="favourite-icon"
+                :type="activeItemDetails?.isFavourite ? 'star' : 'starSecondary'"
+                @click="toggleFavourite"
+                :color="activeItemDetails?.isFavourite ? 'var(--bng-ter-yellow-50)' : 'var(--bng-cool-gray-100)'"
+              />
+            </div>
+
+            <!-- Paint tile in bottom right corner -->
+            <BngPaintTile
+              v-if="hasPaintData"
+              :paint-id="`${activeItem?.id || 'vehicle'}:${paintData.paint}`"
+              :paint="paintData.paints"
+              :paint-name="paintData.paintNames.join(', ')"
+              :width="48 + 8"
+              :height="24"
+              class="preview-paint-tile"
+              bng-no-nav="true"
+              tabindex="-1"
+            />
+          </AspectRatio>
         </div>
-        <div v-if="activeItemDetails?.isFavourite" class="source-icon-container"><BngIcon type="star" @click="toggleFavourite" /> Favourite</div>
-        <div v-if="activeItemDetails?.configDetails.isAuxiliary" class="source-icon-container auxiliary-icon"><BngIcon type="bug" /> Auxiliary</div>
       </div>
 
-      <div class="vehicle-description" v-if="activeItemDetails?.configDetails?.Description">
-        {{ activeItemDetails?.configDetails?.Description }}
-      </div>
-    </div>
-
-    <!-- Display detailed information if available -->
-    <template v-if="activeItemDetails?.configDetails && !hideDetailsAndButtons" >
-      <div v-for="(value, key) in activeItemDetails?.specificationsList" :key="key" class="specs-grid">
-        <div class="specs-grid-container">
-          <template v-for="specification in value.specifications" :key="specification.key">
-            <div class="spec-cell" :class="{ 'full-width': !specification.key }">
-              <div class="spec-label" v-if="specification.key">{{ specification.key }}:</div>
-              <div class="spec-value">
-                <template v-if="Array.isArray(specification.value)">
-                  <div v-for="(item, index) in specification.value" :key="index" class="spec-value-item" :class="{ italic: item.italic }">
-                    <span>{{ item.text }}</span>
-                    <BngIcon class="spec-post-icon" v-if="specification.postIcon" :type="specification.postIcon" />
-                    <BngIcon class="spec-post-icon" v-if="specification.openFolder" :type="'folder'" @click="openFolder(specification.value)" />
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="spec-value">
-                    <span>{{ specification.value }}</span>
-                    <BngIcon class="spec-post-icon" v-if="specification.postIcon" :type="specification.postIcon" />
-                    <BngIcon class="spec-post-icon" v-if="specification.openFolder" :type="'folder'" @click="openFolder(specification.value)" />
-                  </div>
-                </template>
-              </div>
+      <div class="vehicle-text-header">
+        <div class="general-specs" v-if="activeItemDetails?.generalSpecs?.length > 0">
+          <div class="spec-value" v-for="spec in activeItemDetails?.generalSpecs" :key="spec.key">
+            <template v-if="Array.isArray(spec.value)">
+              {{ $tt(spec.value[0].text) }}
+            </template>
+            <template v-else>{{ spec.value }}</template>
+          </div>
+        </div>
+        <div class="divider" v-if="activeItemDetails?.generalSpecs?.length > 0"></div>
+        <div class="vehicle-tags">
+          <template v-for="tag in activeItemDetails?.tags" :key="tag.key">
+            <div class="source-icon-container" :class="{ 'auxiliary-icon': tag.auxiliary }" @click="tagClicked(tag)">
+              <BngIcon v-if="tag.icon" :type="tag.icon" />
+              <img class="svg-icon" v-if="tag.svg" :src="tag.svg" />
+              {{ tag.label }}
             </div>
           </template>
+          <div v-if="activeItemDetails?.sourceIcon" class="source-icon-container">
+            <BngIcon :type="activeItemDetails?.sourceIcon.icon" @click="goToMod(activeItemDetails?.sourceIcon.goToMod)" /> {{ activeItemDetails?.sourceIcon.label }}
+          </div>
+          <div v-if="activeItemDetails?.isFavourite" class="source-icon-container"><BngIcon type="star" @click="toggleFavourite" /> {{$t("ui.menu.gridSelector.tags.favourite")}}</div>
+        </div>
+
+        <div class="vehicle-description" v-if="activeItemDetails?.configDetails?.Description">
+          {{ activeItemDetails?.configDetails?.Description }}
         </div>
       </div>
-    </template>
-  </div>
-  <div class="bottom-section" v-if="!hideDetailsAndButtons">
-    <div class="paint-list expanded">
-      <template v-for="multiPaint in multiPaints" :key="multiPaint.name">
-        <BngPaintTile
-          :paint-id="`${activeItem?.id || 'vehicle'}:${multiPaint.name}`"
-          :paint="multiPaint.paints"
-          :paint-name="multiPaint.name"
-          :paint-names="multiPaint.paintNames"
-          :width="48 + 8"
-          :height="24"
-          class="multi-paint-item"
-          :class="{ selected: selectedMultiPaint?.name === multiPaint.name }"
-          @click="handleMultiPaintClick(multiPaint)" />
-      </template>
-      <template v-for="paint in sortedFactoryPaints" :key="paint.name">
-        <BngPaintTile
-          v-if="paint && paint.class === 'factory' && paint.name"
-          :paint-id="`${activeItem?.id || 'vehicle'}:${paint.name}`"
-          :paint="convertPaintToTileFormat(paint)"
-          vehicle-name="factory"
-          :paint-name="paint.name"
-          :width="24"
-          :height="24"
-          class="paint-item"
-          :class="{ selected: selectedPaint === paint }"
-          @click="handlePaintClick(paint)" />
+
+      <!-- Display detailed information if available -->
+      <template v-if="activeItemDetails?.configDetails && !hideDetailsAndButtons" >
+        <div v-for="(value, key) in activeItemDetails?.specificationsList" :key="key" class="specs-grid">
+          <div class="specs-grid-container">
+            <template v-for="specification in value.specifications" :key="specification.key">
+              <div class="spec-cell" :class="{ 'full-width': !specification.key }">
+                <div class="spec-label" v-if="specification.key">{{ specification.key }}:</div>
+                <div class="spec-value">
+                  <template v-if="Array.isArray(specification.value)">
+                    <div v-for="(item, index) in specification.value" :key="index" class="spec-value-item" :class="{ italic: item.italic }">
+                      <span>{{ item.text }}</span>
+                      <BngIcon class="spec-post-icon" v-if="specification.postIcon" :type="specification.postIcon" />
+                      <BngIcon class="spec-post-icon" v-if="specification.openFolder" :type="'folder'" @click="openFolder(specification.value)" />
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="spec-value">
+                      <span>{{ specification.value }}</span>
+                      <BngIcon class="spec-post-icon" v-if="specification.postIcon" :type="specification.postIcon" />
+                      <BngIcon class="spec-post-icon" v-if="specification.openFolder" :type="'folder'" @click="openFolder(specification.value)" />
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
       </template>
     </div>
-    <template v-if="activeItemDetails?.buttonInfo && !buttonOverride">
-      <template v-for="button in activeItemDetails?.buttonInfo" :key="button.buttonId">
-        <BngButton
-          :bng-scoped-nav-autofocus="button.primary"
-          :accent="button.primary ? 'main' : 'secondary'"
-          :label="button.label"
-          :icon="button.icon"
-          @click="handleButtonClick(button.buttonId)" />
+
+    <div class="bottom-section" v-if="!hideDetailsAndButtons">
+      <div class="paint-list expanded">
+        <template v-for="multiPaint in filteredMultiPaints" :key="multiPaint.name">
+          <BngPaintTile
+            :paint-id="`${activeItem?.id || 'vehicle'}:${multiPaint.name}`"
+            :paint="multiPaint.paints"
+            :paint-name="multiPaint.name"
+            :paint-names="multiPaint.paintNames"
+            :width="48 + 8"
+            :height="24"
+            class="multi-paint-item"
+            :class="{ selected: selectedMultiPaint?.name === multiPaint.name }"
+            @click="handleMultiPaintClick(multiPaint)" />
+        </template>
+        <template v-for="paint in filteredFactoryPaints" :key="paint.name">
+          <BngPaintTile
+            v-if="paint && paint.class === 'factory' && paint.name"
+            :paint-id="`${activeItem?.id || 'vehicle'}:${paint.name}`"
+            :paint="convertPaintToTileFormat(paint)"
+            vehicle-name="factory"
+            :paint-name="paint.name"
+            :width="24"
+            :height="24"
+            class="paint-item"
+            :class="{ selected: selectedPaint === paint }"
+            @click="handlePaintClick(paint)" />
+        </template>
+      </div>
+      <template v-if="activeItemDetails?.buttonInfo && !buttonOverride">
+        <template v-for="button in activeItemDetails?.buttonInfo" :key="button.buttonId">
+          <Button
+            :bng-scoped-nav-autofocus="(button.primary && !button.disabled) || button.autofocus"
+            :class="{ 'action-button': true, 'primary': !showActionBindings && button.primary, 'secondary': !showActionBindings && !button.primary, 'hint': showActionBindings }"
+            :disabled="button.disabled"
+            @click="handleButtonClick(button)"
+          >
+            <BngBinding class="action-binding" v-if="button.uiEvent && showActionBindings" :ui-event="button.uiEvent" controller />
+            <BngIcon v-if="button.icon" :type="button.icon" />
+            <span>{{ button.label }}</span>
+          </Button>
+        </template>
       </template>
-    </template>
-    <template v-if="buttonOverride">
-      <BngButton
-        :bng-scoped-nav-autofocus="true"
-        :accent="'main'"
-        :label="buttonOverride.label"
-        :icon="buttonOverride.icon"
-        @click="buttonOverride.click(activeItem, selectedPaint, selectedMultiPaint)" />
-    </template>
+      <template v-if="buttonOverride">
+        <Button
+          :bng-scoped-nav-autofocus="true"
+          :label="buttonOverride.label"
+          :icon="buttonOverride.icon"
+          :class="{ 'action-button': true, 'primary': !showActionBindings, 'hint': showActionBindings }"
+          @click="handleOverrideClick"
+        >
+          <BngIcon v-if="buttonOverride.icon" :type="buttonOverride.icon" />
+          <span>{{ buttonOverride.label }}</span>
+        </Button>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, watch } from "vue"
-import { storeToRefs } from "pinia"
-import { BngButton, BngIcon, BngPaintTile, BngBinding } from "@/common/components/base"
+import { BngButton, BngIcon, BngPaintTile } from "@/common/components/base"
 import { AspectRatio } from "@/common/components/utility"
 import BngCardHeading from "@/common/components/base/bngCardHeading.vue"
 import BngTooltip from "@/common/components/base/bngTooltip.vue"
-import { vBngTooltip, vBngFocusIf, vBngUiNavScroll } from "@/common/directives"
+import { vBngUiNavScroll } from "@/common/directives"
 import Paint from "@/utils/paint"
-import useControls from "@/services/controls"
+import BngBinding from "@/common/components/base/bngBinding.vue"
+import Button from "@/common/components/utility/button.vue"
+import { storeToRefs } from "pinia"
+import { default as useControls } from "@/services/controls"
 const Controls = useControls()
-const { showIfController } = storeToRefs(Controls)
+const { showIfController, lastControllersSignature } = storeToRefs(Controls)
 
 const props = defineProps({
   activeItem: {
@@ -199,14 +219,24 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  executePaintTileSelection: {
+    type: Boolean,
+    default: false,
+  },
+  isAuxillaryScopeActive: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(["focus-item"])
+const showActionBindings = computed(() => !props.isAuxillaryScopeActive && showIfController.value)
+
+const emit = defineEmits(["focus-item", "execute-button", "override-click", "execute-default-item-action"])
 
 // activeItem and activeItemDetails are now passed as props
 
-const handleButtonClick = buttonId => {
-  let additionalData = {}
+const buildPaintAdditionalData = () => {
+  const additionalData = {}
   if (selectedMultiPaint.value) {
     additionalData.paint = selectedMultiPaint.value.paintNames[0]
     additionalData.paint2 = selectedMultiPaint.value.paintNames[1]
@@ -215,8 +245,23 @@ const handleButtonClick = buttonId => {
   if (selectedPaint.value) {
     additionalData.paint = selectedPaint.value.name
   }
-  props.executeButton(buttonId, additionalData)
-  emit("button-click", buttonId)
+  return additionalData
+}
+
+const handleButtonClick = button => {
+  const additionalData = buildPaintAdditionalData()
+  emit("execute-button", { button, buttonId: button.buttonId, additionalData })
+}
+
+const handleOverrideClick = () => {
+  const additionalData = buildPaintAdditionalData()
+  emit("override-click", {
+    activeItem: props.activeItem,
+    buttonOverride: props.buttonOverride,
+    selectedPaint: selectedPaint.value,
+    selectedMultiPaint: selectedMultiPaint.value,
+    additionalData,
+  })
 }
 
 const toggleFavourite = () => {
@@ -275,10 +320,36 @@ const multiPaints = computed(() => {
   return res
 })
 
-// Check if additionalData exists and has paint information
+// Filtered multiPaints - only show selected when allowPaintSelection is false
+const filteredMultiPaints = computed(() => {
+  const allowSelection = props.activeItemDetails?.paints?.allowPaintSelection !== false
+  if (allowSelection) {
+    return multiPaints.value
+  }
+  // Only show the selected multipaint
+  if (selectedMultiPaint.value) {
+    return [selectedMultiPaint.value]
+  }
+  return []
+})
+
+// Filtered factory paints - only show selected when allowPaintSelection is false
+const filteredFactoryPaints = computed(() => {
+  const allowSelection = props.activeItemDetails?.paints?.allowPaintSelection !== false
+  if (allowSelection) {
+    return sortedFactoryPaints.value
+  }
+  // Only show the selected paint
+  if (selectedPaint.value) {
+    return [selectedPaint.value]
+  }
+  return []
+})
+
+// Check if paint data exists and we have factory paints to resolve names against
 const hasPaintData = computed(() => {
-  return props.activeItemDetails?.additionalData?.paint &&
-         props.activeItemDetails?.paints?.factoryPaints
+  return !!props.activeItemDetails?.additionalData?.paint &&
+         !!props.activeItemDetails?.paints?.factoryPaints
 })
 
 // Get paint data for the preview tile (all 3 colors)
@@ -320,11 +391,23 @@ const selectedMultiPaint = ref(null)
 const selectedPaint = ref(null)
 const isPaintsExpanded = ref(false)
 
+const emitDefaultPaintAction = () => {
+  if (!props.activeItem) return
+  const additionalData = buildPaintAdditionalData()
+  emit("execute-default-item-action", {
+    activeItem: props.activeItem,
+    additionalData,
+  })
+}
+
 const handleMultiPaintClick = (multiPaint, focus = true) => {
   selectedMultiPaint.value = multiPaints.value.find(mp => mp.name === multiPaint.name)
   selectedPaint.value = null
   if (focus) {
     emit("focus-item", "multiPaints")
+  }
+  if (focus && props.executePaintTileSelection) {
+    emitDefaultPaintAction()
   }
 }
 
@@ -332,6 +415,9 @@ const handlePaintClick = paint => {
   selectedPaint.value = paint
   selectedMultiPaint.value = null
   emit("focus-item", "paints")
+  if (props.executePaintTileSelection) {
+    emitDefaultPaintAction()
+  }
 }
 
 // Helper function to convert factory paint to BngPaintTile format
@@ -352,10 +438,6 @@ const convertPaintToTileFormat = paint => {
     console.warn("Failed to convert paint:", paint, error)
     return null
   }
-}
-
-const togglePaintsExpansion = () => {
-  isPaintsExpanded.value = !isPaintsExpanded.value
 }
 
 const selectDefaultMultiPaint = () => {
@@ -478,10 +560,14 @@ function sortColors(list) {
   display: flex;
   flex-direction: column;
   color: white;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .inline {
-  padding: 0 !important;
   background-color: transparent;
+  .details {
+    padding: 0 !important;
+  }
   .vehicle-text-header {
     background-color: transparent;
     border-radius: 0;
@@ -494,8 +580,6 @@ function sortColors(list) {
     }
     .tags-and-preview {
       border-radius: 0;
-      .general-tags {
-      }
     }
   }
 }
@@ -538,16 +622,30 @@ function sortColors(list) {
     border-radius: unset;
   }
 }
-.favourite-icon {
+
+
+.favourite-icon-container {
   position: absolute;
-  top: 0.5rem;
+  bottom: 0.5rem;
   left: 0.5rem;
-  font-size: 2.5rem;
-  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
+  z-index: 2;
+  background-color: rgba(0, 0, 0, 0.66);
+  border-radius: 0.5rem;
+  padding: 0.125rem 0.25rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   z-index: 2;
   &:hover {
-    scale: 1.33;
+    scale: 1.15;
   }
+}
+  .favourite-icon {
+    font-size: 1.5rem;
+  }
+  .favourite-icon-binding {
+    font-size: 0.75rem;
 }
 
 .preview-paint-tile {
@@ -897,5 +995,43 @@ function sortColors(list) {
       border: 2px solid rgba(255, 255, 255, 1);
     }
   }
+}
+
+.action-button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  --bng-bg-border-width: 0;
+  gap: 0.5em;
+}
+
+.action-binding {
+  justify-self: flex-start;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.primary {
+  --bng-bg-enabled: var(--bng-orange-500);
+  --bng-bg-hover: var(--bng-orange-b400);
+  --bng-bg-active: var(--bng-orange-600);
+  --bng-bg-focus: var(--bng-orange-500);
+}
+
+.secondary {
+  --bng-bg-enabled: var(--bng-ter-blue-gray-700);
+  --bng-bg-hover: var(--bng-ter-blue-gray-600);
+  --bng-bg-active: var(--bng-ter-blue-gray-800);
+  --bng-bg-disabled-opacity: 0.5;
+  --bng-bg-focus: var(--bng-ter-blue-gray-650);
+}
+
+
+.hint {
+  // Outline-style hint overlay for controller binding visibility.
+  --bng-bg-border-width: unset;
+  --bng-bg-border-enabled: var(--bng-cool-gray-600);
+  --bng-bg-border-hover: var(--bng-orange-500);
 }
 </style>

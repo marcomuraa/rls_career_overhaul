@@ -1,9 +1,15 @@
 <template>
-  <div class="layer-projection-view" bng-ui-scope="layer-projection-scope" v-bng-on-ui-nav:back="goBack" v-bng-on-ui-nav:menu="goBack">
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="main-view-content">
+  <LayoutMenu
+    class="layer-projection-view"
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    :show-breadcrumb-back-button="true"
+    heading="Projection"
+    @breadcrumb-click="onBreadcrumbClick"
+    @breadcrumb-back="onBreadcrumbBack">
+    <div class="main-view-content" v-bng-on-ui-nav:back="goBack" v-bng-on-ui-nav:menu="goBack">
       <BngImageTile v-bng-blur bng-nav-item v-bng-popover:right-start.click="'camera-views-menu'" :icon="icons.movieCamera" label="Side" />
       <BngImageTile v-bng-blur bng-nav-item v-bng-popover:right-start.click="'mirror-settings-menu'" :icon="icons.reflect" label="Mirror" />
     </div>
@@ -27,7 +33,7 @@
         <BngInput v-model="mirrorOffset" externalLabel="Offset" type="number" :disabled="!mirrored" />
       </div>
     </BngPopoverMenu>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script>
@@ -78,22 +84,28 @@ const CAMERA_BUTTONS = [
 <script setup>
 import { computed, onBeforeMount, onMounted, onBeforeUnmount, reactive, ref, watch } from "vue"
 import { useInfoBar } from "@/services/infoBar"
-import { useUINavScope } from "@/services/uiNav"
+import { useScopedNav } from "@/services/scopedNav/api"
 import { usePopover } from "@/services/popover"
 import { vBngOnUiNav, vBngPopover, vBngDisabled, vBngBlur } from "@/common/directives"
 import { BngImageTile, BngInput, BngList, BngPillCheckbox, BngPopoverMenu, icons } from "@/common/components/base"
-import { useEditorHeaderStore } from "@/modules/liveryEditor/stores"
+import { LayoutMenu } from "@/common/layouts"
 import { useLiveryEditorStore } from "@/modules/liveryEditor/stores"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
 import { lua, useBridge } from "@/bridge"
+import { useLiveryBreadcrumbNavigation } from "@/modules/liveryEditor/composables/useLiveryBreadcrumbNavigation"
 
 const { events } = useBridge()
 
-const headerStore = useEditorHeaderStore()
 const store = useLiveryEditorStore()
 const infobar = useInfoBar()
 const popover = usePopover()
-const uiNav = useUINavScope("layer-projection-scope")
+const { switchScope } = useScopedNav()
+
+const { breadcrumbItems, onBreadcrumbClick, onBreadcrumbBack } = useLiveryBreadcrumbNavigation({
+  handleBack: () => {
+    goBack()
+    return true
+  },
+})
 
 const stateData = ref(null)
 
@@ -132,8 +144,6 @@ const NAV_HINTS = [
 onBeforeMount(() => {
   infobar.clearHints()
   infobar.addHints(NAV_HINTS)
-  headerStore.setPreheader(["Projection"])
-  headerStore.setHeader("Decals")
 })
 
 onMounted(async () => {
@@ -168,15 +178,15 @@ function onInitialLayerData(data) {
 }
 
 function goBack() {
-  window.bngVue.gotoGameState("LiveryLayerEdit")
+  lua.extensions.ui_router.navigate("livery.layerEdit", null, null)
 }
 
 function saveChanges() {
-  window.bngVue.gotoGameState("LiveryLayerEdit")
+  lua.extensions.ui_router.navigate("livery.layerEdit", null, null)
 }
 
 function onPopoverMenuHide() {
-  uiNav.set("layer-projection-scope")
+  switchScope("root")
 }
 </script>
 

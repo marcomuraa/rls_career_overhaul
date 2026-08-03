@@ -79,7 +79,7 @@ const description = `
 <script setup>
 import { computed, onBeforeMount, reactive, ref } from "vue"
 import { storeToRefs } from "pinia"
-import router from "@/router"
+import { lua } from "@/bridge"
 import { useUINavScope } from "@/services/uiNav"
 import { vBngOnUiNav } from "@/common/directives"
 import { vBngBlur } from "@/common/directives"
@@ -112,7 +112,7 @@ const selectFile = file => (selectedFile.value = file)
 const loadFile = async () => {
   const res = await store.loadFile(selectedFile.value)
   if (res) {
-    router.replace({ name: "LiveryEditor" })
+    lua.extensions.ui_router.navigate("livery", null, null)
   }
 }
 
@@ -122,8 +122,8 @@ const openRenameDialog = async () => {
   const formModel = { name: selectedFile.value.name }
 
   const res = await openEditFileDialog("Rename file", description, formModel, model => {
-    console.log("called validator", model)
-    console.log("called validator formModel", formModel)
+    // console.log("called validator", model)
+    // console.log("called validator formModel", formModel)
     return model.name !== null && model.name !== undefined && model.name !== "" && model.name !== selectedFile.value.name
   })
   // const res = await openFormDialog(FileEditForm, formModel, "Rename file", description)
@@ -148,7 +148,7 @@ onBeforeMount(async () => {
 
 const goBack = () => {
   if (!windowState.isAnyDialogOpen) {
-    router.replace({ name: "LiveryMain" })
+    lua.extensions.ui_router.navigate("livery.editor", null, null)
   }
 }
 </script>

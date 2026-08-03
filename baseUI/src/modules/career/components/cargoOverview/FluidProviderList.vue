@@ -153,7 +153,7 @@ const getLocationClass = location => ({
 
   .locationsFlexRow {
     display:flex;
-    flex-flow:wrap;
+    flex-wrap: wrap;
     .location {
       background-color: rgba(var(--bng-cool-gray-700-rgb), 0.6);
       padding: 0.25em 0.5em;

@@ -67,7 +67,8 @@ data.value = genItems()
 .accrow {
   // font-size: 1rem;
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: space-around;
   > * {
     flex: 0 0 33%;
@@ -75,7 +76,7 @@ data.value = genItems()
   }
 }
 .pre {
-  font-family: monospace;
+  font-family: var(--fnt-mono);
 }
 textarea {
   width: 100%;

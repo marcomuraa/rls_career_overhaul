@@ -8,22 +8,38 @@ import Computer from "./views/ComputerMain.vue"
 import Insurances from "./views/InsurancesMain.vue"
 import DriverAbstract from "./views/DriverAbstract.vue"
 import Logbook from "./views/Logbook.vue"
-import Milestones from "./views/Milestones.vue"
 import MyCargo from "./views/MyCargo.vue"
 import Painting from "./views/PaintingMain.vue"
 import PartInventory from "./views/PartInventoryMain.vue"
 import PartShopping from "./views/PartShoppingMain.vue"
 import Pause from "./views/Pause.vue"
 import PauseBigMiddlePanel from "./views/PauseBigMiddlePanel.vue"
-import Profiles from "./views/Profiles.vue"
+import ProfileSelect from "./profiles/views/ProfileSelect.vue"
+import ProfileNew from "./profiles/views/ProfileNew.vue"
+import ProfileSaveSelect from "./profiles/views/ProfileSaveSelect.vue"
 import Repair from "./views/RepairMain.vue"
 import Tuning from "./views/TuningMain.vue"
 import VehicleInventory from "./views/VehicleInventoryMain.vue"
 import VehiclePurchase from "./views/VehiclePurchaseMain.vue"
 import VehicleShopping from "./views/VehicleShoppingMain.vue"
+import VehicleShoppingVehicles from "./views/VehicleShoppingVehiclesMain.vue"
 import VehiclePerformance from "./views/VehiclePerformanceMain.vue"
+import VehiclePerformanceCertificationTest from "./views/VehiclePerformanceCertificationTest.vue"
 import ChooseInsurance from "./views/ChooseInsuranceMain.vue"
 import Negotiation from "./views/VehicleNegotiationMain.vue"
+import Organizations from "./views/Organizations.vue"
+
+// Shared meta for the career.computer route family so the InfoBar is shown
+// on the computer screen and all of its child routes.
+const computerRouteMeta = {
+  infoBar: {
+    visible: true,
+    showSysInfo: true,
+  },
+  uiApps: {
+    shown: false,
+  },
+}
 
 export default [
   // Career Pause
@@ -33,9 +49,9 @@ export default [
     component: Pause,
     props: true,
     meta: {
+      preloadOn: "career",
       clickThrough: true,
       infoBar: {
-        withAngular: true,
         visible: true,
         showSysInfo: true,
       },
@@ -48,19 +64,21 @@ export default [
     },
   },
   {
+    name: "career",
     path: "/career",
+    meta: { preloadOn: "career", preloadDeep: true },
     children: [
       // Choose Insurance
       {
         path: "chooseInsurance",
-        name: "chooseInsurance",
+        name: "career.chooseInsurance",
         component: ChooseInsurance,
       },
 
       // Career Pause (WIP with middle panel)
       {
         path: "pauseBigMiddlePanel",
-        name: "pauseBigMiddlePanel",
+        name: "career.pauseBigMiddlePanel",
         component: PauseBigMiddlePanel,
         props: true,
       },
@@ -68,7 +86,7 @@ export default [
       // Logbook
       {
         path: "logbook/:id(\\*?.*?)?",
-        name: "logbook",
+        name: "career.logbook",
         component: Logbook,
         meta: {
           uiApps: {
@@ -78,141 +96,186 @@ export default [
         props: true,
       },
 
-      {
-        path: "milestones/:id(\\*?.*?)?",
-        name: "milestones",
-        component: Milestones,
-        props: true,
-        meta: {
-          uiApps: {
-            shown: false,
-          },
-        },
-      },
-
       // Computer
       {
         path: "computer",
-        name: "computer",
+        name: "career.computer",
         component: Computer,
         props: true,
         meta: {
-          uiApps: {
-            shown: false,
-            //layout: "tasklist",
-          },
+          ...computerRouteMeta,
         },
       },
 
       // Vehicle Inventory
       {
-        path: "vehicleInventory",
-        name: "vehicleInventory",
+        path: "computer/vehicleInventory",
+        name: "career.computer.vehicleInventory",
         component: VehicleInventory,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
+      },
+
+      // Vehicle Certification - in-progress test screen
+      {
+        path: "computer/vehiclePerformance/certificationTest",
+        name: "career.computer.vehiclePerformance.certificationTest",
+        component: VehiclePerformanceCertificationTest,
       },
 
       // Vehicle Certification
       {
-        path: "vehiclePerformance/:inventoryId?",
-        name: "vehiclePerformance",
+        path: "computer/vehiclePerformance",
+        name: "career.computer.vehiclePerformance",
         component: VehiclePerformance,
-        props: true,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
       },
 
       // Tuning
       {
-        path: "tuning",
-        name: "tuning",
+        path: "computer/tuning",
+        name: "career.computer.tuning",
         component: Tuning,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
       },
 
       // Painting
       {
-        path: "painting",
-        name: "painting",
+        path: "computer/painting",
+        name: "career.computer.painting",
         component: Painting,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
       },
 
       // Repair
       {
-        path: "repair/:header?",
-        name: "repair",
+        path: "computer/repair/:header?",
+        name: "career.computer.repair",
         component: Repair,
         props: true,
+        meta: {
+          ...computerRouteMeta,
+        },
       },
 
       // Part Shopping
       {
-        path: "partShopping",
-        name: "partShopping",
+        path: "computer/partShopping",
+        name: "career.computer.partShopping",
         component: PartShopping,
         meta: {
-          uiApps: {
-            shown: false,
-            //layout: "tasklist",
-          },
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
+      },
+      {
+        path: "computer/partShopping/:category",
+        name: "career.computer.partShopping.category",
+        component: PartShopping,
+        props: true,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
+      },
+      {
+        path: "computer/partShopping/:category/slot/:slotPath(.*)*",
+        name: "career.computer.partShopping.category.slot",
+        component: PartShopping,
+        props: true,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
         },
       },
 
       // Part Inventory
       {
-        path: "partInventory",
-        name: "partInventory",
+        path: "computer/partInventory",
+        name: "career.computer.partInventory",
         component: PartInventory,
-      },
-
-      // Vehicle Purchase
-      {
-        path: "vehiclePurchase/:vehicleInfo?/:playerMoney?/:inventoryHasFreeSlot?/:lastVehicleInfo?",
-        name: "vehiclePurchase",
-        component: VehiclePurchase,
-        props: true,
         meta: {
-          uiApps: {
-            shown: false,
-          },
+          ...computerRouteMeta,
+          handlesOwnReady: true,
         },
       },
 
       // Negotiation
       {
         path: "negotiation",
-        name: "negotiation",
+        name: "career.negotiation",
         component: Negotiation,
       },
 
       // Vehicle Shopping
+      // NOTE: the literal `vehicles` child must come before the optional-param
+      // grid route, otherwise path matching treats `vehicles` as `screenTag`.
       {
-        path: "vehicleShopping/:screenTag?/:buyingAvailable?/:marketplaceAvailable?/:selectedSellerId?",
-        name: "vehicleShopping",
+        path: "computer/vehicleShopping/vehicles",
+        name: "career.computer.vehicleShopping.vehicles",
+        component: VehicleShoppingVehicles,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
+      },
+      {
+        path: "computer/vehicleShopping/vehicles/vehiclePurchase/:vehicleInfo?/:playerMoney?/:inventoryHasFreeSlot?/:lastVehicleInfo?",
+        name: "career.computer.vehicleShopping.vehicles.vehiclePurchase",
+        component: VehiclePurchase,
+        props: true,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
+      },
+      {
+        path: "computer/vehicleShopping/:screenTag?/:buyingAvailable?/:marketplaceAvailable?/:selectedSellerId?",
+        name: "career.computer.vehicleShopping",
         component: VehicleShopping,
         props: true,
         meta: {
-          uiApps: {
-            shown: false,
-            //layout: "tasklist",
-          },
+          ...computerRouteMeta,
+          handlesOwnReady: true,
         },
       },
 
       // Insurance policies List
       {
-        path: "insurances",
-        name: "insurances",
+        path: "computer/insurances",
+        name: "career.computer.insurances",
         component: Insurances,
+        meta: {
+          ...computerRouteMeta,
+        },
       },
 
       // Driver's Abstract
       {
-        path: "playerAbstract",
-        name: "playerAbstract",
+        path: "computer/playerAbstract",
+        name: "career.computer.playerAbstract",
         component: DriverAbstract,
+        meta: {
+          ...computerRouteMeta,
+          handlesOwnReady: true,
+        },
       },
 
       // Delivery Reward
       {
         path: "cargoDeliveryReward",
-        name: "cargoDeliveryReward",
+        name: "career.cargoDeliveryReward",
         component: CargoDeliveryReward,
         props: true,
       },
@@ -220,7 +283,7 @@ export default [
       // delivery dropoff
       {
         path: "cargoDropOff/:facilityId?/:parkingSpotPath(\\*?.*?)?",
-        name: "cargoDropOff",
+        name: "career.cargoDropOff",
         component: CargoDropOff,
         props: true,
       },
@@ -228,7 +291,7 @@ export default [
       // Cargo Overview
       {
         path: "cargoOverview/:facilityId?/:parkingSpotPath(\\*?.*?)?",
-        name: "cargoOverview",
+        name: "career.cargoOverview",
         component: CargoOverview,
         props: true,
         meta: {
@@ -239,7 +302,7 @@ export default [
       },
       {
         path: "myCargo",
-        name: "myCargo",
+        name: "career.myCargo",
         component: MyCargo,
         props: true,
         meta: {
@@ -251,12 +314,11 @@ export default [
 
       // Branch Landing Page
       {
-        path: "progressLanding/:pathId?/:comesFromBigMap?",
-        name: "progressLanding",
+        path: "progressLanding/:pathId?",
+        name: "career.progressLanding",
         component: ProgressLanding,
         props: route => ({
           pathId: route.params.pathId,
-          comesFromBigMap: route.params.comesFromBigMap === "true" || route.params.comesFromBigMap === true
         }),
         meta: {
           uiApps: {
@@ -271,7 +333,7 @@ export default [
       // Domain Landing Page
       {
         path: "domainSelection",
-        name: "domainSelection",
+        name: "career.domainSelection",
         component: ProgressLanding,
         props: true,
         meta: {
@@ -284,12 +346,29 @@ export default [
         },
       },
 
+      // Organizations / reputation
+      {
+        path: "organizations/:orgId?",
+        name: "career.organizations",
+        component: Organizations,
+        props: route => ({
+          orgId: route.params.orgId,
+        }),
+        meta: {
+          uiApps: {
+            shown: false,
+          },
+          infoBar: {
+            visible: true,
+          },
+        },
+      },
 
       // Profiles
       {
         path: "profiles",
-        name: "profiles",
-        component: Profiles,
+        name: "career.profiles",
+        component: ProfileSelect,
         meta: {
           uiApps: {
             shown: false,
@@ -299,7 +378,56 @@ export default [
             showSysInfo: true,
           },
         }
-      }
+      },
+      {
+        path: "profiles/new",
+        name: "career.profiles.new",
+        component: ProfileNew,
+        meta: {
+          uiApps: {
+            shown: false,
+          },
+          infoBar: {
+            visible: true,
+            showSysInfo: true,
+          },
+        }
+      },
+      {
+        path: "profiles/saves/:profileId?",
+        name: "career.profiles.saves",
+        component: ProfileSaveSelect,
+        props: route => ({
+          profileId: route.params.profileId,
+          mode: "load",
+        }),
+        meta: {
+          uiApps: {
+            shown: false,
+          },
+          infoBar: {
+            visible: true,
+            showSysInfo: true,
+          },
+        }
+      },
+      {
+        path: "profiles/saveAs",
+        name: "career.profiles.saveAs",
+        component: ProfileSaveSelect,
+        props: () => ({
+          mode: "save",
+        }),
+        meta: {
+          uiApps: {
+            shown: false,
+          },
+          infoBar: {
+            visible: true,
+            showSysInfo: true,
+          },
+        }
+      },
     ],
   },
 ]

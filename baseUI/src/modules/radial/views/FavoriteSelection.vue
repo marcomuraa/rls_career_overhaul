@@ -1,22 +1,27 @@
 <template>
   <div class="backgroundContainer" >
 
-    <div class="recovery-wrapper" bng-ui-scope="favoriteSelection" v-if="data.dynamicSlotKey">
+    <div
+      v-if="data.dynamicSlotKey"
+      v-bng-scoped-nav="popupScopeBinding"
+      class="recovery-wrapper"
+      v-bng-on-ui-nav:back,menu="close"
+    >
       <BngCard>
-        <BngCardHeading type="ribbon"> Assign Action to: {{ data.dynamicSlotData.breadcrumbs[0] }} </BngCardHeading>
+        <BngCardHeading type="ribbon">{{ $ctx_t({ txt: "ui.radialmenu2.dynamicSlot.assignActionTo", context: { action: data.dynamicSlotData.breadcrumbs[0] } }) }}</BngCardHeading>
         <div class="current-action-container">
-          <div class="current-action-label">Currently Assigned Action:</div>
+          <div class="current-action-label">{{ $t("ui.radialmenu2.dynamicSlot.currentlyAssignedAction") }}</div>
           <div v-if="data.dynamicSlotData.mode === 'uniqueAction' &&data.uniqueAction">
             <BngIcon v-if="data.uniqueAction.icon" :type="icons[data.uniqueAction.icon]" />
-            {{ data.uniqueAction.title ? $translate.instant(data.uniqueAction.title) : data.uniqueAction.niceName }}
+            {{ data.uniqueAction.title ? $ctx_t(data.uniqueAction.title) : data.uniqueAction.niceName }}
           </div>
           <div v-if="data.dynamicSlotData.mode === 'recentActions'">
             <BngIcon :type="icons.timer" />
-            Most Recent Action
+            {{ $t("ui.radialmenu2.dynamicSlot.mostRecentAction") }}
           </div>
           <div v-if="data.dynamicSlotData.mode === 'empty'">
             <BngIcon :type="icons.circleSlashed" />
-            Empty
+            {{ $t("ui.radialmenu2.dynamicSlot.empty") }}
           </div>
         </div>
         <div class="divider">
@@ -26,13 +31,13 @@
           <FavoriteSelectionItem :data="data.items" @added-function="addedFunction" @removed-function="removeFunction"/>
         </div>
 
-        <BngButton class="cancel-button" v-bng-on-ui-nav:back,menu.asMouse @click="close()" :accent="'attention'">
+        <BngButton class="cancel-button" bng-scoped-nav-autofocus @click="close()" :accent="'attention'">
           <BngBinding
             class="input-icon"
             ui-event="back"
             controller
             />
-          Cancel
+          {{ $t("ui.common.cancel") }}
         </BngButton>
       </BngCard>
     </div>
@@ -41,21 +46,32 @@
 
 <script setup>
 import { BngButton, ACCENTS, BngCard, BngCardHeading, BngImageTile, BngDivider, BngUnit, icons, BngIcon, BngBinding } from "@/common/components/base"
-import { onMounted, ref, onUnmounted } from "vue"
+import { computed, onMounted, ref, onUnmounted, useAttrs } from "vue"
 import { lua, useBridge } from "@/bridge"
-import { vBngDisabled, vBngFocusIf, vBngOnUiNav, vBngClick,vBngBlur } from "@/common/directives"
+import { vBngDisabled, vBngFocusIf, vBngOnUiNav, vBngClick, vBngBlur, vBngScopedNav } from "@/common/directives"
 import { useGameContextStore } from "@/services"
 import { openConfirmation } from "@/services/popup"
-import { useUINavScope, getUINavServiceInstance, UI_EVENTS } from "@/services/uiNav"
+import { getUINavServiceInstance, UI_EVENTS } from "@/services/uiNav"
 // import { default as UINavEvents, UI_EVENTS } from "@/bridge/libs/UINavEvents"
 
-import { $translate } from "@/services/translation"
 import { Accordion, AccordionItem } from "@/common/components/utility"
 import FavoriteSelectionItem from "../components/FavoriteSelectionItem.vue"
 
 const { events } = useBridge()
 
-useUINavScope("favoriteSelection")
+const props = defineProps({
+  popupActive: Boolean,
+})
+
+const attrs = useAttrs()
+const popupScopeBinding = computed(() => ({
+  scopeId: `favoriteSelection__${attrs.__id}`,
+  activated: props.popupActive,
+  activateOnMount: props.popupActive,
+  canDeactivate: () => false,
+  preferAutoFocus: true,
+  trapPolicy: "always",
+}))
 
 const emit = defineEmits(["return"])
 const gameContextStore = useGameContextStore()
@@ -125,7 +141,7 @@ onUnmounted(kill)
 import { popupPosition, popupContainer } from "@/services/popup"
 export default {
   wrapper: {
-    fade: true, // everything but popup will fade away (become semi-transparent and desaturated)
+    fade: false, // everything but popup will fade away (become semi-transparent and desaturated)
     blur: true, // fullscreen in-game blur
     style: popupContainer.transparent, // can be multiple in array
   },
@@ -143,7 +159,6 @@ export default {
   align-items: center;
   height: 100vh; /* Full viewport height */
   width: 100vw; /* Full viewport width */
-  background: rgba(0, 0, 0, 0.521);
 }
 .recovery-wrapper {
   color: white;
@@ -154,7 +169,7 @@ export default {
 
   .current-action-container {
     display: flex;
-    flex-flow: column;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 0.5em 0.5em;
@@ -176,7 +191,7 @@ export default {
     height: 70vh;
     overflow: auto;
     display: flex;
-    flex-flow: column;
+    flex-direction: column;
     align-content: baseline;
     justify-content: flex-start;
     padding: 0.5em 0.5em;

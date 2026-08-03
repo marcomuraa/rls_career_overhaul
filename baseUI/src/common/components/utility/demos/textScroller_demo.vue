@@ -98,7 +98,8 @@ const toggleStatus = () => isActive.value = !isActive.value
 .buttons {
   display: flex;
   align-items: flex-start;
-  flex-flow: row wrap;
+  flex-direction: row;
+  flex-wrap: wrap;
   margin-bottom: 2rem;
 
   & > :not(:last-child) {
@@ -165,7 +166,7 @@ const toggleStatus = () => isActive.value = !isActive.value
 <script>
 // Demo Metadata
 // -------------------------------------------------------
-import source from "./TextScroller_demo.vue?raw"
+import source from "./textScroller_demo.vue?raw"
 export default {
   source,
   title: "Text Scroller",

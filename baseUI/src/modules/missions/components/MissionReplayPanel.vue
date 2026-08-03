@@ -22,28 +22,26 @@
               <div class="replay-file">{{ file.replayFile }}</div>
             </div>
             <div class="replay-actions">
-              <BngButton class="replay-button" accent="custom"
+              <BngButton class="replay-button"
                 @click="file.replayFile === loadedReplayFile ? onStopReplay() : onPlayReplay(file.replayFile)"
                 :icon="file.replayFile === loadedReplayFile ? 'square' : 'play'"
                 :disabled="!file.replayFile"
                 :accent="ACCENTS.text"
               />
-              <BngButton class="replay-button" accent="custom"
-               @click="file.userSaved ? removeMissionSavedReplay(file.replayFile) : saveMissionReplay(file.replayFile)"
-               :icon="file.userSaved ? icons.trashBin1 : icons.floppyDisk"
-               :accent="ACCENTS.text"
-               />
-              <BngButton class="replay-button" accent="custom"
-               @click="openReplayFolder(file.replayFile)"
-               :icon="icons.folder"
-               :disabled="!file.replayFile"
-               :accent="ACCENTS.text"
-               />
+              <BngButton class="replay-button"
+                @click="file.userSaved ? removeMissionSavedReplay(file.replayFile) : saveMissionReplay(file.replayFile)"
+                :icon="file.userSaved ? icons.trashBin1 : icons.floppyDisk"
+                :accent="ACCENTS.text"
+              />
+              <BngButton class="replay-button"
+                v-if="!$simplemenu"
+                @click="openReplayFolder(file.replayFile)"
+                :icon="icons.folder"
+                :disabled="!file.replayFile"
+                :accent="ACCENTS.text"
+              />
             </div>
           </div>
-        </div>
-        <div v-if="loadedReplayFile">
-          <ReplayApp :hideFileControls="true" />
         </div>
       </div>
       <div v-else class="no-replays">
@@ -56,13 +54,13 @@
 <script setup>
 import { $translate } from "@/services"
 import { BngButton, ACCENTS, icons, BngIcon } from "@/common/components/base"
-import { lua, useBridge } from "@/bridge"
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { lua } from "@/bridge"
+import { inject, ref, onMounted, onUnmounted } from "vue"
 import InfoCard from "../components/InfoCard.vue"
 import { timeSpan } from "@/utils/datetime"
-import ReplayApp from '@/modules/apps/replayAppV2/app.vue';
-import BngCardHeading from "@/common/components/base/bngCardHeading.vue"
-import { useEvents } from '@/services/events'
+import { ReplayApp } from "@/modules/apps"
+import { BngCardHeading } from "@/common/components/base"
+import { useEvents } from "@/services/events"
 
 const props = defineProps({
   panel: {
@@ -71,11 +69,12 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:panel'])
+const emit = defineEmits(["update:panel"])
 
-const state = ref('inactive')
-const loadedReplayFile = ref('')
+const state = ref("inactive")
+const loadedReplayFile = ref("")
 const events = useEvents()
+const $simplemenu = inject("$simplemenu", ref(false))
 
 function onPlayReplay(file) {
   lua.core_replay.loadFile(file)
@@ -98,41 +97,36 @@ function openReplayFolder(file) {
   lua.core_replay.openMissionReplayFolder(file)
 }
 
-onUnmounted(() => {
-  lua.core_replay.stop()
-
-  events.off('replayStateChanged')
-  events.off('recordingFilesUpdated')
-})
-
 function setFilesTitles() {
-  if (props.panel.recordingFiles && Array.isArray(props.panel.recordingFiles) && props.panel.recordingFiles.length > 0) {
-    props.panel.recordingFiles.forEach(file => {
-      if (file.meta?.time) {
-        file.title = timeSpan(file.meta.time, null, 1, true)
-      } else {
-        file.title = file.replayFileName
-      }
-    })
-  }
+  if (!props.panel.recordingFiles || !Array.isArray(props.panel.recordingFiles) || props.panel.recordingFiles.length === 0) return
+  props.panel.recordingFiles.forEach(file => {
+    if (file.meta?.time) {
+      file.title = timeSpan(file.meta.time, null, 1, true)
+    } else {
+      file.title = file.replayFileName
+    }
+  })
 }
 
 onMounted(() => {
   setFilesTitles()
 
-  events.on('replayStateChanged', (val) => {
+  events.on("replayStateChanged", (val) => {
     loadedReplayFile.value = val.loadedFile
     state.value = val.state
   })
 
   events.on("recordingFilesUpdated", (val) => {
-    emit('update:panel', { ...props.panel, recordingFiles: val })
+    emit("update:panel", { ...props.panel, recordingFiles: val })
     setTimeout(() => {
       setFilesTitles()
     }, 5)
   })
 })
 
+onUnmounted(() => {
+  lua.core_replay.stop()
+})
 </script>
 
 <style scoped lang="scss">

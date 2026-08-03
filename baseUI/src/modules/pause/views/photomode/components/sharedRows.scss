@@ -1,0 +1,54 @@
+// Shared style helpers for photomode setting sections
+// (camera / scene / effects / capture) so the sections stop re-declaring
+// the same rules.
+
+// BngRow label/control breakpoints.
+.photomode-scene-section_toggle {
+  --bng-row-breakpoint: 75%;
+}
+
+.photomode-scene-section_input {
+  --bng-row-breakpoint: 35%;
+}
+
+.photomode-scene-section_select {
+  --bng-row-breakpoint: 50%;
+}
+
+// A discrete <select> paired with an inline "reset to default" icon button.
+// Used by the effects (SSAO quality) and scene (shadows/cloud quality) sections.
+.photomode-select-with-reset-row {
+  align-items: center;
+}
+
+.photomode-select-with-reset {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  width: 100%;
+  min-width: 0;
+}
+
+.photomode-select-with-reset__select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.photomode-select-with-reset__reset {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bng-off-white);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}

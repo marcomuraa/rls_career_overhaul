@@ -39,7 +39,8 @@ const onChange = expanded => console.log(expanded ? "Expanded" : "Collapsed")
 <style lang="scss" scoped>
 .demo-select {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: baseline;
   width: 10em;
   margin: 0 auto;

@@ -1,7 +1,15 @@
 <template>
-    <Accordion class="part-groups" :items="listings" >
+    <Accordion class="part-groups">
       <template v-for="listing in listings" :key="listing.id">
-        <AccordionItem :expanded="true" class="marketplace-listing" :class="{ 'disabled': listing.disabled }" >
+        <AccordionItem
+          :expanded="true"
+          :class="{ 'disabled': listing.disabled }"
+          :secondary-action="() => confirmRemoveListingScreen(listing.id)"
+          secondary-hint-inline
+          secondary-label="Remove"
+          class="marketplace-listing"
+          navigable
+        >
           <template #caption>
             <div class="veh-part-caption" >
               <div v-if="listing.thumbnail" class="veh-preview" :style="{ backgroundImage: `url('${listing.thumbnail}')` }" ></div>
@@ -11,20 +19,22 @@
               </span>
               <span class="veh-price">
                 <div>
-                  Asking Price:
+                  {{ $translate.instant("ui.career.vehicleMarketplace.askingPrice") }}
                   <BngUnit :money="listing.value" />
                 </div>
                 <div>
-                  Estimated Market Value:
+                  {{ $translate.instant("ui.career.vehicleMarketplace.estimatedMarketValue") }}
                 <BngUnit :money="listing.marketValue" />
                 </div>
               </span>
 
               <span class="veh-remove">
                 <BngButton
-                  @click.stop="confirmRemoveListingScreen(listing.id)"
                   :icon="icons.trashBin1"
                   :accent="ACCENTS.attentionghost"
+                  bng-no-nav="true"
+                  tabindex="-1"
+                  @click.stop="confirmRemoveListingScreen(listing.id)"
                 >
                 </BngButton>
               </span>
@@ -33,22 +43,31 @@
           <div v-if="listing.disabled" class="offer-card red">
             {{ listing.disableReason }}
           </div>
-          <div class="offer-card" v-bng-scoped-nav v-for="(offer, index) in listing.offers" @mouseover="onOfferHovered(offer)" @mouseleave="onOfferUnhovered(offer)" @activate="onActivated(offer)" @deactivate="onDeactivated(offer)" :class="{ 'expired': offer.expiredViewCounter == 1 }">
+          <div
+            v-for="(offer, index) in listing.offers"
+            :class="{ 'expired': offer.expiredViewCounter == 1 }"
+            v-bng-scoped-nav="{ scopeId: `offer-${listing.id}-${index}` }"
+            class="offer-card"
+            @mouseover="onOfferHovered(offer)"
+            @mouseleave="onOfferUnhovered(offer)"
+            @activate="onActivated(offer)"
+            @deactivate="onDeactivated(offer)"
+          >
             <div class="offer-info">
               <div class="offer-header">
                 <span class="buyer-name">{{ offer.buyerPersonality.name }}</span>
-                <span v-if="offer.expiredViewCounter" class="expired-badge">EXPIRED</span>
+                <span v-if="offer.expiredViewCounter" class="expired-badge">{{ $translate.instant("ui.career.vehicleMarketplace.expired") }}</span>
               </div>
               <div class="offer-details">
                 <div class="detail-row">
-                  <span class="detail-label">Offer:</span>
+                  <span class="detail-label">{{ $translate.instant("ui.career.vehicleMarketplace.offer") }}</span>
                   <BngUnit :money="offer.value" />
                   <span class="delta" :class="{ up: offer.value > listing.value, down: offer.value < listing.value }">
                     ( {{ offer.value > listing.value ? '+' : '-' }}<BngUnit :money="Math.abs(offer.value - listing.value)" />)
                   </span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">Vehicle:</span>
+                  <span class="detail-label">{{ $translate.instant("ui.career.vehicleMarketplace.vehicle") }}</span>
                   <span>{{ listing.niceName }}</span>
                 </div>
               </div>
@@ -56,28 +75,28 @@
             <div class="spec-actions">
               <BngButton
                 class="part-button"
-                @click="declineOffer(listing.id, index)"
+                @click="declineOffer(listing.id, offer.id)"
                 :accent="ACCENTS.attention"
               >
-                {{offer.expiredViewCounter ? 'Discard' : 'Deny'}}
+                {{ offer.expiredViewCounter ? $translate.instant("ui.career.vehicleMarketplace.discard") : $translate.instant("ui.career.vehicleMarketplace.deny") }}
               </BngButton>
               <BngButton
                 class="part-button negotiate-button"
-                @click="startNegotiateBuyingOffer(listing.id, index)"
+                @click="startNegotiateBuyingOffer(listing.id, offer.id)"
                 :accent="ACCENTS.secondary"
                 :disabled="!offer.negotiationPossible || offer.value >= listing.value || listing.disabled"
                 v-if="!offer.expiredViewCounter"
               >
-                Negotiate
+                {{ $translate.instant("ui.career.vehicleMarketplace.negotiate") }}
               </BngButton>
               <BngButton
                 v-if="!offer.expiredViewCounter"
                 class="part-button"
-                @click="acceptOffer(listing.id, index)"
+                @click="acceptOffer(listing.id, offer.id)"
                 :disabled="listing.disabled || offer.disabled"
                 :accent="ACCENTS.main"
               >
-                Accept Offer
+                {{ $translate.instant("ui.career.vehicleMarketplace.acceptOffer") }}
               </BngButton>
             </div>
           </div>
@@ -88,30 +107,28 @@
       </template>
     </Accordion>
     <BngButton
+      :accent="ACCENTS.custom_old"
       class="add-listing-button"
       @click="listVehicle"
-      :accent="ACCENTS.custom"
     >
-      <span class="add-listing-button-icon">+</span> Add Listing
+      <span class="add-listing-button-icon">+</span> {{ $translate.instant("ui.career.vehicleMarketplace.addListing") }}
     </BngButton>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from "vue"
+import { ref, onMounted, onUnmounted } from "vue"
 import { lua } from "@/bridge"
 import { Accordion, AccordionItem } from "@/common/components/utility"
-import { BngCard, BngUnit, BngPropVal, BngButton, BngIcon, ACCENTS, icons, BngInput } from "@/common/components/base"
-import { vBngBlur, vBngScopedNav } from "@/common/directives"
-import { useComputerStore } from "../../stores/computerStore"
+import { BngUnit, BngButton, ACCENTS, icons } from "@/common/components/base"
+import { vBngScopedNav } from "@/common/directives"
 import { openConfirmation } from "@/services/popup"
 import { $translate } from "@/services/translation"
-
-const computerStore = useComputerStore()
 
 const listings = ref([])
 
 const confirmRemoveListingScreen = async listingId => {
-  const res = await openConfirmation("", "Do you want to remove this listing?", [
+  console.log("confirmRemoveListingScreen", listingId)
+  const res = await openConfirmation("", $translate.instant("ui.career.vehicleMarketplace.confirmRemoveListing"), [
     { label: $translate.instant("ui.common.yes"), value: true, extras: { default: true } },
     { label: $translate.instant("ui.common.no"), value: false, extras: { accent: ACCENTS.secondary } },
   ])
@@ -135,16 +152,16 @@ const getNewData = () => {
   lua.career_modules_marketplace.getListings().then(handleListings)
 }
 
-const acceptOffer = (inventoryId, offerIndex) => {
-  lua.career_modules_marketplace.acceptOffer(inventoryId, offerIndex + 1).then(getNewData)
+const acceptOffer = (inventoryId, offerId) => {
+  lua.career_modules_marketplace.acceptOffer(inventoryId, offerId).then(getNewData)
 }
 
-const declineOffer = (inventoryId, offerIndex) => {
-  lua.career_modules_marketplace.declineOffer(inventoryId, offerIndex + 1).then(getNewData)
+const declineOffer = (inventoryId, offerId) => {
+  lua.career_modules_marketplace.declineOffer(inventoryId, offerId).then(getNewData)
 }
 
-const startNegotiateBuyingOffer = (inventoryId, offerIndex) => {
-  lua.career_modules_marketplace.startNegotiateBuyingOffer(inventoryId, offerIndex + 1).then(getNewData)
+const startNegotiateBuyingOffer = (inventoryId, offerId) => {
+  lua.career_modules_marketplace.startNegotiateBuyingOffer(inventoryId, offerId).then(getNewData)
 }
 
 const removeVehicleListing = (inventoryId) => {
@@ -166,13 +183,13 @@ const stop = () => {
 
 onMounted(start)
 onUnmounted(stop)
-
 </script>
 
 <style scoped lang="scss">
 
 
 .offer-card {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -295,7 +312,8 @@ onUnmounted(stop)
 
 .veh-part-caption {
   display: flex;
-  flex-flow: row nowrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: stretch;
   align-items: center;
   overflow: hidden;
@@ -328,10 +346,25 @@ onUnmounted(stop)
 
   .veh-remove {
     flex: 1 0 10%;
-    text-align: right;
+    display: flex;
+    justify-content: flex-end;
+
+    :deep(.bng-button) {
+      --bng-content-flow: row;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35em;
+
+      .binding-wrapper,
+      .icon-base {
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
+      }
+    }
   }
-
-
 }
 
 .part-groups {
@@ -346,6 +379,7 @@ onUnmounted(stop)
     background-color: rgba(var(--bng-cool-gray-700-rgb), 0.6);
   }
 }
+
 .disabled {
   .veh-name, .veh-price {
     color: var(--bng-add-red-400);

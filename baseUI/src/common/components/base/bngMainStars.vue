@@ -32,7 +32,7 @@ const props = defineProps({
     default: 1,
   },
   individualStars: {
-    type: Object,
+    type: Array,
     default: null,
     validator: val => val === null || Array.isArray(val),
   },
@@ -66,7 +66,8 @@ $starColor: var(--star-color, $defaultStarColor);
 
   .stars {
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
 
     .stars-label {

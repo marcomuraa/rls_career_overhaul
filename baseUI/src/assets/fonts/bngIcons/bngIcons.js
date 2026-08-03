@@ -9143,6 +9143,341 @@ const icons = Object.freeze({
       "generic"
     ],
     "fileSvg": "svg/shieldCheckmarkProgressbar.svg"
+  },
+  "bookOpenedI": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/bookOpenedI.svg"
+  },
+  "bookOpenedII": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/bookOpenedII.svg"
+  },
+  "bookOpenedIII": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/bookOpenedIII.svg"
+  },
+  "bookOpened": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/bookOpened.svg"
+  },
+  "carTop": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic",
+      "vehicle"
+    ],
+    "fileSvg": "svg/carTop.svg"
+  },
+  "cogOutline": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic",
+      "vehicle",
+      "features",
+      "settings"
+    ],
+    "fileSvg": "svg/cogOutline.svg"
+  },
+  "cogSolid": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic",
+      "vehicle",
+      "features",
+      "settings"
+    ],
+    "fileSvg": "svg/cogSolid.svg"
+  },
+  "containerHandlerLock": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/containerHandlerLock.svg"
+  },
+  "containerHandlerRoll": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/containerHandlerRoll.svg"
+  },
+  "containerHandlerShiftLeftRight": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/containerHandlerShiftLeftRight.svg"
+  },
+  "containerHandlerTiltForwardBackward": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/containerHandlerTiltForwardBackward.svg"
+  },
+  "containerHandlerUpDown": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/containerHandlerUpDown.svg"
+  },
+  "containerHandlerWidth": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/containerHandlerWidth.svg"
+  },
+  "copyDocument": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "decals",
+      "generic"
+    ],
+    "fileSvg": "svg/copyDocument.svg"
+  },
+  "external": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "decals",
+      "editor",
+      "generic"
+    ],
+    "fileSvg": "svg/external.svg"
+  },
+  "forkHeightUpDown": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkHeightUpDown.svg"
+  },
+  "forkHeightUp": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkHeightUp.svg"
+  },
+  "forkOffsetLeftRight": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkOffsetLeftRight.svg"
+  },
+  "forkOffsetRight": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkOffsetRight.svg"
+  },
+  "forkRollLeftRight": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkRollLeftRight.svg"
+  },
+  "forkRollRight": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkRollRight.svg"
+  },
+  "forkTiltUpDown": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkTiltUpDown.svg"
+  },
+  "forkTiltUp": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkTiltUp.svg"
+  },
+  "forkWidthLeftRight": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "vehicle",
+      "features",
+      "equipment"
+    ],
+    "fileSvg": "svg/forkWidthLeftRight.svg"
+  },
+  "itemsTree": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/itemsTree.svg"
+  },
+  "pasteDocument": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "decals",
+      "generic"
+    ],
+    "fileSvg": "svg/pasteDocument.svg"
+  },
+  "paste": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "decals",
+      "generic"
+    ],
+    "fileSvg": "svg/paste.svg"
+  },
+  "truckTop": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic",
+      "vehicle"
+    ],
+    "fileSvg": "svg/truckTop.svg"
+  },
+  "dsGamepad": {
+    "glyph": "",
+    "size": 48,
+    "tags": [
+      "gamepad",
+      "controller",
+      "input"
+    ],
+    "fileSvg": "svg/dsGamepad.svg"
+  },
+  "calendar": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/calendar.svg"
+  },
+  "documentOutline": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/documentOutline.svg"
+  },
+  "documentSolid": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/documentSolid.svg"
+  },
+  "flipbook01": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/flipbook01.svg"
+  },
+  "flipbook02": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic"
+    ],
+    "fileSvg": "svg/flipbook02.svg"
+  },
+  "screen": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic",
+      "device"
+    ],
+    "fileSvg": "svg/screen.svg"
+  },
+  "vrHeadset": {
+    "glyph": "",
+    "size": 24,
+    "tags": [
+      "generic",
+      "device"
+    ],
+    "fileSvg": "svg/vrHeadset.svg"
   }
 })
 
@@ -10018,7 +10353,42 @@ const iconsBySize = Object.freeze({
     "dumpBedUpDown": icons['dumpBedUpDown'],
     "dumpBedUp": icons['dumpBedUp'],
     "beamCurrencyThin": icons['beamCurrencyThin'],
-    "shieldCheckmarkProgressbar": icons['shieldCheckmarkProgressbar']
+    "shieldCheckmarkProgressbar": icons['shieldCheckmarkProgressbar'],
+    "bookOpenedI": icons['bookOpenedI'],
+    "bookOpenedII": icons['bookOpenedII'],
+    "bookOpenedIII": icons['bookOpenedIII'],
+    "bookOpened": icons['bookOpened'],
+    "carTop": icons['carTop'],
+    "cogOutline": icons['cogOutline'],
+    "cogSolid": icons['cogSolid'],
+    "containerHandlerLock": icons['containerHandlerLock'],
+    "containerHandlerRoll": icons['containerHandlerRoll'],
+    "containerHandlerShiftLeftRight": icons['containerHandlerShiftLeftRight'],
+    "containerHandlerTiltForwardBackward": icons['containerHandlerTiltForwardBackward'],
+    "containerHandlerUpDown": icons['containerHandlerUpDown'],
+    "containerHandlerWidth": icons['containerHandlerWidth'],
+    "copyDocument": icons['copyDocument'],
+    "external": icons['external'],
+    "forkHeightUpDown": icons['forkHeightUpDown'],
+    "forkHeightUp": icons['forkHeightUp'],
+    "forkOffsetLeftRight": icons['forkOffsetLeftRight'],
+    "forkOffsetRight": icons['forkOffsetRight'],
+    "forkRollLeftRight": icons['forkRollLeftRight'],
+    "forkRollRight": icons['forkRollRight'],
+    "forkTiltUpDown": icons['forkTiltUpDown'],
+    "forkTiltUp": icons['forkTiltUp'],
+    "forkWidthLeftRight": icons['forkWidthLeftRight'],
+    "itemsTree": icons['itemsTree'],
+    "pasteDocument": icons['pasteDocument'],
+    "paste": icons['paste'],
+    "truckTop": icons['truckTop'],
+    "calendar": icons['calendar'],
+    "documentOutline": icons['documentOutline'],
+    "documentSolid": icons['documentSolid'],
+    "flipbook01": icons['flipbook01'],
+    "flipbook02": icons['flipbook02'],
+    "screen": icons['screen'],
+    "vrHeadset": icons['vrHeadset']
   },
   "48": {
     "AIL": icons['AIL'],
@@ -10097,7 +10467,8 @@ const iconsBySize = Object.freeze({
     "carSideOutlineLarge": icons['carSideOutlineLarge'],
     "flagOutlineLarge": icons['flagOutlineLarge'],
     "terrainOutlineLarge": icons['terrainOutlineLarge'],
-    "tripleCaution": icons['tripleCaution']
+    "tripleCaution": icons['tripleCaution'],
+    "dsGamepad": icons['dsGamepad']
   },
   "56": {
     "circlePinBack": icons['circlePinBack'],
@@ -10328,7 +10699,26 @@ const iconsByTag = Object.freeze({
     "bucketTiltUp": icons['bucketTiltUp'],
     "dumpBedDown": icons['dumpBedDown'],
     "dumpBedUpDown": icons['dumpBedUpDown'],
-    "dumpBedUp": icons['dumpBedUp']
+    "dumpBedUp": icons['dumpBedUp'],
+    "carTop": icons['carTop'],
+    "cogOutline": icons['cogOutline'],
+    "cogSolid": icons['cogSolid'],
+    "containerHandlerLock": icons['containerHandlerLock'],
+    "containerHandlerRoll": icons['containerHandlerRoll'],
+    "containerHandlerShiftLeftRight": icons['containerHandlerShiftLeftRight'],
+    "containerHandlerTiltForwardBackward": icons['containerHandlerTiltForwardBackward'],
+    "containerHandlerUpDown": icons['containerHandlerUpDown'],
+    "containerHandlerWidth": icons['containerHandlerWidth'],
+    "forkHeightUpDown": icons['forkHeightUpDown'],
+    "forkHeightUp": icons['forkHeightUp'],
+    "forkOffsetLeftRight": icons['forkOffsetLeftRight'],
+    "forkOffsetRight": icons['forkOffsetRight'],
+    "forkRollLeftRight": icons['forkRollLeftRight'],
+    "forkRollRight": icons['forkRollRight'],
+    "forkTiltUpDown": icons['forkTiltUpDown'],
+    "forkTiltUp": icons['forkTiltUp'],
+    "forkWidthLeftRight": icons['forkWidthLeftRight'],
+    "truckTop": icons['truckTop']
   },
   "features": {
     "4WD": icons['4WD'],
@@ -10532,7 +10922,24 @@ const iconsByTag = Object.freeze({
     "bucketTiltUp": icons['bucketTiltUp'],
     "dumpBedDown": icons['dumpBedDown'],
     "dumpBedUpDown": icons['dumpBedUpDown'],
-    "dumpBedUp": icons['dumpBedUp']
+    "dumpBedUp": icons['dumpBedUp'],
+    "cogOutline": icons['cogOutline'],
+    "cogSolid": icons['cogSolid'],
+    "containerHandlerLock": icons['containerHandlerLock'],
+    "containerHandlerRoll": icons['containerHandlerRoll'],
+    "containerHandlerShiftLeftRight": icons['containerHandlerShiftLeftRight'],
+    "containerHandlerTiltForwardBackward": icons['containerHandlerTiltForwardBackward'],
+    "containerHandlerUpDown": icons['containerHandlerUpDown'],
+    "containerHandlerWidth": icons['containerHandlerWidth'],
+    "forkHeightUpDown": icons['forkHeightUpDown'],
+    "forkHeightUp": icons['forkHeightUp'],
+    "forkOffsetLeftRight": icons['forkOffsetLeftRight'],
+    "forkOffsetRight": icons['forkOffsetRight'],
+    "forkRollLeftRight": icons['forkRollLeftRight'],
+    "forkRollRight": icons['forkRollRight'],
+    "forkTiltUpDown": icons['forkTiltUpDown'],
+    "forkTiltUp": icons['forkTiltUp'],
+    "forkWidthLeftRight": icons['forkWidthLeftRight']
   },
   "generic": {
     "9dividedby10": icons['9dividedby10'],
@@ -10948,7 +11355,27 @@ const iconsByTag = Object.freeze({
     "xmarkBold": icons['xmarkBold'],
     "house": icons['house'],
     "picture": icons['picture'],
-    "shieldCheckmarkProgressbar": icons['shieldCheckmarkProgressbar']
+    "shieldCheckmarkProgressbar": icons['shieldCheckmarkProgressbar'],
+    "bookOpenedI": icons['bookOpenedI'],
+    "bookOpenedII": icons['bookOpenedII'],
+    "bookOpenedIII": icons['bookOpenedIII'],
+    "bookOpened": icons['bookOpened'],
+    "carTop": icons['carTop'],
+    "cogOutline": icons['cogOutline'],
+    "cogSolid": icons['cogSolid'],
+    "copyDocument": icons['copyDocument'],
+    "external": icons['external'],
+    "itemsTree": icons['itemsTree'],
+    "pasteDocument": icons['pasteDocument'],
+    "paste": icons['paste'],
+    "truckTop": icons['truckTop'],
+    "calendar": icons['calendar'],
+    "documentOutline": icons['documentOutline'],
+    "documentSolid": icons['documentSolid'],
+    "flipbook01": icons['flipbook01'],
+    "flipbook02": icons['flipbook02'],
+    "screen": icons['screen'],
+    "vrHeadset": icons['vrHeadset']
   },
   "warning": {
     "ABSIndicator": icons['ABSIndicator'],
@@ -11639,7 +12066,11 @@ const iconsByTag = Object.freeze({
     "cameraFarClip": icons['cameraFarClip'],
     "cameraNearClip": icons['cameraNearClip'],
     "viewFarClip": icons['viewFarClip'],
-    "viewNearClip": icons['viewNearClip']
+    "viewNearClip": icons['viewNearClip'],
+    "copyDocument": icons['copyDocument'],
+    "external": icons['external'],
+    "pasteDocument": icons['pasteDocument'],
+    "paste": icons['paste']
   },
   "delivery": {
     "boxDropOff01": icons['boxDropOff01'],
@@ -11976,7 +12407,8 @@ const iconsByTag = Object.freeze({
     "psDLeftRight": icons['psDLeftRight'],
     "psDUpDown": icons['psDUpDown'],
     "xboxDLeftRight": icons['xboxDLeftRight'],
-    "xboxDUpDown": icons['xboxDUpDown']
+    "xboxDUpDown": icons['xboxDUpDown'],
+    "dsGamepad": icons['dsGamepad']
   },
   "controller": {
     "gamepadOld": icons['gamepadOld'],
@@ -12073,7 +12505,8 @@ const iconsByTag = Object.freeze({
     "psDLeftRight": icons['psDLeftRight'],
     "psDUpDown": icons['psDUpDown'],
     "xboxDLeftRight": icons['xboxDLeftRight'],
-    "xboxDUpDown": icons['xboxDUpDown']
+    "xboxDUpDown": icons['xboxDUpDown'],
+    "dsGamepad": icons['dsGamepad']
   },
   "input": {
     "gamepadOld": icons['gamepadOld'],
@@ -12183,7 +12616,8 @@ const iconsByTag = Object.freeze({
     "psDLeftRight": icons['psDLeftRight'],
     "psDUpDown": icons['psDUpDown'],
     "xboxDLeftRight": icons['xboxDLeftRight'],
-    "xboxDUpDown": icons['xboxDUpDown']
+    "xboxDUpDown": icons['xboxDUpDown'],
+    "dsGamepad": icons['dsGamepad']
   },
   "gps": {
     "GPSMark": icons['GPSMark'],
@@ -12608,7 +13042,8 @@ const iconsByTag = Object.freeze({
     "rocks": icons['rocks']
   },
   "editor": {
-    "scale": icons['scale']
+    "scale": icons['scale'],
+    "external": icons['external']
   },
   "marker": {
     "arrowsUp": icons['arrowsUp'],
@@ -12882,7 +13317,30 @@ const iconsByTag = Object.freeze({
     "bucketTiltUp": icons['bucketTiltUp'],
     "dumpBedDown": icons['dumpBedDown'],
     "dumpBedUpDown": icons['dumpBedUpDown'],
-    "dumpBedUp": icons['dumpBedUp']
+    "dumpBedUp": icons['dumpBedUp'],
+    "containerHandlerLock": icons['containerHandlerLock'],
+    "containerHandlerRoll": icons['containerHandlerRoll'],
+    "containerHandlerShiftLeftRight": icons['containerHandlerShiftLeftRight'],
+    "containerHandlerTiltForwardBackward": icons['containerHandlerTiltForwardBackward'],
+    "containerHandlerUpDown": icons['containerHandlerUpDown'],
+    "containerHandlerWidth": icons['containerHandlerWidth'],
+    "forkHeightUpDown": icons['forkHeightUpDown'],
+    "forkHeightUp": icons['forkHeightUp'],
+    "forkOffsetLeftRight": icons['forkOffsetLeftRight'],
+    "forkOffsetRight": icons['forkOffsetRight'],
+    "forkRollLeftRight": icons['forkRollLeftRight'],
+    "forkRollRight": icons['forkRollRight'],
+    "forkTiltUpDown": icons['forkTiltUpDown'],
+    "forkTiltUp": icons['forkTiltUp'],
+    "forkWidthLeftRight": icons['forkWidthLeftRight']
+  },
+  "settings": {
+    "cogOutline": icons['cogOutline'],
+    "cogSolid": icons['cogSolid']
+  },
+  "device": {
+    "screen": icons['screen'],
+    "vrHeadset": icons['vrHeadset']
   }
 })
 const getIconsWithTags = (...tagsToFind) => Object.fromEntries(Object.entries(icons).filter(([name, {tags}]) => {

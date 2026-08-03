@@ -1,534 +1,1273 @@
-<!-- bngInput - an input control -->
 <template>
-  <div class="bng-input-wrapper" v-bng-disabled="disabled">
-    <span
-      v-if="externalLabel"
-      class="external-label"
-      :style="[leadingIcon ? { 'margin-left': '3em' } : {}]"
-      data-testid="external-label"
-    >
-      {{ externalLabel }}
+  <div
+    ref="elementRef"
+    :style="rootStyle"
+    v-bind="rowNavAttrs"
+    v-bng-disabled="effectiveDisabled"
+    v-bng-scoped-nav="scopedNavDirective"
+    :class="{
+      'has-value': !isEmptyValue,
+      'bng-input-readonly': readonly,
+      'bng-input-invalid': validationState && !validationState.valid,
+      'no-focus-frame': inRow,
+    }"
+    class="bng-input"
+    @activate="onScopeActivated"
+    @deactivate="onScopeDeactivated">
+    <label v-if="(label || externalLabel || slots.label) && !floatingLabel" class="external-label" @click="activateInput" @mousedown.prevent>
+      <slot name="label">{{ label || externalLabel }}</slot>
+    </label>
+
+    <span v-if="leadingIcon || slots.leadingIcon" class="leading-icon" @click="activateInput" @mousedown.prevent>
+      <slot name="leading-icon">
+        <BngIcon :type="leadingIcon" />
+      </slot>
     </span>
-    <div class="icons-input-wrapper">
-      <BngIcon v-if="leadingIcon" class="outside-icon" :type="leadingIcon" data-testid="leading-icon" />
-      <!-- bng-highlight-container is required for focus highlight because bng-input-container
-           has overflow hidden for the prefix, suffix or trailing icon to respect the border radius -->
-      <div
-        tabindex="disabled ? -1 : 0"
-        class="bng-highlight-container"
-        :class="{ 'bng-input-focused': isInputFieldFocused, 'has-error': hasError }"
-        @keydown.enter="onInputFieldFocusOut"
-      >
-        <div class="bng-input-container">
-          <span v-if="prefix" class="prefix-suffix-container">
-            <span data-testid="prefix">{{ prefix }}</span>
-          </span>
-          <div class="bng-input-group">
-            <input
-              ref="input"
-              class="bng-input"
-              :class="{ 'bng-input-empty': !hasValue, 'bng-input-error': hasError }"
-              data-testid="input"
-              :value="value"
-              :type="type"
-              :min="numMin"
-              :max="numMax"
-              :step="numStep"
-              :maxlength="charMax"
-              @input="onValueChanged"
-              @focusin="onInputFieldFocusIn"
-              @focusout="onInputFieldFocusOut"
-              :placeholder="placeholder"
-              :disabled="disabled"
-              :readonly="readonly"
-              v-bng-text-input
-            />
-            <div v-if="type === 'number'" class="number-actions">
-              <BngIcon
-                :type="iconsByTag.arrow.arrowLargeUp"
-                :class="{ 'number-action-disabled': readonly }"
-                class="number-action up-action"
-                v-bng-click="{ clickCallback: onArrowUpClicked, holdCallback: onArrowUpClicked }"
-              />
-              <BngIcon
-                :type="iconsByTag.arrow.arrowLargeDown"
-                class="number-action down-action"
-                :class="{ 'number-action-disabled': readonly }"
-                v-bng-click="{ clickCallback: onArrowDownClicked, holdCallback: onArrowDownClicked }"
-              />
-            </div>
-            <span v-if="floatingLabel" class="floating-label" data-testid="floating-label">
-              {{ floatingLabel }}
-            </span>
-            <span v-if="hasError && errorMessage" class="error-message">{{ errorMessage }}</span>
-            <span class="input-border"></span>
-          </div>
-          <span v-if="suffix" class="prefix-suffix-container">
-            <span data-testid="suffix">{{ suffix }}</span>
-          </span>
-          <span v-if="trailingIcon && !trailingIconOutside" class="trailing-icon">
-            <BngIcon :type="trailingIcon" class="input-icon" data-testid="trailing-icon" />
-          </span>
-        </div>
-      </div>
-      <BngIcon
-        v-if="trailingIcon && trailingIconOutside"
-        :type="trailingIcon"
-        class="outside-icon"
-        data-testid="external-trailing-icon"
-      />
+
+    <span
+      v-if="!noSpinners && type === INPUT_TYPES.number && !readonly && !effectiveDisabled"
+      :class="{ 'spinner-active': numberInputState.isDownActive }"
+      class="input-spinner input-spinner-down"
+      @mousedown.prevent>
+      <slot name="spinner-down" :changeValue="() => onSpinnerChangeValue(-1)">
+        <BngButton
+          v-bng-click="{ clickCallback: () => onSpinnerChangeValue(-1), holdCallback: () => onSpinnerHoldChangeValue(-1), holdSoundClass: 'bng_click_hover_generic' }"
+          bng-no-nav="true"
+          accent="text">
+          <BngBinding v-if="!noStepBindings" controller uiEvent="focus_d" />
+          <BngIcon v-if="!showIfController || noStepBindings" :type="stepIcons.down" />
+        </BngButton>
+      </slot>
+    </span>
+
+    <span v-if="prefix || slots.prefix" class="prefix" @click="activateInput" @mousedown.prevent>
+      <slot name="prefix">{{ prefix }}</slot>
+    </span>
+
+    <div class="input-container" :style="inputStyle">
+      <input
+        v-if="type === INPUT_TYPES.number"
+        ref="input"
+        v-bng-text-input
+        v-bng-on-ui-nav:ok,back.focusRequired="onInputConfirm"
+        v-bng-on-ui-nav-focus:vertical.repeat="dir => onUINavChangeValue(dir)"
+        v-model="value"
+        :readonly="readonly"
+        :disabled="effectiveDisabled"
+        :placeholder="placeholder"
+        :maxlength="maxlength"
+        type="number"
+        @focusin="onFocusIn"
+        @focusout="onFocusOut"
+        @keydown.arrow-up="onArrowKeysChangeValue(1)"
+        @keydown.arrow-down="onArrowKeysChangeValue(-1)"
+        @keydown.enter="onEnterDown"
+        @keydown="onKeyDown" />
+      <input
+        v-else
+        ref="input"
+        v-bng-text-input
+        v-bng-on-ui-nav:ok,back.focusRequired="onInputConfirm"
+        v-model="value"
+        :readonly="readonly"
+        :disabled="effectiveDisabled"
+        :placeholder="placeholder"
+        :maxlength="maxlength"
+        :min="timeInputMin"
+        :max="timeInputMax"
+        :step="timeInputStep"
+        :type="nativeInputType"
+        @focusin="onFocusIn"
+        @focusout="onFocusOut"
+        @keydown.enter="onEnterDown"
+        @keydown="onKeyDown" />
+      <label v-if="(label && floatingLabel) || typeof floatingLabel === 'string' || slots.label" class="floating-label">
+        <slot name="label">{{ label || floatingLabel }}</slot>
+      </label>
+      <span
+        v-if="!noSpinners && type === INPUT_TYPES.number && !readonly && !effectiveDisabled"
+        class="hover-spinner"
+        @mousedown.prevent.stop>
+        <BngButton
+          :class="{ 'spinner-active': numberInputState.isUpActive }"
+          v-bng-click="{ clickCallback: () => onSpinnerChangeValue(1), holdCallback: () => onSpinnerHoldChangeValue(1), holdSoundClass: 'bng_click_hover_generic' }"
+          bng-no-nav="true"
+          tabindex="-1"
+          accent="text"
+          class="hover-spinner-btn"
+          @click.stop
+          @mousedown.prevent.stop>
+          <BngIcon :type="stepIcons.up" />
+        </BngButton>
+        <BngButton
+          :class="{ 'spinner-active': numberInputState.isDownActive }"
+          v-bng-click="{ clickCallback: () => onSpinnerChangeValue(-1), holdCallback: () => onSpinnerHoldChangeValue(-1), holdSoundClass: 'bng_click_hover_generic' }"
+          bng-no-nav="true"
+          tabindex="-1"
+          accent="text"
+          class="hover-spinner-btn"
+          @click.stop
+          @mousedown.prevent.stop>
+          <BngIcon :type="stepIcons.down" />
+        </BngButton>
+      </span>
     </div>
+
+    <span v-if="suffix || slots.suffix || timeSuffixIcon" class="suffix" @click="activateInput" @mousedown.prevent>
+      <slot name="suffix">
+        <BngIcon v-if="timeSuffixIcon" :type="timeSuffixIcon" />
+        <template v-else>{{ suffix }}</template>
+      </slot>
+    </span>
+
+    <span v-if="trailingIcon || slots.trailingIcon" class="trailing-icon" @click="activateInput" @mousedown.prevent>
+      <slot name="trailing-icon">
+        <BngIcon :type="trailingIcon" />
+      </slot>
+    </span>
+
+    <span
+      v-if="!noSpinners && type === INPUT_TYPES.number && !readonly && !effectiveDisabled"
+      :class="{ 'spinner-active': numberInputState.isUpActive }"
+      class="input-spinner input-spinner-up"
+      @mousedown.prevent>
+      <slot name="spinner-up" :changeValue="() => onSpinnerChangeValue(1)">
+        <BngButton v-bng-click="{ clickCallback: () => onSpinnerChangeValue(1), holdCallback: () => onSpinnerHoldChangeValue(1), holdSoundClass: 'bng_click_hover_generic' }" bng-no-nav="true" accent="text">
+          <BngBinding v-if="!noStepBindings" controller uiEvent="focus_u" />
+          <BngIcon v-if="!showIfController || noStepBindings" :type="stepIcons.up" />
+        </BngButton>
+      </slot>
+    </span>
+
+    <span v-if="showExternalButton" class="external-button">
+      <slot name="external-button" :externalButtonFn="externalButtonFn">
+        <BngButton
+          v-if="showDefaultExternalButton && externalButtonUiNavActive"
+          bng-no-nav="true"
+          tabindex="-1"
+          v-bng-disabled="isEmptyValue"
+          :icon="icons.mathMultiply"
+          :disabled="effectiveDisabled"
+          accent="attention"
+          v-bng-on-ui-nav:action_2.asMouse
+          v-bng-ui-nav-label:action_2="$ctx_t('ui.common.delete')"
+          @click.stop="externalButtonFn"
+          @mousedown.prevent />
+        <BngButton
+          v-else-if="showDefaultExternalButton"
+          bng-no-nav="true"
+          tabindex="-1"
+          v-bng-disabled="isEmptyValue"
+          :icon="icons.mathMultiply"
+          :disabled="effectiveDisabled"
+          accent="attention"
+          @click.stop="externalButtonFn"
+          @mousedown.prevent />
+      </slot>
+    </span>
+
+    <span v-if="(validationState && !validationState.valid && validationState.errorMessage) || slots.errorMessage" class="error-message">
+      <slot name="error-message">{{ validationState.errorMessage }}</slot>
+    </span>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch } from "vue"
-import { BngIcon } from "@/common/components/base"
-import { iconsByTag } from "@/common/components/base/bngIcon.vue"
-import { vBngClick, vBngTextInput, vBngDisabled } from "@/common/directives"
-import { roundDec, roundDecSample, round } from "@/utils/maths"
-import { useDirty } from "@/services/dirty"
-
-const props = defineProps({
-  modelValue: [String, Number],
-  type: {
-    type: String,
-    default: "text",
-    validator(value) {
-      return ["text", "number"].includes(value)
-    },
-  },
-
-  // only applicable if type is number
-  min: [Number, String],
-  max: [Number, String],
-  step: {
-    type: [Number, String],
-    default: 1,
-  },
-  decimals: Number,
-
-  maxlength: [Number, String],
-
-  readonly: Boolean,
-
-  floatingLabel: String,
-  externalLabel: String,
-  placeholder: String,
-  initialValue: String,
-  leadingIcon: Object,
-  prefix: String,
-  suffix: String,
-  trailingIcon: Object,
-  trailingIconOutside: Boolean,
-  disabled: Boolean,
-  validate: Function,
-  errorMessage: String,
-})
-
-const emitter = defineEmits(["update:modelValue", "valueChanged", "change", "focus", "blur"])
-const input = ref()
-const value = ref(props.initialValue || props.modelValue)
-const isInputFieldFocused = ref(false)
-
-const numMin = computed(() => (props.type === "number" ? +props.min : null))
-const numMax = computed(() => (props.type === "number" ? +props.max : null))
-const numStep = computed(() => (props.type === "number" ? roundDec(+props.step, 15) : null))
-const numDecimals = computed(() => (props.type === "number" ? props.decimals : null))
-const charMax = computed(() => (props.type === "text" ? props.maxlength : null)) // we don't need to convert this one
-
-// const decimals = computed(() => {
-//   if (props.type !== "number") return 0
-//   let dec = props.decimals
-//   if (typeof dec === "number" && dec !== 0) return dec
-//   if (typeof props.step === "number") dec = props.step.toString().split(".")[1]?.length || 15
-//   if (isNaN(dec)) dec = 15
-//   return dec || 0
-// })
-
-const hasValue = computed(() => value.value !== "" && value.value !== undefined && value.value !== null)
-const hasError = computed(() => (typeof props.validate === "function" ? !props.validate(value.value) : false))
-
-if (props.type === "number") {
-  const type = typeof value.value
-  if (type === "string" && /^\d+(?:\.?\d+)?$/.test(value.value)) value.value = +value.value
-  else if (type !== "number") value.value = 0
-  if (numMin.value > numMax.value) console.error("BngInput: min cannot be greater than max")
+<script>
+export const INPUT_TYPES = {
+  text: "text",
+  number: "number",
+  time: "time",
+}
+export const STEP_ICON_TYPES = {
+  arrowUpDown: "arrowUpDown",
+  arrowLeftRight: "arrowLeftRight",
+  plusMinus: "plusMinus",
+}
+export const VALIDATION_TYPES = {
+  valueChange: "valueChange",
+  blur: "blur",
 }
 
-defineExpose(useDirty(value))
-
-let lastNotify
-
-function notify(val) {
-  if (props.readonly || lastNotify === val) return
-  lastNotify = val
-  emitter("update:modelValue", val)
-  emitter("valueChanged", val)
-  emitter("change", val)
+const STEP_ICON_TYPES_MAP = {
+  [STEP_ICON_TYPES.arrowUpDown]: {
+    up: "arrowSmallUp",
+    down: "arrowSmallDown",
+  },
+  [STEP_ICON_TYPES.arrowLeftRight]: {
+    up: "arrowSmallRight",
+    down: "arrowSmallLeft",
+  },
+  [STEP_ICON_TYPES.plusMinus]: {
+    up: "plus",
+    down: "minus",
+  },
 }
 
-watch(
-  () => props.modelValue,
-  newVal => {
-    if (props.type === "number") {
-      newVal = numClamp(newVal)
-    }
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/
+const NATIVE_TIME_INPUT_SUPPORTED = (() => {
+  if (typeof document === "undefined") return false
+  const element = document.createElement("input")
+  element.setAttribute("type", INPUT_TYPES.time)
+  return element.type === INPUT_TYPES.time
+})()
+const ERROR_TYPES = {
+  invalidformat: "invalidformat",
+  outofrange: "outofrange",
+  required: "required",
+  custom: "custom",
+}
+const ERROR_MESSAGES = {
+  [ERROR_TYPES.invalidformat]: "Invalid format",
+  [ERROR_TYPES.outofrange]: "Value must be between {min} and {max}",
+  [`${ERROR_TYPES.outofrange}-min`]: "Value must be greater than {min}",
+  [`${ERROR_TYPES.outofrange}-max`]: "Value must be less than {max}",
+  [ERROR_TYPES.required]: "Value is required",
+}
+const NUMBER_INPUT_MODES = {
+  spinner: "spinner",
+  arrowKeys: "arrowKeys",
+  uinav: "uinav",
+}
 
-    value.value = newVal
-    lastNotify = newVal
-  },
-  { immediate: true }
-)
+function getStepPrecision(step) {
+  const numericStep = Number(step)
+  if (!Number.isFinite(numericStep) || numericStep <= 0) return 0
 
-function numClamp(val) {
-  if (isNaN(val)) val = 0
-  // floating point error fix
-  if (typeof numDecimals.value === "number" && !isNaN(numDecimals.value)) {
-    val = roundDec(val, numDecimals.value)
-  } else if (typeof numStep.value === "number" && !isNaN(numStep.value)) {
-    val = roundDecSample(val, numStep.value)
-  // } else {
-  //   val = round(val)
+  const stepString = String(numericStep).toLowerCase()
+  if (stepString.includes("e-")) {
+    const exp = Number(stepString.split("e-")[1])
+    return Number.isFinite(exp) ? exp : 0
   }
-  // validate
-  if (typeof numMin.value === "number" && !isNaN(numMin.value) && val < numMin.value) val = numMin.value
-  if (typeof numMax.value === "number" && !isNaN(numMax.value) && val > numMax.value) val = numMax.value
-  return val
+
+  const dotIndex = stepString.indexOf(".")
+  return dotIndex === -1 ? 0 : stepString.length - dotIndex - 1
 }
 
-function increment(by) {
-  let val = numClamp(+value.value + by)
-  if (value.value === val) return
-  value.value = val
-  input.value = val
-  notify(val)
-}
-
-const onArrowUpClicked = () => increment(numStep.value)
-const onArrowDownClicked = () => increment(-numStep.value)
-
-function onValueChanged($event) {
-  let val = $event.target.value
-  if (props.type === "number") {
-    val = +val
-    let prev = val
-    val = numClamp(val)
-    if (val !== prev) input.value = val
+function parseNumber(raw) {
+  if (raw === null || raw === undefined || raw === "") return null
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null
+  if (typeof raw === "string") {
+    const parsed = raw.includes(".") ? parseFloat(raw) : parseInt(raw, 10)
+    return Number.isFinite(parsed) ? parsed : null
   }
-  value.value = val
-  notify(val)
+  const coerced = Number(raw)
+  return Number.isFinite(coerced) ? coerced : null
 }
 
-function onInputFieldFocusIn() {
-  isInputFieldFocused.value = true
-  emitter("focus")
+function roundToStep(value, step) {
+  if (!Number.isFinite(value)) return value
+  const precision = getStepPrecision(step)
+  return parseFloat(value.toFixed(precision))
 }
 
-function onInputFieldFocusOut() {
-  isInputFieldFocused.value = false
-  // note: this sequence may help to detect that value change happened because of blur
-  emitter("blur")
-  notify(value.value)
+// Note: this function works differently than clampNumber if `max` and `min` props are not specified
+function clampToRange(value, min, max) {
+  if (!Number.isFinite(value)) return value
+  let result = value
+  if (Number.isFinite(min) && result < min) result = min
+  if (Number.isFinite(max) && result > max) result = max
+  return result
+}
+
+export const numberApi = {
+  getStepPrecision,
+  parseNumber,
+  roundToStep,
+  clampToRange,
 }
 </script>
 
-<style scoped lang="scss">
-// START RESET
+<script setup>
+import { computed, ref, useSlots, nextTick, reactive, onUnmounted, inject, provide, onMounted } from "vue"
+import { storeToRefs } from "pinia"
+import { vBngOnUiNav, vBngDisabled, vBngTextInput, vBngScopedNav, vBngClick, vBngOnUiNavFocus, vBngUiNavLabel } from "@/common/directives"
+import { BngBinding, BngButton, BngIcon, icons } from "@/common/components/base"
+import { useDirty } from "@/services/dirty"
+import { debounce } from "@/utils/rateLimit"
+import useControls from "@/services/controls"
+import { useScopedNav } from "@/services/scopedNav/api"
+import { uniqueId } from "@/services/uniqueId"
+import { setFocus } from "@/services/uiNavFocus"
+import { lua } from "@/bridge"
+
+const SPINNER_HOLD_CLICK_SOUND_CLASS = "bng_click_hover_generic"
+
+/**
+ * @description
+ *
+ * @param {Number | String} modelValue - only use either modelValue or value, not both
+ * @param {Number | String} value - one-way binding useful for readonly inputs. only use either modelValue or value, not both
+ * @param {String} label - The label of the input.
+ * @param {Boolean} floatingLabel - Whether the label is floating.
+ * @param {String} prefix - The prefix of the input.
+ * @param {String} suffix - The suffix of the input.
+ * @param {Number} step - The step of the number input. The precision of the value will be determined by the step value.
+ * For example, if the step is 0.01, the value will be rounded to 2 decimal places.
+ */
+const props = defineProps({
+  // only use either modelValue or value, not both
+  modelValue: {
+    type: [Number, String],
+    default: undefined,
+  },
+  // one-way binding useful for readonly inputs if you do not want
+  //  to create a ref variable just for to the modelValue
+  value: {
+    type: [Number, String],
+    default: undefined,
+  },
+  type: {
+    type: String,
+    default: INPUT_TYPES.text,
+    validator(value) {
+      return Object.keys(INPUT_TYPES).includes(value)
+    },
+  },
+  showExternalButton: {
+    type: Boolean,
+    default: true,
+  },
+  floatingLabel: [
+    Boolean,
+    // `floatingLabel` as string value is for backwards compatibility only
+    // TODO: Remove this once we have a proper migration
+    String,
+  ],
+  externalButtonFn: Function,
+  // `externalLabel` is for backwards compatibility only
+  // TODO: Remove this once we have a proper migration
+  externalLabel: String,
+  label: String,
+  prefix: String,
+  suffix: String,
+  leadingIcon: Object,
+  trailingIcon: Object,
+  maxlength: {
+    type: [Number, String],
+    default: null,
+    validator(value) {
+      if (value === null) return true
+      return typeof parseInt(value) === "number" && parseInt(value) >= 0
+    },
+  },
+  inputWidth: {
+    type: String,
+    default: null,
+  },
+  readonly: Boolean,
+  disabled: Boolean,
+  required: Boolean,
+  noScope: Boolean,
+  bubbleConfirmEventsOnNoScope: Boolean,
+  clampOnBlur: {
+    type: Boolean,
+    default: true,
+  },
+  placeholder: String,
+
+  // validation purposes
+  validate: Function,
+  validationType: {
+    type: String,
+    default: VALIDATION_TYPES.valueChange,
+    validator(value) {
+      return Object.keys(VALIDATION_TYPES).includes(value)
+    },
+  },
+  // for backwards compatibility only
+  // include the errorMessage as a return value from the validate function
+  // TODO: Remove this once we have a proper migration
+  errorMessage: String,
+
+  // props below are only applicable if type is number
+  min: {
+    type: [Number, String],
+    default: undefined,
+  },
+  max: {
+    type: [Number, String],
+    default: undefined,
+  },
+  step: {
+    type: Number,
+    default: 1,
+  },
+  stepIconType: {
+    type: String,
+    default: STEP_ICON_TYPES.arrowUpDown,
+    validator(value) {
+      return Object.keys(STEP_ICON_TYPES).includes(value)
+    },
+  },
+  noStepBindings: Boolean,
+  noSpinners: Boolean,
+  noValidation: Boolean,
+  scopeId: String,
+  bubbleWhitelistEvents: {
+    type: Array,
+    default: () => ["menu"],
+  },
+})
+
+const row = inject("BngRow", null)
+const inRow = !!row
+const effectiveDisabled = computed(() => props.disabled || (inRow && row.disabled.value))
+
+// Prevent nested controls (spinner/delete buttons) from registering into the same row.
+provide("BngRow", null)
+
+const emit = defineEmits([
+  "update:modelValue",
+  "change",
+  "error",
+  "blur",
+  "focus",
+  // valueChanged is for backwards compatibility only
+  // TODO: Remove this once we have a proper migration
+  "valueChanged",
+  "enter",
+])
+
+const slots = useSlots()
+
+const Controls = useControls()
+const { showIfController } = storeToRefs(Controls)
+
+const input = ref(null)
+const elementRef = ref(null)
+const scopedNav = useScopedNav()
+const internalScopeId = props.scopeId || uniqueId("bng-input")
+const rowNavAttrs = computed(() => inRow ? { "bng-no-nav": "true" } : {})
+
+const scopeActivated = ref(false)
+const validationState = ref(null)
+const numberInputState = reactive({
+  inputType: null,
+  isUpActive: false,
+  isDownActive: false,
+})
+
+const value = computed({
+  get: () => props.modelValue !== undefined ? props.modelValue : props.value,
+  set: newValue => {
+    if (props.noValidation) {
+      emitChange(newValue)
+      return
+    }
+    const res = validateRawValue(newValue)
+    if (props.validationType === VALIDATION_TYPES.valueChange) {
+      validationState.value = res
+    }
+    emitChange(newValue)
+  },
+})
+const inputScopeBubbleWhitelist = computed(() => props.bubbleWhitelistEvents)
+const scopedNavDirective = computed(() =>
+  props.noScope || inRow
+    ? { disabled: true }
+    : { scopeId: internalScopeId, trapPolicy: "always", bubbleWhitelistEvents: inputScopeBubbleWhitelist.value, canActivate: canActivateScope }
+)
+const isEmptyValue = computed(() => isEmpty(value.value))
+
+const inputStyle = computed(() => ({
+  "max-width": props.inputWidth || "initial",
+}))
+
+const rootStyle = computed(() =>
+  props.inputWidth ? { width: "fit-content" } : {}
+)
+
+const stepIcons = computed(() => STEP_ICON_TYPES_MAP[props.stepIconType])
+const nativeInputType = computed(() => {
+  if (props.type === INPUT_TYPES.time) {
+    return NATIVE_TIME_INPUT_SUPPORTED ? INPUT_TYPES.time : INPUT_TYPES.text
+  }
+  return INPUT_TYPES.text
+})
+const timeInputMin = computed(() => props.type === INPUT_TYPES.time ? props.min : undefined)
+const timeInputMax = computed(() => props.type === INPUT_TYPES.time ? props.max : undefined)
+const timeInputStep = computed(() => props.type === INPUT_TYPES.time ? props.step : undefined)
+const timeSuffixIcon = computed(() => props.type === INPUT_TYPES.time && !props.suffix && !slots.suffix ? icons.timer : null)
+const showDefaultExternalButton = computed(() => !props.readonly && !effectiveDisabled.value)
+const externalButtonUiNavActive = computed(() => props.noScope || inRow || scopeActivated.value)
+
+const exposed = useDirty(value)
+exposed.scopeActivated = scopeActivated
+exposed.scopeId = internalScopeId
+exposed.domInput = input
+exposed.el = elementRef
+exposed.activateScope = () => scopedNav.activateScope(internalScopeId)
+exposed.deactivateScope = () => scopedNav.deactivateScope(internalScopeId)
+defineExpose(exposed)
+
+onUnmounted(() => {
+  resetInputState.cancel()
+})
+
+const activateInput = () => {
+  if (effectiveDisabled.value || props.readonly) return
+  nextTick(() => input.value.focus())
+}
+
+const canActivateScope = () => !props.readonly && !effectiveDisabled.value && !inRow
+
+const externalButtonFn = () => {
+  if (props.externalButtonFn) {
+    props.externalButtonFn()
+  } else if (props.type === INPUT_TYPES.number) {
+    value.value = props.min || 0
+  } else {
+    value.value = ""
+  }
+}
+
+function onFocusIn() {
+  emit("focus")
+}
+
+function onFocusOut(event) {
+  let blurValue = value.value
+
+  if (props.type === INPUT_TYPES.number && props.clampOnBlur) {
+    const clamped = clampNumberOnBlur(value.value)
+    if (clamped.changed) {
+      value.value = clamped.value
+      blurValue = clamped.value
+    }
+  }
+
+  if (!props.noValidation && props.validationType === VALIDATION_TYPES.blur) {
+    validationState.value = validateRawValue(blurValue)
+  }
+  emit("blur", blurValue)
+}
+
+function onScopeActivated(event) {
+  scopeActivated.value = true
+}
+
+function onScopeDeactivated(event) {
+  scopeActivated.value = false
+}
+
+const resetInputState = debounce(() => {
+  numberInputState.inputType = null
+  numberInputState.isUpActive = false
+  numberInputState.isDownActive = false
+}, 150)
+
+function onUINavChangeValue(dir) {
+  if (numberInputState.inputType && numberInputState.inputType !== NUMBER_INPUT_MODES.uinav) return
+  numberInputState.inputType = NUMBER_INPUT_MODES.uinav
+  updateNumValue(dir)
+  resetInputState()
+}
+
+function onArrowKeysChangeValue(dir) {
+  if (numberInputState.inputType && numberInputState.inputType !== NUMBER_INPUT_MODES.arrowKeys) return
+  numberInputState.inputType = NUMBER_INPUT_MODES.arrowKeys
+  updateNumValue(dir)
+  resetInputState()
+}
+
+function onSpinnerChangeValue(dir) {
+  if (numberInputState.inputType && numberInputState.inputType !== NUMBER_INPUT_MODES.spinner) return false
+  numberInputState.inputType = NUMBER_INPUT_MODES.spinner
+  const changed = updateNumValue(dir)
+  resetInputState()
+  return changed
+}
+
+function onSpinnerHoldChangeValue(dir) {
+  const changed = onSpinnerChangeValue(dir)
+  console.log("spinnerValueChanged", changed)
+  if (!changed) return
+  lua.ui_audio.playEventSound(SPINNER_HOLD_CLICK_SOUND_CLASS, "click")
+}
+
+function updateNumValue(dir) {
+  if (props.type !== INPUT_TYPES.number || effectiveDisabled.value || props.readonly) return false
+  const min = !isNullOrUndefined(props.min) ? Number(props.min) : null
+  const max = !isNullOrUndefined(props.max) ? Number(props.max) : null
+  const previousValue = Number(value.value)
+  let val = previousValue
+  if (!Number.isFinite(val)) {
+    val = Number.isFinite(min) ? min : 0
+  }
+  if (dir === 1) {
+    numberInputState.isUpActive = true
+    val = roundToStep(val + props.step, props.step)
+  } else {
+    numberInputState.isDownActive = true
+    val = roundToStep(val - props.step, props.step)
+  }
+  const clampedValue = clampToRange(val, min, max)
+  const changed = clampedValue !== previousValue
+  value.value = clampedValue
+  return changed
+}
+
+function onEnterDown(event) {
+  event.preventDefault()
+  emit("enter", value.value)
+  if (!props.noScope) scopedNav.deactivateScope(internalScopeId)
+}
+
+function onKeyDown(event) {
+  if (event.key === "Enter") {
+    event.preventDefault()
+    return
+  }
+
+  if (props.type === INPUT_TYPES.number && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+    event.preventDefault()
+  }
+}
+
+function onInputConfirm(event) {
+  if (props.noScope && props.bubbleConfirmEventsOnNoScope) {
+    return true
+  }
+
+  const isBack = event?.detail?.name === "back"
+  if (isBack) {
+    exposed.resetValue?.()
+  }
+
+  if (inRow) {
+    const rowElement = row.getElement?.()
+    if (!rowElement) return true
+    input.value?.blur?.()
+    setFocus(rowElement, true, false)
+    return false
+  }
+
+  if (!props.noScope) {
+    scopedNav.deactivateScope(internalScopeId)
+    return false
+  }
+
+  input.value?.blur?.()
+  return false
+}
+
+function validateRawValue(value) {
+  let valid = true
+  let newValue = value
+  let errorMessage = null
+
+  if (isEmpty(value) && props.required) return { valid: false, error: ERROR_TYPES.required }
+
+  // if not required and the value is empty just return to avoid further validation
+  if (isEmpty(value) && props.type === INPUT_TYPES.number) return { valid: true, value: undefined }
+
+  if (props.type === INPUT_TYPES.number && typeof value === "string") {
+    if (value.includes(".")) {
+      newValue = parseFloat(value)
+    } else {
+      newValue = parseInt(value)
+    }
+
+    if (isNaN(newValue)) return { valid: false, error: ERROR_TYPES.invalidformat }
+  }
+
+  if (props.type === INPUT_TYPES.number) {
+    const res = validateRange(newValue)
+    return { ...res, value: newValue }
+  }
+
+  if (props.type === INPUT_TYPES.time) {
+    const res = validateTimeValue(value)
+    if (!res.valid || !props.validate) return res
+  }
+
+  if (props.validate) {
+    const res = props.validate(value)
+    if (typeof res === "boolean") {
+      valid = res
+      errorMessage = props.errorMessage
+    } else if (typeof res === "object") {
+      if ("valid" in res) console.warn("`validate` function must return a boolean `valid` property. Ignoring validation result...")
+      valid = res.valid || true
+      if (!valid) errorMessage = "errorMessage" in res ? res.errorMessage : props.errorMessage
+    }
+  }
+
+  return { valid, value: newValue, errorMessage }
+}
+
+function validateTimeValue(value) {
+  if (isEmpty(value)) return { valid: !props.required, error: props.required ? ERROR_TYPES.required : null, errorMessage: props.required ? ERROR_MESSAGES[ERROR_TYPES.required] : null }
+  if (!TIME_PATTERN.test(String(value))) return { valid: false, error: ERROR_TYPES.invalidformat, errorMessage: props.errorMessage || ERROR_MESSAGES[ERROR_TYPES.invalidformat] }
+
+  const currentMinutes = timeStringToMinutes(value)
+  const minMinutes = timeStringToMinutes(props.min)
+  const maxMinutes = timeStringToMinutes(props.max)
+  let valid = true,
+    errorMessage = null
+
+  if (minMinutes !== null && currentMinutes < minMinutes) {
+    valid = false
+    errorMessage = ERROR_MESSAGES[`${ERROR_TYPES.outofrange}-min`].replace("{min}", props.min)
+  } else if (maxMinutes !== null && currentMinutes > maxMinutes) {
+    valid = false
+    errorMessage = ERROR_MESSAGES[`${ERROR_TYPES.outofrange}-max`].replace("{max}", props.max)
+  }
+
+  return { valid, error: !valid ? ERROR_TYPES.outofrange : null, errorMessage, value }
+}
+
+function timeStringToMinutes(value) {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(String(value ?? ""))
+  if (!match) return null
+  return Number(match[1]) * 60 + Number(match[2])
+}
+
+function validateRange(value) {
+  const lessThanMin = !isNullOrUndefined(props.min) && value < props.min
+  const greaterThanMax = !isNullOrUndefined(props.max) && value > props.max
+  let valid = true,
+    errorMessage = null
+
+  if (!isNullOrUndefined(props.min) && !isNullOrUndefined(props.max) && (lessThanMin || greaterThanMax)) {
+    errorMessage = ERROR_MESSAGES[ERROR_TYPES.outofrange].replace("{min}", props.min).replace("{max}", props.max)
+    valid = false
+  } else if (lessThanMin) {
+    errorMessage = ERROR_MESSAGES[`${ERROR_TYPES.outofrange}-min`].replace("{min}", props.min)
+    valid = false
+  } else if (greaterThanMax) {
+    errorMessage = ERROR_MESSAGES[`${ERROR_TYPES.outofrange}-max`].replace("{max}", props.max)
+    valid = false
+  }
+
+  return { valid, error: !valid ? ERROR_TYPES.outofrange : null, errorMessage }
+}
+
+function clampNumberOnBlur(rawValue) {
+  if (isEmpty(rawValue)) return { changed: false, value: rawValue }
+
+  const parsedValue = parseNumber(rawValue)
+  if (parsedValue === null) return { changed: false, value: rawValue }
+
+  const min = isNullOrUndefined(props.min) ? null : Number(props.min)
+  const max = isNullOrUndefined(props.max) ? null : Number(props.max)
+
+  const clampedValue = clampToRange(parsedValue, min, max)
+  return { changed: clampedValue !== parsedValue, value: clampedValue }
+}
+
+function isEmpty(val) {
+  return val === null || val === undefined || val === ""
+}
+
+function isNullOrUndefined(val) {
+  return val === null || val === undefined
+}
+
+function emitChange(value) {
+  emit("update:modelValue", value)
+  emit("change", value)
+  // valueChanged is for backwards compatibility only
+  // TODO: Remove this once we have a proper migration
+  emit("valueChanged", value)
+}
+
+const rowControlApi = inRow
+  ? {
+      activate: activateInput,
+      stepLeft: () => {
+        if (props.type !== INPUT_TYPES.number) return true
+        updateNumValue(-1)
+        return false
+      },
+      stepRight: () => {
+        if (props.type !== INPUT_TYPES.number) return true
+        updateNumValue(1)
+        return false
+      },
+      isEventInside: event => !!(elementRef.value && event?.target instanceof Node && elementRef.value.contains(event.target)),
+    }
+  : null
+
+if (inRow) {
+  onMounted(() => row.register(rowControlApi))
+  onUnmounted(() => row.unregister(rowControlApi))
+}
+</script>
+
+<style lang="scss" scoped>
+@use "@/styles/modules/mixins" as *;
+@use "@/styles/modules/density" as *;
+
+// focus frame
+$f-offset: 2px;
+$rad: $border-rad-1;
+
+// Reset Angular styles leaking in
+// TODO: Remove this once the global Angular styles is removed
+.bng-input input {
+  // all: unset;
+  background: unset;
+  border: none;
+}
+
+$text-color: var(--bng-off-white);
+$label-color: var(--bng-cool-gray-200);
+$input-border-color: var(--bng-off-white);
+$border-width: 0.0625em; // 1px
+$border-color: var(--bng-cool-gray-500);
+$background-color: var(--bng-cool-gray-900);
+
+$focused-input-border-color: var(--bng-orange-500);
+$focused-border-color: var(--bng-orange-500);
+$focused-border-width: 0.125em; // 2px
+$focused-background-color: var(--bng-cool-gray-850);
+
+$invalid-input-border-color: var(--bng-add-red-550);
+$invalid-label-color: var(--bng-add-red-550);
+$invalid-background-color: rgba(var(--bng-add-red-800-rgb), 0.5);
+
+$disabled-text-color: var(--bng-cool-gray-200);
+$disabled-label-color: var(--bng-cool-gray-200);
+$disabled-border-color: var(--bng-cool-gray-750);
+$disabled-background-color: rgba(var(--bng-cool-gray-500-rgb), 0.5);
+
+$alternate-background-color: var(--bng-cool-gray-700);
+$alternate-border-color: var(--bng-cool-gray-500);
+
+$input-padding: calc-ui-rem(0.25);
 
 .bng-input {
-  color: initial;
-  background-color: initial;
-  border-width: initial;
-  border-radius: initial;
-  padding: initial;
-  transition: initial;
-  -webkit-tap-highlight-color: initial;
-  &[type="number"] {
-    appearance: textfield;
-  }
-}
-
-*:focus::before {
-  content: none;
-  display: initial;
-  position: initial;
-  top: initial;
-  bottom: initial;
-  left: initial;
-  right: initial;
-  border-radius: initial;
-  border: initial;
-  pointer-events: initial;
-  z-index: initial;
-}
-
-// END RESET
-
-$default-text-color: var(--bng-off-white);
-$default-label-color: var(--bng-cool-gray-200);
-$default-input-border-color: var(--bng-off-white);
-$default-bottom-border-color: var(--bng-cool-gray-500);
-$default-bottom-border-width: 0.0625em; // 1px
-
-$disabled-text-color: var(--bng-off-white);
-$disabled-background-color: rgba(var(--bng-cool-gray-500-rgb), 0.5);
-$disabled-label-color: var(--bng-cool-gray-300);
-$disabled-input-border-color: var(--bng-cool-gray-500);
-
-$has-error-text-color: var(--bng-off-white);
-$has-error-background-color: var(--bng-add-red-800);
-$has-error-label-color: var(--bng-add-red-400);
-$has-error-input-border-color: var(--bng-add-red-500);
-
-$focused-outline-color: var(--bng-orange-500);
-$focused-background-color: var(--bng-cool-gray-850);
-$focused-label-color: var(--bng-add-orange-200);
-$focused-input-border-color: var(--bng-orange-500);
-$focused-bottom-border-width: 0.125em; // 2px
-
-$has-value-label-color: var(--bng-cool-gray-300);
-$has-value-input-border-color: var(--bng-cool-gray-500);
-
-$input-container-background-color: rgba(var(--bng-cool-gray-900-rgb), 0.5);
-$prefix-suffix-background-color: rgba(var(--bng-cool-gray-700-rgb), 1);
-$min-input-width: 7em;
-$input-border-z-index: 1;
-$input-height: var(--input-height, 2.5em);
-
-$icon-border-z-index: 1;
-$icon-max-height: 1.5em;
-
-* {
-  box-sizing: border-box;
-}
-
-%input-focus-highlight {
-  content: "";
-  position: absolute;
-  display: block;
-  top: -0.125em; // -2px
-  left: -0.125em; // -2px
-  right: -0.125em; // -2px
-  bottom: -0.25em; // -4px
-  border: 0.125em solid $focused-outline-color;
-  border-radius: $focused-bottom-border-width;
-}
-
-.bng-input-wrapper {
-  display: flex;
-  flex-direction: column;
-
-  &[disabled] {
-    opacity: 0.5;
-    pointer-events: none;
-  }
-
-  > .external-label {
-    display: inline-block;
-    padding: 0.25em 0; // 4px 0
-  }
-
-  > .icons-input-wrapper {
-    display: flex;
-    flex-direction: row;
-    flex-grow: 1;
-    align-items: center;
-    height: $input-height;
-
-    > .outside-icon {
-      padding: 0 0.5em;
-      font-size: 1.25em;
-    }
-
-    .input-icon {
-      display: inline-block;
-      max-height: $icon-max-height;
-      width: 1.5em;
-      text-align: center;
-      font-size: 1.25em;
-    }
-  }
-
-  &:not(:hover):not(:focus-within) .number-actions {
-    opacity: 0;
-  }
-}
-
-// set input container highlight on focus
-.bng-highlight-container {
-  position: relative;
-  flex-grow: 1;
-  height: 100%;
-
-  &.bng-input-focused {
-    > .bng-input-container {
-      background-color: $focused-background-color;
-      // bng-input-group container border at the bottom
-      &::after,
-      // trailing icon border at the bottom
-      > .trailing-icon::before,
-      > .bng-input-group > .input-border {
-        height: $focused-bottom-border-width;
-        background: $focused-input-border-color;
-      }
-    }
-  }
-}
-
-.bng-input-container {
   position: relative;
   display: flex;
-  height: 100%;
   align-items: center;
   justify-content: center;
-  background-color: $input-container-background-color;
-  border-radius: 0.25em 0.25em 0 0;
-  // overflow: hidden;
+  height: calc-ui-rem(2.25);
+  border-radius: calc-ui-rem(0.25) calc-ui-rem(0.25) 0 0;
+  font-size: calc-ui-rem();
+  color: $text-color;
+  cursor: default;
 
-  // border at the bottom
-  &::after {
+  @include modify-focus($rad, $f-offset);
+}
+
+.bng-input > label,
+.input-container > label {
+  position: absolute;
+  left: 0;
+  font-size: calc-ui-rem();
+  color: $label-color;
+  white-space: nowrap;
+
+  &.external-label {
+    top: calc-ui-rem(-1.5);
+  }
+
+  &.floating-label {
+    top: calc-ui-rem(0.5);
+    left: $input-padding;
+    pointer-events: none;
+  }
+}
+
+.bng-input > .error-message {
+  position: absolute;
+  bottom: calc-ui-rem(-1.125);
+  left: 0;
+  width: 100%;
+  height: 1em;
+  color: $invalid-label-color;
+  font-weight: 400;
+  pointer-events: none;
+}
+
+.input-spinner {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: calc-ui-rem(3);
+  margin: 0 calc-ui-rem(0.25);
+
+  :deep(.bng-button) {
+    margin: 0;
+    min-width: calc-ui-rem(2);
+    width: 100%;
+    height: 100%;
+  }
+
+  // TODO: This is a hack and needs more feedback on how to handle this properly
+  &.spinner-active {
+    :deep(.bng-binding-icon),
+    :deep(.icon-base) {
+      color: $focused-input-border-color !important;
+    }
+  }
+}
+
+$hover-spinner-width: calc-ui-rem(1.25);
+
+.hover-spinner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  width: $hover-spinner-width;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+
+  :deep(.bng-button) {
+    margin: 0;
+    min-width: 0;
+    width: 100%;
+    height: 50%;
+    padding: 0;
+    font-size: calc-ui-rem(0.75);
+  }
+
+  // TODO: This is a hack and needs more feedback on how to handle this properly
+  .hover-spinner-btn.spinner-active {
+    :deep(.icon-base) {
+      color: $focused-input-border-color !important;
+    }
+  }
+}
+
+.input-container:has(> .hover-spinner) > input {
+  padding-right: $hover-spinner-width;
+}
+
+.input-container:hover > .hover-spinner,
+.hover-spinner:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.leading-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 $input-padding;
+  height: 100%;
+}
+
+.external-button {
+  :deep(button) {
+    margin: 0 0 0 calc-ui-rem(0.25) !important;
+    padding-top: calc-ui-rem(0.35);
+    padding-bottom: calc-ui-rem(0.45);
+  }
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  height: 100%;
+  width: 100%;
+  padding: 0 calc-ui-rem(0.25);
+  padding-top: calc-ui-rem(0.25);
+  max-width: var(--bng-input-max-width);
+  background: $background-color;
+
+  &::before {
+    background: $input-border-color;
+  }
+}
+
+input {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  color: $text-color;
+  font-family: var(--fnt-defs);
+  cursor: text;
+  pointer-events: auto;
+
+  &::before {
+    display: none;
+  }
+
+  &::-webkit-inner-spin-button {
+    display: none;
+  }
+
+  &[type="time"] {
+    color-scheme: dark;
+
+    &::-webkit-calendar-picker-indicator {
+      display: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+  }
+}
+
+// Floating label
+.bng-input.has-value > .input-container {
+  padding-top: 0;
+
+  > .floating-label {
+    top: calc-ui-rem(-0.125);
+    font-size: calc-ui-rem(0.75);
+    font-weight: 400;
+  }
+}
+
+// Alternate background color
+.prefix,
+.suffix,
+.trailing-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 $input-padding;
+  height: 100%;
+  background: $alternate-background-color;
+
+  &::before {
+    background: $alternate-border-color;
+  }
+}
+
+.bng-input:has(> .external-label) {
+  margin-top: calc-ui-rem(1.5);
+}
+
+.bng-input {
+  &:has(.prefix) > .trailing-icon {
+    background: $background-color;
+  }
+}
+
+// BngInput's border radius
+.input-container,
+.suffix,
+.prefix,
+.trailing-icon {
+  position: relative;
+
+  &::before {
     content: "";
-    display: block;
     position: absolute;
     bottom: 0;
     left: 0;
-    right: 0;
-    height: $default-bottom-border-width;
-    background-color: $default-bottom-border-color;
+    width: 100%;
+    height: $border-width;
+    pointer-events: none;
+  }
+}
+
+.bng-input {
+  .prefix {
+    border-top-left-radius: calc-ui-rem(0.25);
   }
 
-  > .bng-input-group {
-    position: relative;
-    flex-grow: 1;
-    height: 100%;
-
-    .bng-input {
-      display: inline-block;
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0.5em 0.25em;
-      background-color: transparent;
-      border: none;
-      color: $default-text-color;
-      font-size: 1em;
-
-      ~ .number-actions {
-        position: absolute;
-        right: 0;
-        top: 0;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-
-        .number-action {
-          display: flex;
-          font-size: 0.75em;
-          cursor: pointer;
-          line-height: 100%;
-          flex: 1 0 auto;
-          align-items: flex-start;
-          padding: 0 0.125em;
-
-          &:active {
-            background-color: $focused-outline-color !important;
-          }
-
-          &.number-action-disabled {
-            pointer-events: none;
-            opacity: 0.5;
-          }
-        }
-        > .up-action {
-          align-items: flex-end;
-        }
-      }
-
-      // States
-      &.bng-input-empty {
-        ~ .floating-label {
-          top: calc(50% - 0.625em);
-          left: 0.25em;
-          font-size: 1em;
-        }
-      }
-
-      &::-webkit-outer-spin-button,
-      &::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-
-      // Only set floating label when at the top to red
-      &.bng-input-error:not(.bng-input-empty) {
-        ~ .floating-label {
-          color: $has-error-label-color;
-        }
-      }
-
-      &.bng-input-error {
-        background-color: $has-error-background-color;
-
-        ~ .input-border {
-          background-color: $has-error-input-border-color;
-        }
-
-        ~ .error-message {
-          display: inline-block;
-          color: $has-error-label-color;
-        }
-      }
-    }
-
-    > .floating-label {
-      position: absolute;
-      pointer-events: none;
-      top: 0;
-      left: 0.5em;
-      font-size: 0.7em;
-    }
-
-    > .input-border {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: $default-bottom-border-width;
-      background-color: $default-input-border-color;
-      z-index: $input-border-z-index;
-    }
-  }
-
-  > .prefix-suffix-container {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    background-color: $prefix-suffix-background-color;
-    padding: 0 0.25em;
-    font-family: var(--fnt-mono);
+  &:not(:has(.prefix)) > .input-container {
+    border-top-left-radius: calc-ui-rem(0.25);
   }
 
   > .trailing-icon {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 0 0.25em;
+    border-top-right-radius: calc-ui-rem(0.25);
+  }
 
-    // trailing icon border at the bottom
-    &::before {
-      content: "";
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: $default-bottom-border-width;
-      background-color: $default-input-border-color;
-      z-index: $icon-border-z-index;
+  &:not(:has(.trailing-icon)) > .prefix {
+    border-top-right-radius: calc-ui-rem(0.25);
+  }
+
+  &:not(:has(.trailing-icon)):not(:has(.prefix)) > .input-container {
+    border-top-right-radius: calc-ui-rem(0.25);
+  }
+
+  &:has(input:focus) {
+    .prefix,
+    .suffix,
+    .trailing-icon,
+    .input-container {
+      &::before {
+        background: $focused-border-color;
+        height: $focused-border-width;
+      }
     }
   }
 }
+
+// .suffix,
+// .prefix,
+// .trailing-icon,
+// .leading-icon {
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   padding: 0 calc-ui-rem(0.5);
+//   height: 100%;
+// }
+
+// .leading-icon {
+//   border-bottom: none;
+// }
+
+// .prefix,
+// .suffix {
+//   padding: 0 calc-ui-rem(0.25);
+//   // font-family: var(--fnt-mono);
+// }
+
+// // bottom borders
+// .inner-container,
+// .prefix,
+// .suffix,
+// .trailing-icon {
+//   position: relative;
+
+//   &::before {
+//     content: "";
+//     position: absolute;
+//     bottom: 0;
+//     left: 0;
+//     width: 100%;
+//     height: $border-width;
+//     background: $input-border-color;
+//     pointer-events: none;
+//   }
+// }
+
+// alternating background colors
+// .bng-input {
+//   // set items after the input container to be grey
+//   > .inner-container + *:not(.external-button):not(label) {
+//     background: $alternate-background-color;
+//     &::before {
+//       background: $alternate-border-color;
+//     }
+//   }
+
+//   > .prefix {
+//     background: $alternate-background-color;
+//     &::before {
+//       background: $alternate-border-color;
+//     }
+//   }
+
+//   > .trailing-icon {
+//     background: $background-color;
+//     &::before {
+//       background: $input-border-color;
+//     }
+//   }
+// }
+
+// BngInput's border radius
+// .bng-input {
+//   > :first-child:not(.leading-icon) {
+//     border-top-left-radius: calc-ui-rem(0.25);
+//   }
+
+//   > .leading-icon + * {
+//     border-top-left-radius: calc-ui-rem(0.25);
+//   }
+
+//   > :last-child:not(.external-button) {
+//     border-top-right-radius: calc-ui-rem(0.25);
+//   }
+
+//   &:has(.external-button) > :nth-last-child(2) {
+//     border-top-right-radius: calc-ui-rem(0.25);
+//   }
+// }
+
+// invalid input
+// .bng-input.bng-input-invalid {
+//   label {
+//     color: $invalid-label-color !important;
+//   }
+
+//   > .inner-container {
+//     background: $invalid-background-color !important;
+//   }
+
+//   > .suffix,
+//   > .prefix,
+//   > .trailing-icon,
+//   > .inner-container {
+//     &::before {
+//       background: $invalid-label-color !important;
+//     }
+//   }
+
+//   &:has(.error-message) {
+//     margin-bottom: 1.5em;
+//   }
+// }
+
+// reset button positioning
+// .bng-input .external-button {
+//   :deep(button) {
+//     margin: 0 calc-ui-rem(0.25) !important;
+//     padding-top: calc-ui-rem(0.35);
+//     padding-bottom: calc-ui-rem(0.45);
+//   }
+// }
+
+// label positioning
+// .bng-input {
+//   &:has(.external-label) {
+//     margin-top: calc-ui-rem(1.5);
+
+//     > .external-label {
+//       top: calc-ui-rem(-1.5);
+//       left: 0;
+//     }
+//   }
+
+//   // minimize translate to the top
+//   &.has-value:has(.inner-container > .floating-label) {
+//     .inner-container {
+//       padding-top: calc-ui-rem(0.5);
+//     }
+
+//     .inner-container > .floating-label {
+//       font-size: calc-ui-rem(0.75);
+//       font-weight: 400;
+//       transform: translateY(calc-ui-rem(-1.25));
+//     }
+//   }
+// }
+
+// // focus styling. only apply focus styling if any other element except the reset button is focused
+// .bng-input:not(.bng-input-readonly) {
+//   &:has(input:focus) {
+//     .inner-container,
+//     .prefix,
+//     .suffix,
+//     .trailing-icon {
+//       &::before {
+//         background: $focused-border-color;
+//         height: $focused-border-width;
+//       }
+//     }
+//   }
+// }
+
+// .bng-input[disabled] {
+//   pointer-events: none;
+//   color: $disabled-text-color;
+
+//   .suffix,
+//   .prefix,
+//   .trailing-icon,
+//   .inner-container {
+//     &::before {
+//       background: $disabled-border-color !important;
+//     }
+//   }
+// }
 </style>

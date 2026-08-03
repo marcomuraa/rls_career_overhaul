@@ -339,7 +339,7 @@ onMounted(() => {
 <style scoped>
 .colours-container {
   padding: 1.25em;
-  font-family: sans-serif;
+  font-family: var(--fnt-defs);
 }
 
 h2 {
@@ -409,7 +409,7 @@ h3 {
   height: 100%;
   border: none;
   background: transparent;
-  font-family: "Overpass Mono", "Noto Sans Mono", monospace;
+  font-family: var(--fnt-mono);
   font-size: 0.7em;
   color: #fff;
   padding: 0 0.5em;

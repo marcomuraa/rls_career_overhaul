@@ -25,10 +25,13 @@
       }"
       v-bng-on-ui-nav:ok.asMouse.focusRequired
       v-bng-on-ui-nav:action_2.focusRequired="secondaryAction ? secondaryAction : undefined"
-      v-bng-on-ui-nav:context.focusRequired="!opts.static && opts.navigable.enabled ? opts.expandClick : undefined"
+      v-bng-on-ui-nav:context.focusRequired="expandOnContext && !opts.static && opts.navigable.enabled ? onNavExpandToggle : undefined"
+      v-bng-on-ui-nav:focus_r.focusRequired="!expandOnContext && !opts.static && opts.navigable.enabled && !opts.expandedActual ? onNavExpandToggle : undefined"
+      v-bng-on-ui-nav:focus_l.focusRequired="!expandOnContext && !opts.static && opts.navigable.enabled && opts.expandedActual ? onNavExpandToggle : undefined"
+      v-bng-sound-class="!opts.disabled && !opts.static && 'bng_click_hover_generic'"
       v-bng-ui-nav-label:ok="primaryLabel || 'ui.inputActions.menu.menu_item_select.title'"
       v-bng-ui-nav-label:action_2="secondaryLabel"
-      v-bng-ui-nav-label:context="$tt('ui.common.expand') + '/' + $tt('ui.common.collapse')"
+      v-bng-ui-nav-label:context="expandOnContext ? $tt('ui.common.expand') + '/' + $tt('ui.common.collapse') : null"
     >
       <BngIcon
         v-if="!opts.static"
@@ -38,13 +41,14 @@
         }"
         :type="icon"
         @click.stop="opts.expandClick"
+        v-bng-sound-class="!opts.disabled && !opts.static && 'bng_click_hover_generic'"
       />
-
       <BngBinding
         v-if="expandHintInline && !opts.static && hasFocus && showIfController"
         style="padding-right: 0.2em;"
-        uiEvent="context"
+        :ui-event="expandHintEvent"
         controller
+        track-ignore
       />
 
       <span ref="elCaptionContent" class="bng-accitem-caption-content">
@@ -78,8 +82,9 @@
 <script setup>
 import { ref, reactive, computed, watch, inject, provide, onMounted, onBeforeUnmount } from "vue"
 import { storeToRefs } from "pinia"
+import { lua } from "@/bridge"
 import { BngIcon, BngBinding, BngPopoverContent, icons } from "@/common/components/base"
-import { vBngDisabled, vBngOnUiNav, vBngUiNavLabel } from "@/common/directives"
+import { vBngDisabled, vBngOnUiNav, vBngSoundClass, vBngUiNavLabel } from "@/common/directives"
 import useControls from "@/services/controls"
 import { useUINavScope } from "@/services/uiNav"
 import { setFocus } from "@/services/uiNavFocus"
@@ -116,6 +121,10 @@ const props = defineProps({
   primaryHintInline: Boolean,
   secondaryHintInline: Boolean,
   expandHintInline: Boolean,
+  expandOnContext: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const elCaption = ref()
@@ -124,6 +133,10 @@ const elCaptionControls = ref()
 const hasFocus = ref(false)
 
 const icon = computed(() => props.arrowBig ? icons.arrowLargeRight : icons.arrowSmallRight)
+const expandHintEvent = computed(() => {
+  if (props.expandOnContext) return "context"
+  return opts.expandedActual ? "focus_l" : "focus_r"
+})
 
 const popTip = ref()
 
@@ -231,9 +244,16 @@ watch(
 )
 opts.navigable.scope && useUINavScope(opts.navigable.scope)
 
+const onNavExpandToggle = () => {
+  if (opts.static || opts.disabled || !opts.navigable.enabled) return
+  lua.ui_audio.playEventSound("bng_click_hover_generic", "click")
+  opts.expandClick()
+}
+
 const onFocus = evt => {
   hasFocus.value = true
-  navBlocker.blockOnly(opts.static ? ["context"] : [])
+  const shouldBlockContext = opts.static && props.expandOnContext
+  navBlocker.blockOnly(shouldBlockContext ? ["context"] : [])
   emit("focus", evt)
 }
 
@@ -279,7 +299,8 @@ onBeforeUnmount(() => {
 
     position: relative;
     display: flex;
-    flex-flow: row nowrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     justify-content: stretch;
     align-items: center;
     border-radius: $rad;
@@ -307,7 +328,8 @@ onBeforeUnmount(() => {
     > .bng-accitem-caption-controls {
       flex: 0 1 auto;
       display: flex;
-      flex-flow: row nowrap;
+      flex-direction: row;
+      flex-wrap: nowrap;
       justify-content: stretch;
       align-items: center;
       overflow: hidden;

@@ -1,10 +1,10 @@
 // Credits routes --------------------------------------
-import CreditsScroller from "@/modules/credits/views/CreditsScroller.vue"
+import CreditsSlideshow from "@/modules/credits/views/CreditsSlideshow.vue"
 
 export default [
   {
     path: "/credits",
     name: "credits",
-    component: CreditsScroller,
+    component: CreditsSlideshow,
   },
 ]

@@ -1,14 +1,15 @@
 <template>
-  <div
+  <LayoutMenu
     class="paint-main-view"
-    bng-ui-scope="paint-main-scope"
-    v-bng-on-ui-nav:back,menu="cancelChanges"
-    v-bng-ui-nav-label:back,menu="'Back'"
-  >
-    <div class="header">
-      <LiveryEditorHeader />
-    </div>
-    <div class="paint-content-container">
+    nav-scope="root"
+    :nav-active="false"
+    :breadcrumbs="breadcrumbItems"
+    :hide-breadcrumb-last-item="false"
+    heading="Paint">
+    <div
+      class="paint-content-container"
+      v-bng-on-ui-nav:back,menu="cancelChanges"
+      v-bng-ui-nav-label:back,menu="'Back'">
       <div class="paint-content">
         <MaterialSettings v-bng-blur :initial-color="initialColor" @change="onMaterialValueChanged" />
         <BngButton v-bng-on-ui-nav:context.asMouse @click="saveChanges">
@@ -21,37 +22,35 @@
         </BngButton>
       </div>
     </div>
-  </div>
+  </LayoutMenu>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue"
+import { computed, onMounted, onUnmounted, ref } from "vue"
 import { BngBinding, BngButton } from "@/common/components/base"
+import { LayoutMenu } from "@/common/layouts"
 import { vBngOnUiNav, vBngUiNavLabel, vBngBlur } from "@/common/directives"
 import { lua, useBridge } from "@/bridge"
 import { useInfoBar } from "@/services/infoBar"
-import { useUINavScope } from "@/services/uiNav"
+import { useRouteDataStore } from "@/services/routeData"
 import { useUINavBlocker } from "@/services/uiNavTracker"
 import { openConfirmation } from "@/services/popup"
 import { useLiveryMainStore } from "@/modules/liveryEditor/stores"
-import { useEditorHeaderStore } from "@/modules/liveryEditor/stores"
-import { LiveryEditorHeader } from "@/modules/liveryEditor/components"
 import MaterialSettings from "../components/layerSettings/MaterialSettings.vue"
 
 const store = useLiveryMainStore()
-const headerStore = useEditorHeaderStore()
 const infobar = useInfoBar()
 const uiNavBlocker = useUINavBlocker()
+const routeDataStore = useRouteDataStore()
 const { events } = useBridge()
 
-useUINavScope("paint-main-scope")
+const breadcrumbItems = computed(() => (Array.isArray(routeDataStore.breadcrumbs) ? routeDataStore.breadcrumbs : []))
 
 const initialColor = ref(null)
 
 const blockedEvents = ["tab_r", "tab_l"]
 
 onMounted(() => {
-  headerStore.setPreheader(["Paint"])
   store.setup()
 
   infobar.visible = true
@@ -76,7 +75,7 @@ function onLayerData(data) {
 function saveChanges() {
   const res = lua.extensions.ui_liveryEditor_layers_fill.saveChanges()
   res.then(() => {
-    window.bngVue.gotoGameState("LiveryMain")
+    lua.extensions.ui_router.navigate("livery.editor", null, null)
   })
 }
 
@@ -88,7 +87,7 @@ function cancelChanges() {
   openConfirmation("Undo Changes", "Lose unsaved changes?").then(res => {
     if (res) {
       lua.extensions.ui_liveryEditor_layers_fill.restoreLayer()
-      window.bngVue.gotoGameState("LiveryMain")
+      lua.extensions.ui_router.navigate("livery.editor", null, null)
     }
   })
 }

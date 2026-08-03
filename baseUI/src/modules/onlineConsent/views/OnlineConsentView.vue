@@ -1,12 +1,15 @@
 <template>
   <WizardView
-    title="ui.mainmenu.onlineFeatures.featureTitle"
-    :preheadings="['Privacy & Features']"
-    style="--wizard-height: 45rem;"
+    ref="wizardViewRef"
+    v-bng-scoped-nav="onlineConsentScopeConfig"
     v-bng-blur
-    bng-ui-scope="consent"
-    v-bng-on-ui-nav:menu,back="backToMenu"
+    v-bng-on-ui-nav:back="onWizardBackNav"
+    v-bng-on-ui-nav:menu="backToMenu"
+    title="ui.mainmenu.onlineFeatures.featureTitle"
+    :preheadings="[$t('ui.mainmenu.onlineConsent.preheading')]"
+    style="--wizard-height: 45rem;"
     @step-complete="onStepComplete"
+    @step-change="onWizardStepChange"
     @wizard-finish="onFinish"
   >
     <WizardStep
@@ -14,13 +17,17 @@
       title="ui.options.onlineFeatures"
       type="choice"
       v-model="onlineFeaturesData"
+      :auto-focus-target="{ type: 'choice', value: 'disable' }"
       :choices="[
         { value: 'disable', label: 'ui.common.no', isNo: true },
         { value: 'enable', label: 'ui.common.yes', isYes: true }
       ]"
     >
       <template #description>
-        <div v-html="onlineFeaturesHtml"></div>
+        <DynamicComponent
+          translate-id="ui.mainmenu.onlineFeatures.featureDescription"
+          bbcode
+        />
       </template>
     </WizardStep>
 
@@ -29,6 +36,7 @@
       title="ui.options.telemetry"
       type="choice"
       v-model="telemetryData"
+      :auto-focus-target="{ type: 'choice', value: 'disable' }"
       :auto-skip="true"
       :enabled-when="[{ step: 'onlineFeatures', value: 'enable' }]"
       :choices="[
@@ -37,7 +45,12 @@
       ]"
     >
       <template #description>
-        <div v-html="telemetryDescription"></div>
+        <DynamicComponent
+          :translate-id="onlineFeaturesData.choice === 'enable'
+            ? 'ui.mainmenu.telemetry.featureDescription'
+            : 'ui.mainmenu.telemetryOnlineHint'"
+          bbcode
+        />
       </template>
     </WizardStep>
 
@@ -46,9 +59,13 @@
       title="ui.consent.confirmation"
       type="confirmation"
       v-model="confirmationData"
+      :auto-focus-target="{ type: 'navigation', value: 'finish' }"
     >
       <template #description>
-        <div v-html="confirmationHtml"></div>
+        <DynamicComponent
+          translate-id="ui.mainmenu.privacyPolicyHint"
+          bbcode
+        />
       </template>
       <WizardSummary />
     </WizardStep>
@@ -56,36 +73,65 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue"
+import { computed, nextTick, onMounted, ref } from "vue"
 import { WizardView, WizardStep, WizardSummary } from "@/common/modules/wizard"
-import { vBngBlur, vBngOnUiNav } from "@/common/directives"
-import { useUINavScope } from "@/services/uiNav"
+import { DynamicComponent } from "@/common/components/utility"
+import { vBngBlur, vBngOnUiNav, vBngScopedNav } from "@/common/directives"
+import { useScopedNav } from "@/services/scopedNav/api"
 import { useSettings } from "@/services/settings"
-import { useBridge } from "@/bridge"
-import { $content, $translate } from "@/services"
-
-useUINavScope("consent")
+import { lua } from "@/bridge"
 
 const settings = useSettings()
-const { lua } = useBridge()
+const { requestScopeFocus } = useScopedNav()
 
+const wizardViewRef = ref()
+const currentWizardStepIndex = ref(0)
 const onlineFeaturesData = ref({})
 const telemetryData = ref({})
 const confirmationData = ref({})
 
-const parseDescription = descKey => $content.bbcode.parse($translate.instant(descKey))
-const onlineFeaturesHtml = computed(() => parseDescription("ui.mainmenu.onlineFeatures.featureDescription"))
-const telemetryDescription = computed(() => {
-  const enabled = onlineFeaturesData.value.choice === "enable"
-  const desc = enabled ? "ui.mainmenu.telemetry.featureDescription" : "ui.mainmenu.telemetryOnlineHint"
-  return parseDescription(desc)
-})
-const confirmationHtml = computed(() => parseDescription("ui.mainmenu.privacyPolicyHint"))
+const onlineConsentScopeConfig = computed(() => ({
+  scopeId: "root",
+  preferAutoFocus: true,
+  canDeactivate: () => currentWizardStepIndex.value === 0,
+}))
+
+const getWizardStepIndex = () => {
+  const stepIndex = wizardViewRef.value?.currentStepIndex
+  if (typeof stepIndex === "number") return stepIndex
+  if (typeof stepIndex?.value === "number") return stepIndex.value
+  return 0
+}
+
+const syncWizardStepIndex = () => {
+  currentWizardStepIndex.value = getWizardStepIndex()
+}
+
+const requestWizardScopeFocus = async () => {
+  await nextTick()
+  requestScopeFocus("root")
+}
 
 const onStepComplete = ({ stepId, data }) => {
   if (stepId === "onlineFeatures") {
     telemetryData.value = data.choice === "enable" ? {} : { choice: "disable" }
   }
+}
+
+const onWizardStepChange = async () => {
+  const previousIndex = currentWizardStepIndex.value
+  // Wizard emits step-change before its async index update resolves hence wait for two ticks.
+  await nextTick()
+  await nextTick()
+  syncWizardStepIndex()
+  if (currentWizardStepIndex.value === previousIndex) return
+  await requestWizardScopeFocus()
+}
+
+const onWizardBackNav = () => {
+  if (currentWizardStepIndex.value === 0) return true
+  wizardViewRef.value?.previousStep?.()
+  return false
 }
 
 const onFinish = async () => {
@@ -111,7 +157,7 @@ const onFinish = async () => {
   }
 }
 
-const backToMenu = () => window.bngVue.gotoAngularState("menu.mainmenu")
+const backToMenu = () => lua.extensions.ui_router.navigate("menu")
 
 onMounted(async () => {
   await settings.waitForData()
@@ -123,5 +169,8 @@ onMounted(async () => {
   if (telemetry && telemetry !== "ask") {
     telemetryData.value = { choice: telemetry }
   }
+
+  syncWizardStepIndex()
+  await requestWizardScopeFocus()
 })
 </script>
