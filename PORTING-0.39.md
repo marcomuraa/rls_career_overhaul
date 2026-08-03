@@ -121,7 +121,80 @@ reached the UI.
 
 ---
 
-## Taxi work
+## Taxi work — *verified working end to end*
+
+Confirmed in game: phone opens, taxi app loads, a fare is generated and offered
+("Business", $664 excluding tip, 3 passengers), Accept is taken and the job
+enters its pickup phase showing "Picking up 3 passengers". No errors throughout.
+
+Three separate faults had to be fixed to get there, and each one alone was
+enough to make taxi unreachable.
+
+### 1. The mod's input actions were never registered — *fixed*
+
+    Couldn't find action openPhone in actions lookup table
+
+The mod ships three action definitions in `lua/ge/extensions/core/input/actions/`
+(`phone.json`, `shortcuts.json`, `guide_recording.json`) and none reached the
+engine. It is an ordering problem and the timings are not close: bindings
+resolve against the action table at **t=4.5s**, the mod does not mount until
+**t=4.77s**, and its `startup()` runs at **t=5.4s**. Nothing afterwards asked
+for a re-read.
+
+The consequence is that the phone cannot be bound at all — not by hand and not
+through the first-run prompt the guide offers — so *every* phone app is
+unreachable, not just taxi.
+
+Fixed by calling the `onFileChanged` hook both modules export, which is the
+sanctioned way to say "a refresh is due":
+`core_input_actions.onFileChanged` drops the cached action list (actions are
+read lazily, so that alone makes the mod's JSONs visible) and
+`core_input_bindings.onFileChanged` calls `forceRefresh()` to re-resolve
+bindings against it.
+
+**Do not use `extensions.reload()` for this.** It was tried first and visibly
+damaged bindings — the in-game binding legend lost its entries.
+
+### 2. The phone opened via a dead mechanism — *fixed*
+
+`gameplay/phone.lua` used `guihooks.trigger('ChangeState', {state = 'phone-main'})`.
+Nothing in 0.39's Vue app listens for `ChangeState` and navigates.
+
+Switching to `ui_router.navigate` is only half the fix: `ui_router` resolves
+names against the **Lua** route tree, not the Vue router, and static Vue routes
+are invisible to it — `ui-vue/src/router/index.js:114` only syncs runtime ones.
+So the phone's screens are now declared with
+`ui_router_routeManager.registerModRoutes()` (`routeManager.lua:631`), 0.39's
+mod entry point, and released on unload.
+
+Confirmation in the log looks like this:
+
+    Transition started: phone-main
+    Router phase handoff -> mountReady for route: phone-main
+
+### 3. The compiled UI bundle still used the old taxi namespace — *fixed*
+
+After renaming the module to `gameplay_taxiJobs`, `ui-vue-src` was updated but
+`ui/ui-vue/dist/` was not rebuilt, so the shipped bundle still called
+`gameplay_taxi.requestTaxiState()`. That name now correctly resolves to the base
+game's street-hailing taxi, which has no such function:
+
+    FATAL LUA ERROR: attempt to call field 'requestTaxiState' (a nil value)
+
+The error reads as though the mod's module were broken when the call was simply
+going to the wrong module. **Any change under `ui-vue-src/` needs
+`./build_ui.sh` before it takes effect in game.**
+
+### Still to check
+
+Driving to the pickup and completing the drop-off has not been exercised, only
+the phases up to and including accept. `career_modules_payment.reward` and
+`career_modules_inventory.addTaxiDropoff` are the payout path
+(`taxiJobs.lua:1022,1026`).
+
+Minor: `taxiJobs.lua` leaks a global — `set new global variable: "passengerRating"`.
+
+## Taxi work — background
 
 The taxi job system is a shipped, tuned feature, not a work in progress:
 `ReadMe.md:140` documents it ("Pick up passengers with 9 different passenger
