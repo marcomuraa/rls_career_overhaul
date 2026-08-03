@@ -124,8 +124,44 @@ local function unloadAllExtensions()
     extensions.unload("editor_dynamicRoutesEditor")
 end
 
+-- core_input_actions builds its lookup table from
+-- lua/ge/extensions/core/input/actions/*.json during startup, before this mod's
+-- files are reachable. The mod ships three of its own there -- phone.json,
+-- shortcuts.json, guide_recording.json -- so their actions were missing from
+-- the table and any binding referring to them was rejected with
+--     Couldn't find action openPhone in actions lookup table
+-- That made the phone impossible to bind at all, including through the
+-- first-run prompt the guide offers.
+--
+-- Rebuilding the table here picks them up. unloadAllExtensions() already does
+-- the same reload on the way out, for the mirror-image reason.
+local function registerModInputActions()
+    -- Any path under the actions directory will do; both handlers only pattern
+    -- match on it. Nothing reads this particular file as a result.
+    local actionsPath = "/lua/ge/extensions/core/input/actions/phone.json"
+
+    -- Drops the cached action list so the mod's JSONs are picked up on the next
+    -- read. Actions are read lazily from disk, so this is all that is needed.
+    if core_input_actions and core_input_actions.onFileChanged then
+        core_input_actions.onFileChanged(actionsPath)
+    end
+
+    -- Bindings were resolved against the action table while it still lacked the
+    -- mod's actions, so any binding naming one was already discarded. This asks
+    -- for a refresh against the list we just invalidated. It is the mechanism
+    -- the base game provides for exactly this -- see the comment on
+    -- forceRefresh() in core/input/bindings.lua, which exists because
+    -- filesystem notifications are unreliable and code that knows a refresh is
+    -- due should be able to say so.
+    if core_input_bindings and core_input_bindings.onFileChanged then
+        core_input_bindings.onFileChanged(actionsPath)
+    end
+end
+
 local function startup()
     deactivateBeamMP()
+
+    registerModInputActions()
 
     setExtensionUnloadMode("overhaul_overrideManager", "manual")
     extensions.load("overhaul_overrideManager")
