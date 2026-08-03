@@ -814,6 +814,13 @@ local function formatSaveSlotForUi(saveSlot)
     data.vehicleCount = #files
   end
 
+  -- 0.39's profile screen reads profile.startingOptions.startMode directly, so
+  -- this has to be a table even when the save predates starting modes: with it
+  -- absent ProfileHeroCard.vue throws while rendering and the Career Profiles
+  -- screen stays on "Loading..." forever, with no Lua-side error to show for it.
+  data.boughtStarterVehicle = careerData and careerData.boughtStarterVehicle
+  data.startingOptions = (careerData and careerData.startingOptions) or {}
+
   -- add the infoData raw
   if infoData and infoData.version then
     infoData.incompatibleVersion = career_saveSystem.getBackwardsCompVersion() > infoData.version
