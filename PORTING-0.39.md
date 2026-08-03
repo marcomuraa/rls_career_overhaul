@@ -172,18 +172,24 @@ Both hardcode the game path near the top; adjust for your install.
 
 ## Resuming this work
 
-**Current state: a new career starts and loads West Coast USA.** The menu path -
-main menu, profile list, new profile, starting-mode selection, world load - works
-end to end. What has *not* been reached yet is in-world gameplay, because first
-load spends a long time cooking textures for the mod's custom content; every test
-run so far has hit its own timeout during that stage. Re-run with a generous
-timeout (textures are cooked once, later loads are fast) and carry on from there.
+**Current state: the world loads and the loading screen clears, but the UI never
+enters the world.** After the loading screen hides, the Career Profiles screen is
+still displayed, with the 3D scene not rendering behind it. Everything underneath
+is healthy - the level is built, traffic is running (8 vehicles) and the player
+vehicle has spawned.
+
+**This is almost certainly the `career.*` route rename** described below. The
+mod's Lua navigates with `guihooks.trigger('ChangeState', {state = 'play'})` and
+its `routes.js` defines the old flat route names, while 0.39 drives navigation
+through the new router and namespaced routes. Nothing transitions the UI out of
+the profile route once loading completes.
 
 **Next steps, in order:**
 
-1. Get into the world and confirm the player spawns, the garage computer opens,
-   and the mod's phone UI appears. Expect the router-exit holes (issue 3) to bite
-   here - 0.39 routes career screens through `ui/router/routeHandlers.lua`.
+1. Fix the route naming (see below) and confirm the UI transitions into the world
+   after load. Then check the player spawns, the garage computer opens, and the
+   mod's phone UI appears - expect the router-exit holes (issue 3) next, since
+   0.39 routes career screens through `ui/router/routeHandlers.lua`.
 2. Work down the LIVE list above.
 3. Two lower-priority items seen in passing:
    - `loadVehicleOffers: unknown vehicle filterId 'fleetVehFilter' /
@@ -193,7 +199,28 @@ timeout (textures are cooked once, later loads are fast) and carry on from there
    - `career_modules_linearTutorial` is nil at
      `overrides/career/modules/inventory.lua:763`.
 
-### Route naming — not yet addressed
+### Loading screen never cleared — *fixed, verified*
+
+Loading a career left the loading screen up forever with the world fully built
+behind it. The screen only hides once every outstanding request is released, and
+two were stranded on the career path — confirmed by instrumenting the tags:
+
+```
+careerLoading = false     freeroam   = true    <- stranded
+levels        = true      server.lua = false   <- stranded
+```
+
+`freeroam` is taken by `freeroam_freeroam.startFreeroam()` and released when that
+extension finishes starting up — but the overhaul unloads it. `levels` is taken
+by `core_levels.startLevel()` and released through
+`serverConnection.disconnect()`'s state machine, which does not complete here.
+Neither raises an error: holding a request is entirely legal, so the symptom is
+just a screen that never goes away.
+
+Both are now released once the vehicle group has spawned and the camera has been
+handed over, at which point level loading is complete by definition.
+
+### Route naming — the current blocker
 
 0.39 namespaced every career route under `career.*` (`career.computer`,
 `career.profiles`, `career.computer.vehicleShopping`, …) and the base game's Lua
