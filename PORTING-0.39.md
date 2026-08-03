@@ -172,45 +172,84 @@ Both hardcode the game path near the top; adjust for your install.
 
 ## Resuming this work
 
-**Current state: a career loads, the loading screen clears and the menu closes -
-the game reaches the play state, but the world does not render.** The screen is
-flat grey with debug overlays on top. Everything underneath is healthy: the level
-is built, traffic is running (8 vehicles) and the player vehicle has spawned.
+**Current state: a career loads, the loading screen clears, the menu closes and
+the game reaches the play state — but the world renders as flat grey.**
 
-Two concrete leads, both visible on screen:
+### What the grey screen is *not*
 
-**ImGui state is corrupted.** The mod's minimap leaves an unbalanced ImGui frame:
+Each of these was checked against the running game and ruled out, so they do not
+need checking again:
 
-```
-[imgui-error] In window 'SDF Minimap': Missing End()
-[imgui-error] In window 'Debug##Default': Missing PopStyleColor()   (x3)
-[imgui-error] In window 'Debug##Default': Missing PopStyleVar()
-```
+- **Not the ImGui corruption.** The minimap overrides were stale 0.38 copies and
+  did leave an unbalanced ImGui frame (see the minimap entry above). Removing
+  them takes `[imgui-error]` from five per frame to **zero** — and the world is
+  still grey. Worth fixing on its own merits; not the cause.
+- **Not lighting.** ScatterSky initialises fully (8404 stars, coordinate and
+  equatorial grids, 743 constellation segments). No postfx or tonemapper errors.
+- **Not materials.** Exactly **one** missing texture in the whole session
+  (`rls_signs/sign1_o.data.png`, a mod asset) and two unmapped materials. A
+  wholesale material failure would produce thousands.
+- **Not shaders.** No compile failures logged.
+- **Not the UI covering the viewport.** Alt+U hides the UI entirely and the grey
+  remains, with correct geometry visible as untextured silhouettes — skyline,
+  buildings, road, treeline all in the right places.
 
-A missing `End()` corrupts the whole ImGui frame, so this is a strong candidate
-for the broken rendering rather than a cosmetic complaint. Look at
-`lua/ge/extensions/overrides/ui/apps/minimap/minimap.lua` — an early return
-between `Begin()` and `End()` is the usual cause, and 0.39 may have changed a
-call it guards on.
+So the geometry is present and correctly placed, and the renderer is healthy
+enough to draw the main menu's level beautifully in the same session. Something
+specific to the career load path is flattening the image.
 
-**A UI app fails to resolve:** `Unknown app: messagesTasksApps`.
+### The open lead
 
-**Next steps, in order:**
+The look is soft-edged, desaturated and over-bright — visually identical to the
+blurred menu background in the career-warning dialog screenshot. 0.39 drives that
+through `ui/gameBlur.lua` plus `ui-vue/src/services/gameBlur.js`, where a Vue view
+registers a blur region on mount and clears it on unmount via
+`ui_gameBlur.replaceGroup("uiBlur", ...)`.
 
-1. Fix the unbalanced ImGui frame in the minimap override, then re-check whether
-   the world renders.
-2. Resolve `Unknown app: messagesTasksApps`.
-3. Then check the garage computer and the mod's phone UI - expect the
-   router-exit holes (issue 3) next, since 0.39 routes career screens through
-   `ui/router/routeHandlers.lua`.
-4. Work down the LIVE list above.
-5. Two lower-priority items seen in passing:
-   - `loadVehicleOffers: unknown vehicle filterId 'fleetVehFilter' /
-     'policeFleetVehFilter' / 'exoticVehFilter'` from
-     `overrides/career/modules/delivery/generator.lua` — the mod's vehicle
-     filters are not registering.
-   - `career_modules_linearTutorial` is nil at
-     `overrides/career/modules/inventory.lua:763`.
+If the mod's UI never cleanly leaves its menu route, that region is never
+released and the blur stays over the game. This is consistent with the route
+problem below, and would make route naming the *cause* of the grey screen rather
+than a separate cosmetic issue.
+
+**Caveat: not yet confirmed.** `ui_gameBlur` never appears in the log, which is
+weak evidence against it. The cheap discriminating test is to load **freeroam**
+on the same level with the mod active: freeroam does not go through the career
+routes, so if freeroam renders correctly and career does not, the career UI path
+is implicated. If both are grey the cause is elsewhere entirely and this lead
+should be dropped.
+
+### Route naming — the likely root cause
+
+0.39 namespaced every career route and nested them:
+
+| | Routes | Naming |
+|---|---|---|
+| 0.39 base | 33 | `career.computer.vehicleShopping.vehicles` |
+| Mod | 71 | `computer`, `vehicleShopping`, `profiles` |
+
+`ui-vue-src/modules/career/routes.js` replaces the whole table with flat 0.38
+names, while 0.39's Lua references the namespaced ones 58+ times. The ~38 extra
+routes are genuine mod features (phone, loans, car meets, garages, auctions) and
+must be kept — namespaced — not dropped.
+
+0.39 also added `ui/router/routeHandlers.lua`, which resolves back/exit buttons
+by name to `career_modules_*.request*Exit()`. Those functions are missing from
+the mod's overrides (issue 3), so backing out of the vehicle shop, part shop or
+inventory picker does nothing.
+
+### Next steps, in order
+
+1. Run the freeroam control test described above to confirm or drop the blur
+   lead. **Do this first** — it decides whether the route rebase fixes rendering
+   or is merely correctness work.
+2. Rebase `ui-vue-src/modules/career/routes.js` onto 0.39's namespaced,
+   nested table, keeping the mod's own routes.
+3. Add the router exit handlers (issue 3).
+4. Resolve `Unknown app: messagesTasksApps`.
+5. Work down the LIVE list above.
+6. Lower priority: `loadVehicleOffers: unknown vehicle filterId 'fleetVehFilter'
+   / 'policeFleetVehFilter' / 'exoticVehFilter'` from
+   `overrides/career/modules/delivery/generator.lua`.
 
 ### Loading screen never cleared — *fixed, verified*
 
