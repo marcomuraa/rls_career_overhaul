@@ -767,6 +767,13 @@ local function formatSaveSlotForUi(saveSlot)
   local data = {}
   data.id = saveSlot
 
+  -- 0.39's ProfileHeroCard.vue reads profile.startingOptions.startMode directly
+  -- and throws on undefined, which aborts the render and freezes the profile
+  -- screen. Default it here rather than further down so that the early return
+  -- below - taken by a profile whose first save has not been written yet - is
+  -- covered too.
+  data.startingOptions = {}
+
   -- Add preview image based on level
   local levelPreviewMap = {
     west_coast_usa = "/ui/modules/career/profilePreview_WCUSA.jpg"
@@ -893,12 +900,10 @@ local function formatSaveSlotForUi(saveSlot)
     data.vehicleCount = #files
   end
 
-  -- 0.39's profile screen reads profile.startingOptions.startMode directly, so
-  -- this has to be a table even when the save predates starting modes: with it
-  -- absent ProfileHeroCard.vue throws while rendering and the Career Profiles
-  -- screen stays on "Loading..." forever, with no Lua-side error to show for it.
   data.boughtStarterVehicle = careerData and careerData.boughtStarterVehicle
-  data.startingOptions = (careerData and careerData.startingOptions) or {}
+  if careerData and careerData.startingOptions then
+    data.startingOptions = careerData.startingOptions
+  end
 
   -- add the infoData raw
   if infoData and infoData.version then
