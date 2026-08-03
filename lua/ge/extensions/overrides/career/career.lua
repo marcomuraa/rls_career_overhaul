@@ -1031,6 +1031,14 @@ M.deactivateCareerAndReloadLevel = deactivateCareerAndReloadLevel
 M.isActive = isActive
 M.sendAllCareerSaveSlotsData = sendAllCareerSaveSlotsData
 M.sendCurrentSaveSlotData = sendCurrentSaveSlotData
+
+-- 0.39 renamed these along with the save-slot -> career-profile change. The
+-- names matter beyond bookkeeping: util/asyncBulkLoader.lua calls
+-- sendAllCareerProfilesData() at the end of its load job, and because this
+-- override replaces career.lua wholesale, its absence killed the job and left
+-- the Career Profiles screen stuck on "Loading...".
+M.sendAllCareerProfilesData = sendAllCareerSaveSlotsData
+M.sendCurrentProfileData = sendCurrentSaveSlotData
 M.getAutosavesForSaveSlot = getAutosavesForSaveSlot
 M.hasBoughtStarterVehicle = hasBoughtStarterVehicle
 M.hasInteractedWithOrganization = hasInteractedWithOrganization

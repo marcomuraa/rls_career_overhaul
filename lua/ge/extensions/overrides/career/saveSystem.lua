@@ -442,6 +442,33 @@ local function getBackwardsCompVersion()
   return backwardsCompVersion
 end
 
+-- 0.39 renamed the save-slot concept to "career profiles". This override
+-- replaces the whole module, so every base-game caller that was not also
+-- overridden here - career.lua, branches.lua, leagues.lua, log.lua, logbook.lua
+-- and others - looks for the new names and would otherwise hit nil. The
+-- implementations are unchanged; only the vocabulary differs.
+M.getCurrentProfile = getCurrentSaveSlot
+M.getAllProfiles = getAllSaveSlots
+M.getAllSaveFolders = getAllAutosaves
+M.setProfile = setSaveSlot
+M.removeProfile = removeSaveSlot
+
+-- The base game addresses a profile by full path here, whereas getAutosave takes
+-- the slot name and prepends saveRoot itself. It only ever passes
+-- getSaveRootDirectory() .. profile, so recovering the trailing component is
+-- enough. Returns "" when there is no save, matching the base-game contract.
+local function getNewestSave(profilePath)
+  local slotName = string.match(tostring(profilePath), "([^/]+)/?$")
+  if not slotName then return "" end
+  return (getAutosave(slotName, false)) or ""
+end
+M.getNewestSave = getNewestSave
+
+-- 0.39 gives profiles a display name distinct from their folder name. This mod
+-- has no such concept and callers fall back to the folder name when this is nil,
+-- so returning nothing is correct - it just must not be a nil field.
+M.getCurrentDisplayName = nop
+
 M.onUpdate = onUpdate
 M.setSaveSlot = setSaveSlot
 M.removeSaveSlot = removeSaveSlot
