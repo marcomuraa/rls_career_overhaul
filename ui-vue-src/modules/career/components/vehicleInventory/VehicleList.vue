@@ -125,12 +125,10 @@ import { $translate } from "@/services/translation"
 import { usePopover } from "@/services/popover"
 import { uniqueId } from "@/services/uniqueId"
 import ListVehicleDialog from "./ListVehicleDialog.vue"
-import { useLibStore } from "@/services"
 import router from "@/router"
 
-const { units } = useBridge()
+const { events, units } = useBridge()
 
-const { $game } = useLibStore()
 const popover = usePopover()
 const popId = uniqueId("veh_options")
 const popHide = () => popover.hide(popId)
@@ -523,7 +521,7 @@ const toggleGroup = (garageId) => {
 
 const isCollapsed = (garageId) => !!collapsedGroups.value[String(garageId)]
 
-$game.events.on('addListing', (data) => {
+events.on('addListing', (data) => {
   const vehicle = listView.value.find(v => v.id === data.inventoryId)
   listVehicleForSaleFromMarketplaceMenu(vehicle)
 })
@@ -533,7 +531,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  $game.events.off('addListing')
+  events.off('addListing')
 })
 
 

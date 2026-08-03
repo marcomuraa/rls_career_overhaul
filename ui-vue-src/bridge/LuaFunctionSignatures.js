@@ -1,8 +1,4 @@
-import { Any, Integer, run, runRaw } from "./libs/Lua.js"
-import { getMockedData } from "../../devutils/mock.js"
-import { sendGUIHook } from "../../devutils/browser.js"
-
-const withMocked = (sig, getData) => ((sig.mocked = getData), sig)
+import { Any, Integer, Optional } from "./libs/luaTypes.js"
 
 // Define Lua function signatures, and normal functions here
 //
@@ -13,6 +9,7 @@ const withMocked = (sig, getData) => ((sig.mocked = getData), sig)
 //    undefined/falsey - all parameter types will be as passed in arguments
 //    String/Number/etc. - all params will be converted to correct type
 //    [String, Number, ...] - params will convert according that specified for each one
+//    Optional(String) - marks a trailing argument as optional
 //
 // If a normal function is used, it will not be transformed.
 //
@@ -27,27 +24,16 @@ const withMocked = (sig, getData) => ((sig.mocked = getData), sig)
 //
 
 export default {
-  // -- Dev -----------------------------------------------------------------------
-  dev: {
-    getMockedData: key => String,
-  },
-
-  // -- Real ----------------------------------------------------------------------
-
-  // TODO - incomplete, add as neeeded
-
   getVehicleColor: () => {},
   getVehicleColorPalette: index => Integer,
   resetGameplay: playerID => Integer,
   quit: () => {},
   checkFSErrors: () => {},
   returnToMainMenu: () => {},
+  getClipboard: () => {},
 
-
-
-  guihooks: {
-    // can take multiple params - just add them individually after the hook name
-    trigger: withMocked(hookName => String, sendGUIHook),
+  ui_uiStateManager: {
+    uiReady: uiType => String,
   },
 
   simTimeAuthority: {
@@ -56,84 +42,140 @@ export default {
     pause: (state) => Boolean,
     pushPauseRequest: (id) => String,
     popPauseRequest: (id) => String,
+    requestValue: () => {},
+    get: () => {},
+    set: value => Number,
+  },
+
+  screenshot: {
+    getPhotomodeRollEntriesJson: limit => Number,
+    getScreenshotJobsSnapshotJson: () => {},
+    openScreenshotsFolderInExplorer: () => {},
+    openScreenshotFileInExplorer: filePath => String,
   },
 
   commands: {
     toggleCamera: () => {},
   },
 
+  multiplayer_multiplayer: {
+
+  },
+
+  multiplayer_uiBackend_sessionListProvider: {
+    requestLocalSessionsDataForUI: () => {},
+  },
+
+  multiplayer_sessionManager: {
+    getSessionPlayersForUI: () => {},
+    getSessionInviteInfoForUI: () => {},
+    openInviteDialogForCurrentSession: () => {},
+    setSettingsDataFromUI: (sessionSettings, extraOptions) => [Object, Object],
+    getSettingsDataForUI: () => {},
+    createSessionFromUI: (useCurrentLevel, sessionSettings, extraOptions) => [Boolean, Object, Object],
+    leaveCurrentSession: () => {},
+    cancelJoiningSession: () => {},
+    joinSessionThruLAN: sessionId => String,
+    joinSessionThruSessionsServer: sessionId => String,
+    requestSessionInfoForUI: sessionId => String,
+    findSessionByConnectionForUI: (connection) => [String],
+    getSessionHistory: (shouldSort) => [Object],
+    getCurrentSession: () => {},
+    downloadMissingMods: () => {},
+  },
+
+  multiplayer_uiBackend_multiplayerUIManager: {
+    requestMultiplayerTabData: () => {},
+    applyPauseSessionExtraOptions: extraOptions => Object,
+    startGamemode: (gamemodeName, settings) => [String, Object],
+    stopGamemode: () => {},
+    startReadyUp: (gamemodeInfo) => Object,
+    stopReadyUp: () => {},
+    respondToReadyUp: (role) => String,
+    requestSetOwnGamemodeRole: (role) => String,
+    selectGamemodeForOwner: (name) => String,
+    deselectGamemodeForOwner: () => {},
+    setOwnerPreReadyRole: (role) => String,
+  },
+
+  multiplayer_uiBackend_playerListProvider: {
+    requestMultiplayerPlayerListData: () => {},
+    executePlayerAction: (buttonId, payload) => [Integer, Any],
+  },
+
+  ui_pause_providers_nearbyActivities: {
+    executeNearbyActivityAction: (buttonId, payload) => [Integer, Any],
+  },
+  ui_pause_providers_routeData_environment: {
+    requestEnvironmentTrafficPayload: payload => Any,
+  },
+  ui_pause_providers_trafficControls: {
+    executeTrafficControlAction: (buttonId, payload) => [Integer, Any],
+  },
+  ui_pause_providers_vehicleTabInteractions: {
+    executeVehicleTabInteractionAction: (buttonId, payload) => [Integer, Any],
+    requestSpawnedVehiclesPayload: payload => Any,
+    requestSpawnedSelectedVehiclePayload: payload => Any,
+    setAsyncHydrationDebugDelay: delaySec => Number,
+    getAsyncHydrationDebugDelay: () => Number,
+    onVehicleHoverStart: (vehicleId) => Any,
+    onVehicleHoverEnd: (vehicleId) => Any,
+  },
+
+  multiplayer_uiBackend_notificationManager: {
+    acceptInvite: lobbyId => Integer,
+    ignoreInvite: lobbyId => Integer,
+  },
+
+  multiplayer_gamemodes_tag_tag: {
+    onRoundStart: () => {},
+  },
+
+  multiplayer_gamemodes_utils_spectator: {
+    getSpectatorViewData: () => {},
+    cyclePlayer: direction => Integer,
+    setCameraMode: modeName => String,
+  },
+
   ui_audio: {
-    playEventSound: (soundClass, type) => [String, String],
+    playEventSound: (soundClass, eventName, instanceId) => [String, String, Optional(Any)],
+    startHoldActivateSound: instanceId => Optional(Any),
+    completeHoldActivateSound: instanceId => Optional(Any),
+    cancelHoldActivateSound: instanceId => Optional(Any),
   },
 
   career_career: {
     closeAllMenus: () => {},
     isActive: () => {},
+    sendAllCareerProfilesData: () => {},
+    sendCurrentProfileData: () => {},
+    createOrLoadCareerAndStart: (id, specificAutosave, startingOptions) => [String, Any, Object],
+    getStartingModeOptions: () => {},
+    getSaveFoldersForProfile: id => String,
+
+    // --- RLS Career Overhaul additions ---
     sendAllCareerSaveSlotsData: () => {},
     sendCurrentSaveSlotData: () => {},
-    createOrLoadCareerAndStart: (id, specificAutosave, tutorial, hardcore, challengeId, cheats, startingMap, difficultyMode) => [String, Any, Boolean, Boolean, Any, Boolean, Any, String],
   },
 
   career_saveSystem: {
-    saveCurrent: () => {},
+    saveCurrent: (vehiclesThumbnailUpdate, playSuccessSound, saveName) => [Any, Any, Optional(String)],
+    removeProfile: id => String,
+    removeSaveFolder: (profile, saveFolderName) => [String, String],
+    renameProfile: (name, newName) => [String, String],
+
+    // --- RLS Career Overhaul additions ---
     removeSaveSlot: id => String,
     renameSaveSlot: (name, newName) => [String, String],
     duplicateSaveSlot: (sourceName, newName) => [String, String],
   },
 
-  career_challengeModes: {
-    discoverChallenges: () => {},
-    getChallengeOptionsForCareerCreation: () => {},
-    getChallengeEditorData: () => {},
-    getChallengeDropdownDataLight: () => {},
-    getSingleChallengeForUI: id => String,
-    createChallengeFromUI: data => Any,
-    startChallenge: id => String,
-    getActiveChallenge: () => {},
-    isChallengeActive: () => {},
-    requestChallengeCompleteData: () => {},
-    getChallengeSeeded: id => String,
-    requestChallengeSeeded: id => {},
-    getChallengeDataForEdit: id => String,
-    requestChallengeDataForEdit: id => {},
-    deleteChallenge: id => String,
-    encodeChallengeDataToSeed: data => Any,
-    decodeSeedToChallengeData: seed => String,
-    requestGenerateRandomSeed: () => {},
-    requestSeedEncode: (requestId, challengeData) => [String, Any],
-    requestSeedDecode: (requestId, seed) => [String, String],
-    createChallengeFromSeedUI: (seed, name, description) => [String, String, String],
-    generateRandomChallengeData: () => {}
-  },
-
   career_modules_uiUtils: {
-    getCareerStatusData: withMocked(
-      () => {},
-      () => getMockedData("career.status")
-    ),
-    getCareerSimpleStats: withMocked(
-      () => {},
-      () => getMockedData("career.simpleStats")
-    ),
+    getCareerStatusData: () => {},
+    getCareerSimpleStats: () => {},
     getCareerPauseContextButtons: () => {},
     callCareerPauseContextButtons: id => Number,
     getCareerCurrentLevelName: () => {},
-  },
-
-  career_modules_globalEconomy: {
-    requestMarketWatchData: () => {},
-    getGlobalIndex: () => {},
-    getJobMarketIndex: () => {},
-    getVehicleMarketIndex: () => {},
-    getHousingMarketIndex: () => {},
-    getVehicleBuyMultiplier: () => {},
-    getVehicleSellMultiplier: () => {},
-    getEconomySummary: () => {},
-    getCyclePhase: () => {},
-    getMomentum: () => {},
-    getMarketHistory: () => {},
-    getNewsArticles: () => {},
-    performEconomyTick: () => {},
   },
 
   career_modules_fuel: {
@@ -147,16 +189,14 @@ export default {
   },
 
   career_modules_logbook: {
-    getLogbook: withMocked(
-      () => {},
-      () => getMockedData("logbook.sample")
-    ),
+    getLogbook: () => {},
     setLogbookEntryRead: (id, state) => [String, Boolean],
   },
 
   career_modules_milestones_milestones: {
     getMilestones: () => {},
     claim: id => Number,
+    claimAllUnclaimed: () => {},
     unclaimedMilestonesCount: () => {},
   },
 
@@ -165,6 +205,7 @@ export default {
     getBranchSkillCardData: id => String,
     getBranchPageData: id => String,
     getLandingPageData: domain => String,
+    getSuggestedMissionsForDomain: domain => String,
     getCargoProgressForUI: () => {},
   },
 
@@ -177,21 +218,24 @@ export default {
   },
 
   career_modules_vehicleShopping: {
-    showVehicle: id => String,
-    navigateToPos: (pos, vehicleId) => Object, // vehicleId is optional
+    showVehicle: id => Number,
+    navigateToPos: pos => Object,
     openShop: (seller, computerId) => [Any, Any], // i think this needs to be Any instead of String to also allow nil
     cancelShopping: () => {},
-    quickTravelToVehicle: id => String,
-    openPurchaseMenu: (purchaseType, shopId) => [String, String],
+    quickTravelToVehicle: id => Number,
+    openPurchaseMenu: (purchaseType, shopId) => [String, Number],
     updateInsuranceSelection: insuranceId => Number,
     openInventoryMenuForTradeIn: () => {},
     buyFromPurchaseMenu: (purchaseType, options) => [String, Any],
     cancelPurchase: purchaseType => String,
-    getShoppingData: () => {},
+    sendShoppingDataToUI: () => {},
     sendPurchaseDataToUi: () => {},
     removeTradeInVehicle: () => {},
     onShoppingMenuClosed: () => {},
-    // lightweight refresh + navigation helpers
+    selectSeller: sellerId => String,
+
+    // --- RLS Career Overhaul additions ---
+    getShoppingData: () => {},
     updateVehicleList: fromScratch => Boolean,
     navigateToDealership: dealershipId => String,
     taxiToDealership: dealershipId => String,
@@ -236,7 +280,6 @@ export default {
   career_modules_inventory: {
     sellVehicle: id => Number,
     sellVehicleFromInventory: id => Number,
-    instantSellVehicle: id => Number,
     returnLoanedVehicleFromInventory: id => Number,
     expediteRepairFromInventory: (inventoryId, price) => [Number, Number],
     enterVehicle: id => Number,
@@ -247,7 +290,6 @@ export default {
     sendDataToUi: () => {},
     removeVehicleObject: id => Number,
     getVehicle: id => Number,
-    getVehicles: () => {},
     getVehicleUiData: id => Number,
     isEmpty: () => {},
     setLicensePlateText: (inventoryId, text) => [Number, String],
@@ -256,6 +298,10 @@ export default {
     isVehicleNameValid: text => String,
     renameVehicle: (inventoryId, name) => [Number, String],
     openInventoryMenuForChoosingListing: () => {},
+
+    // --- RLS Career Overhaul additions ---
+    instantSellVehicle: id => Number,
+    getVehicles: () => {},
     getVehiclesForSale: () => {},
     removeVehicleFromSale: id => Number,
     removeVehicle: id => Number,
@@ -276,9 +322,11 @@ export default {
   career_modules_partInventory: {
     openMenu: computerId => Any,
     closeMenu: () => {},
-    sendUIData: () => {},
     sellParts: ids => Array,
     partInventoryClosed: () => {},
+
+    // --- RLS Career Overhaul additions ---
+    sendUIData: () => {},
   },
 
   career_modules_insurance_insurance: {
@@ -302,6 +350,8 @@ export default {
     sendChooseInsuranceDataToTheUI: (purchaseType, shopId, defaultInsuranceId) => [String, Number, Number],
     sendChangeInsuranceDataToTheUI: (vehicleId) => [Number],
     resetDriverScore: () => {},
+
+    // --- RLS Career Overhaul additions ---
     getTestDriveClaimPrice: () => {},
     getTestDriveDamagePlayerShare: () => {},
   },
@@ -310,7 +360,7 @@ export default {
     getRepairData: () => {},
     closeMenu: () => {},
     startRepairInGarage: (invVehId, repairOptionData) => [Number, Object],
-    openRepairMenu: (vehicleInfo, originComputerId) => [Object, Any]
+    openRepairMenu: (vehicleInfo, originComputerId) => [Object, Any],
   },
 
   career_modules_playerAbstract: {
@@ -336,6 +386,8 @@ export default {
     setPaints: paint => Object,
     getFactoryPaint: () => {},
     onUIOpened: () => {},
+    sendPaintingDataToUI: () => {},
+    cleanup: () => {},
   },
 
   career_modules_questManager: {
@@ -393,15 +445,24 @@ export default {
     activateSound: (soundLabel, active) => [String, Boolean],
   },
 
-  career_modules_linearTutorial: {
+  career_modules_tutorialPopups: {
     introPopup: (key, force) => [String, Boolean],
     wasIntroPopupsSeen: pages => Array,
-    isLinearTutorialActive: () => {},
   },
 
   gameplay_drag_dragBridge: {
     getHistory: (id) => Object,
     screenshotTimeslip: () => {},
+    openRulesScreen: facility => Object,
+    getRulesScreenData: (facilityIdOrStripId) => Object,
+    applyRulesSave: (levelId, stripId, rules) => [String, String, Object],
+    applyRulesRestore: (levelId, stripId) => Object,
+    getDragInfoData: () => {},
+    getDragDialData: () => {},
+    getTreeLightUIState: () => {},
+    setLocalPlayerDial: (value) => [Number],
+    showDialControl: () => {},
+    getStripLaneInfo: () => {},
   },
 
   gameplay_crashTest_scenarioManager: {
@@ -420,17 +481,23 @@ export default {
 
   core_replay: {
     onInit: () => {},
-    loadFile: filename => String,
+    loadFile: (filename, autoplay, options) => [String, Boolean, Optional(Any)],
+    getPlaybackContext: filename => String,
+    logUiAction: (scope, data) => [String, Optional(Any)],
     stop: () => {},
     openReplayFolderInExplorer: () => {},
     getRecordings: () => {},
     removeRecording: filename => String,
     togglePlay: () => {},
     toggleRecording: () => {},
+    startRecording: () => {},
+    stopRecording: options => Optional(Any),
     cancelRecording: () => {},
+    stopAndUnload: () => {},
     toggleSpeed: speed => Number,
-    pause: () => {},
+    pause: state => Optional(Boolean),
     seek: positionPercent => Number,
+    jumpTime: seconds => Number,
     acceptRename: (oldFilename, newFilename) => [String, String],
     saveMissionReplay: filename => String,
     removeMissionSavedReplay: filename => String,
@@ -440,14 +507,42 @@ export default {
 
   core_gamestate: {
     requestGameState: () => {},
+    getGameState: () => {},
+    loading: () => {},
     loadingScreenActive: () => {},
+    loadingScreenInactive: state => String,
+  },
+
+  core_environment: {
+    getTimeOfDay: () => {},
+    setTimeOfDay: state => Object,
+    getState: () => {},
+    getInitState: () => {},
+    setState: (state, lerpSeconds) => [Object, Optional(Number)],
+    requestState: () => {},
+    getTimeOfDayOptions: levelIdentifier => Optional(String),
+    getGravityPresets: () => {},
+    getSimSpeedPresets: () => {},
+    syncTimeToRealClock: lerpSeconds => Optional(Number),
+    syncTimeToRealClockUtc: lerpSeconds => Optional(Number),
+    getCloudWeatherOffsetKm: () => {},
+    setCloudWeatherOffsetKm: offsetKm => Object,
+    resetCloudWeatherOffsetKm: () => {},
+    regenerateWeatherMap: seed => Optional(Number),
+    resetTireMarks: () => {},
+    saveTireMarks: filename => Optional(String),
+    loadTireMarks: filename => Optional(String),
+  },
+
+  core_celestial: {
+    getState: () => {},
+    setNorthOffset: deg => Number,
+    setMeteorRatePreset: preset => String,
+    setDisplayOption: (key, value) => [String, Boolean],
   },
 
   core_gameContext: {
-    getGameContext: withMocked(
-      params => {},
-      params => getMockedData("gameContext.gameContextData")
-    ),
+    getGameContext: () => {}, // has params in lua but they don't do anything
   },
 
   core_online: {
@@ -456,7 +551,13 @@ export default {
 
   core_hardwareinfo: {
     requestState: () => {},
+    requestInfo: () => {},
     getInfo: () => {},
+    runPhysicsBenchmark: () => {},
+    latestBenchmarkExists: () => {},
+    latestBananbench: () => {},
+    acknowledgeWarning: warning => String,
+    runDiskUsage: () => {},
   },
 
   gameplay_statistic: {
@@ -486,6 +587,7 @@ export default {
 
   freeroam_bigMapMode: {
     enterBigMap: (instant) => Object,
+    enterBigMapWithCustomPOIs: (poiIds, callback, options) => [Array, Any, Object],
     exitBigMap: (force) => Boolean,
     setBigmapScreenBounds: (windowBounds, mapBounds) => [Object, Object],
     navigateToMission: (poiId) => String,
@@ -494,9 +596,15 @@ export default {
     teleportToPoi: (poiId) => String,
     setOnlyIdsVisible: (poiIds) => Array,
     deselect: () => {},
-    openPopupCallback: () => {},
     toggleBigMap: () => {},
     setUiFocus: (focus) => Boolean,
+    enableBigMapControls: (enable) => Boolean,
+    setUiNavigationActive: (active) => Boolean,
+    bigMapActive: () => {},
+    isTransitionActive: () => {},
+
+    // --- RLS Career Overhaul additions ---
+    openPopupCallback: () => {},
   },
 
   freeroam_bigMapPoiProvider: {
@@ -516,11 +624,34 @@ export default {
     getCurrentVehicleTile: () => {},
     setSpawnPoint: (levelName, spawnPointName, key) => [String, String, String],
     setVehicle: (model, config, additionalData, key) => [String, String, Object, String],
+    setWizardBrowseLevel: levelName => String,
+    clearWizardBrowseLevel: () => {},
+    setWizardBrowseVehicle: (model, subModel, brand, config) => [String, String, String, String],
+    clearWizardBrowseVehicle: () => {},
+    getWizardBrowseState: () => {},
+    setWizardSearchForStep: (step, searchText) => [String, String],
+    getWizardSearchForStep: step => String,
+    clearWizardSearchForStep: step => String,
+    setWizardFiltersForStep: (step, filtersPayload) => [String, Object],
+    getWizardFiltersForStep: step => String,
+    clearWizardFiltersForStep: step => String,
+
+    // --- RLS Career Overhaul additions ---
     doubleClickOverride: (item) => [Object],
   },
 
   gameplay_taxi: {
     startTaxiWithCurrentRoute: () => {},
+    confirmTaxiDestination: () => {},
+    getTaxiViewData: () => {},
+    onHurryUpCalled: () => {},
+    onSlowDownCalled: () => {},
+    onSkipCalled: () => {},
+    onChangeDestinationCalled: () => {},
+    onStopTaxiCalled: () => {},
+    setIdleCameraEnabled: (enabled) => Boolean,
+
+    // --- RLS Career Overhaul additions ---
     prepareTaxiJob: () => {},
     acceptJob: () => {},
     rejectJob: () => {},
@@ -531,7 +662,7 @@ export default {
   },
 
   freeroam_vueBigMap: {
-    enterBigMap: () => {},
+    enterBigMap: (options) => [Object],
     exitBigMap: () => {},
 
     getPoiData: () => {},
@@ -541,9 +672,12 @@ export default {
     toggleFilterSectionById: (sectionId) => Object,
     getGameStateInfo: () => {},
 
-    selectPoiFromList: (poiId) => String,
+    selectPoiFromList: (poiId, isCollapsedMode) => [String, Boolean],
+    panToPoi: (poiId) => String,
     hoverPoiFromList: (poiId, active) => [String, Boolean],
     executePoiAction: (actionId) => Number,
+    setPoiListDisplayMode: (mode) => String,
+    getAndClearPendingAutoSelectPoiId: () => Optional(String),
 
   },
 
@@ -551,11 +685,15 @@ export default {
     startTrackBuilder: mapName => String,
   },
 
+  gameplay_discover_freeroamTutorial_pauseDataProvider: {
+    executePauseAction: (buttonId, payload) => [Integer, Any],
+  },
+
   extensions: {
-    isExtensionLoaded: extensionName => Boolean,
+    isExtensionLoaded: extensionName => String,
     load: extensionName => String,
     unload: extensionName => String,
-    hook: hook => String,
+    hook: (hookName, payload) => [String, Optional(Any)],
     ui_messagesDebugger: {
       show: () => {},
       hide: () => {},
@@ -584,8 +722,21 @@ export default {
       getRecentDevices: () => {},
     },
 
+    core_input_tests: {
+      startTests: testIds => Object,
+      updateUI: () => {},
+    },
+
+    core_locales: {
+      getLocale: locale => String,
+      getScrambleTranslationDebugEnabled: () => {},
+      setScrambleTranslationDebugEnabled: enabled => Boolean,
+    },
+
     core_vehicle_partmgmt: {
       getConfigList: () => {},
+      validatePaints: () => {},
+      getCurrentLicensePlate: () => {},
       highlightParts: (parts, vehID) => [Object, Number],
       loadLocal: filename => String,
       resetPartsToLoadedConfig: () => {},
@@ -594,18 +745,26 @@ export default {
       openConfigFolderInExplorer: () => {},
       removeLocal: configName => String,
       savedefault: () => {},
-      saveLocal: filename => String,
+      getSaveAvailability: () => {},
+      saveNewLocalConfig: (configurationName, settings, metadata) => [String, Object, Optional(Object)],
+      saveExistingLocalConfig: (fileName, configurationName, settings, metadata) => [String, String, Object, Optional(Object)],
       sendDataToUI: () => {},
       selectPart: (part, subparts) => [String, Boolean],
       selectParts: (parts, vehID) => [Object, Number],
       selectReset: () => {},
       setConfigVars: vars => Object,
       setPartsConfig: config => Object, // deprecated
-      setPartsTreeConfig: config => Object, // there's also second "respawn" argument for this
+      setPartsTreeConfig: (config, respawn, part) => [Object, Boolean, Any],
       showHighlightedParts: vehID => Number,
       setDynamicTextureMaterials: () => {},
       partsSelectorChanged: parts => Object,
       sendPartsSelectorStateToUI: () => {},
+    },
+
+    core_vehicle_thumbnail: {
+      captureTemporaryThumbnail: () => {},
+      getTemporaryThumbnail: () => {},
+      clearTemporaryThumbnail: () => {},
     },
 
     core_vehicle_mirror: {
@@ -620,10 +779,7 @@ export default {
     },
 
     gameplay_missions_missionScreen: {
-      getMissionScreenData: withMocked(
-        () => {},
-        () => getMockedData("missionDetails.getMissionScreenData")
-      ),
+      getMissionScreenData: () => {},
       startMissionById: (missionId, userSettings, startingOptions) => [String, Object, Object],
       stopMissionById: id => [String],
       changeUserSettings: (missionId, userSettings) => [String, Object],
@@ -632,8 +788,8 @@ export default {
       requestStartingOptionsForUserSettings: (id, userSettings) => [String, Object],
       isAnyMissionActive: () => {},
       isMissionStartOrEndScreenActive: () => {},
-      openAPMChallenges: (branch, skill) => [String, String],
-      navigateToMission: id => [String],
+      openAPMChallenges: (branch, skill, routeTarget, routeParams) => [String, String, Optional(String), Optional(Object)],
+      navigateToMission: (id, routeTarget, routeParams) => [String, Optional(String), Optional(Object)],
       setPreselectedMissionId: id => [String],
       showMissionRules: id => [String],
       getMissionTiles: () => {},
@@ -751,6 +907,10 @@ export default {
 
     ui_liveryEditor_controls: {
       toggleUseMousePos: () => {},
+    },
+
+    ui_vehicleRadarApp: {
+      updateSetting: (key, value) => [String, Any],
     },
 
     ui_liveryEditor_history: {
@@ -909,6 +1069,10 @@ export default {
       deleteSaveFile: filename => String,
     },
 
+    ui_menuManager: {
+      toggleMenu: () => {},
+    },
+
     ui_gameBlur: {
       replaceGroup: (groupName, list) => [String, Object],
     },
@@ -917,17 +1081,154 @@ export default {
       onScreenFadeStateDelayed: state => Integer,
     },
 
+    util_asyncBulkLoader: {
+      loadVehiclesDirect: () => {},
+      loadMissionsDirect: () => {},
+      loadGameplaySelectorDirect: () => {},
+      loadLevelsDirect: () => {},
+      loadVehicles: () => {},
+      loadMissions: () => {},
+      loadGameplaySelector: () => {},
+      loadLevels: () => {},
+      sendAllCareerSaveSlotsDataAsync: () => {},
+      isVehiclesLoaded: () => {},
+      isMissionsLoaded: () => {},
+      isGameplaySelectorLoaded: () => {},
+      isLevelsLoaded: () => {},
+    },
+
+
     ui_router: {
       addOrUpdateRoute: (route, config, options) => [String, Object, Object],
+      navigate: (routeName, params, options) => [String, Object, Object],
       push: (routeName, params) => [String, Object],
+      replace: (routeName, params) => [String, Object],
       back: () => {},
       forward: () => {},
       loadComplete: uiType => String,
-      routeChangeComplete: uiType => String,
+      routeChangeComplete: (frameworkId, routeName, transitionId) => [String, String, Optional(String)],
+      routeChangeReceived: (frameworkId, routeName, transitionId) => [String, String, Optional(String)],
+      routeNavigationStarted: (frameworkId, routeName, transitionId) => [String, String, Optional(String)],
+      routeMounted: (routeName, transitionId) => [String, Optional(String)],
+      reload: (routeName, params, options) => [String, Object, Object],
+      getCurrent: () => {},
+      getState: () => {},
+      resetStates: () => {},
+      getBreadcrumbs: () => {},
+      reportActiveScope: payload => Object,
+    },
+
+    ui_router_routeManager: {
+      addVueRoutes: routes => Array,
+      removeRuntimeRoutes: () => {},
+      registerModRoutes: (sourceId, routes, options) => [String, Array, Optional(Object)],
+      unregisterModRoutes: (sourceId, options) => [String, Optional(Object)],
+      getAllRoutes: () => {},
+      getRoute: route => Object,
+    },
+    ui_pause_actions: {
+      executeAction: (buttonId, payload) => [Integer, Object],
+      registerModTab: tab => Object,
+      unregisterModTab: id => String,
+      registerModButton: button => Object,
+      unregisterModButton: id => String,
+      getVisibleModTabs: () => {},
+    },
+    ui_pause_photomode: {
+      getAdvancedRenderState: () => {},
+      getCameraState: () => {},
+      getCaptureState: () => {},
+      getEffectsState: () => {},
+      listPresets: presetType => Object,
+      discoverTemporaryPresets: presetType => Object,
+      getResolutionPresetState: () => {},
+      getSceneState: () => {},
+      isDebugEnabled: () => {},
+      loadAdvancedRenderBookmark: () => {},
+      loadEnvironmentBookmark: () => {},
+      requestScreenshot: options => Object,
+      openPreviewShareUrl: shareUrl => String,
+      playPreviewFromMetadata: openMap => Object,
+      applyPreset: (presetType, presetId) => [String, String],
+      applyPresetPayload: (presetType, payload) => [String, Object],
+      deletePreset: (presetType, presetId) => [String, String],
+      resetAdvancedRenderToDefaults: () => {},
+      resetEffectsToDefaults: () => {},
+      resetCameraDefaults: () => {},
+      restoreCameraBookmark: bookmark => Object,
+      restoreSavedFreeCameraBookmark: () => {},
+      restoreSavedRelativeCameraBookmark: () => {},
+      restoreSessionCameraTransformState: () => {},
+      saveAdvancedRenderBookmark: () => {},
+      saveCurrentCameraBookmark: () => {},
+      saveCurrentPreset: (presetType, name, options) => [String, String, Object],
+      saveEnvironmentBookmark: () => {},
+      savePresetPayload: (presetType, name, payload, origin) => [String, String, Object, Object],
+      savePresetBundle: (bundle, namePrefix, origin) => [Object, String, Object],
+      setDebugEnabled: value => Boolean,
+      setHiddenCameraInputEnabled: value => Boolean,
+      setCameraSmoothMovement: value => Boolean,
+      setNodeGrabberVisible: value => Boolean,
+      setAdvancedRenderTuningEnabled: value => Boolean,
+      setAdvancedRenderState: state => Object,
+      setCameraFov: value => Number,
+      setCameraExposureState: state => Object,
+      setCameraSpeed: value => Number,
+      setCameraRoll: value => Number,
+      setCaptureState: partialState => Object,
+      setResolutionPreset: presetId => String,
+      traceCaptureDebug: (scope, payload) => [String, Object],
+      renamePreset: (presetType, presetId, name) => [String, String, String],
+      setEffectsState: state => Object,
+      setSceneState: state => Object,
+      getRoutePayload: () => {},
+    },
+    ui_photomode_overlays: {
+      getOverlays: () => {},
+      listUiApps: () => {},
+      listLiveryGraphics: () => {},
+      createOverlay: (destId, payload) => [String, Object],
+      saveOverlay: (id, payload) => [String, Object],
+      cloneOverlay: (sourceId, destId) => [String, String],
+      renameOverlay: (sourceId, destId, newName) => [String, String, String],
+      deleteOverlay: id => String,
     },
 
     ui_uiMods: {
       getVueMods: () => {},
+      getUiApps: () => {},
+      getImageList: path => String,
+    },
+
+    ui_options: {
+      // dev-only: persists the options layout editor JSON (into the user folder; sandboxed)
+      saveLayout: (key, data) => [String, String],
+      // dev-only: which layout files currently resolve to the user folder (local, unsubmitted edits)
+      getUserFolderLayouts: () => {},
+    },
+
+    ui_apps: {
+      getUIAppsData: () => {},
+      notifyLayoutsChanged: () => {},
+    },
+
+    ui_appLayouts: {
+      getAvailableLayouts: () => {},
+      saveLayout: data => Object,
+      deleteLayout: filename => String,
+      resetLayout: (filename, layoutType) => [String, String],
+      getCurrentLayout: () => {},
+      setCurrentLayout: layoutOrFilename => Any,
+      setUsedLayout: idOrType => Any,
+      resetUsedLayout: () => {},
+      createLayout: data => Object,
+      renameLayout: (filename, title) => [String, String],
+      duplicateLayout: (filename, title) => [String, String],
+      addApp: (layoutId, appName, placement) => [String, String, Object],
+      removeApp: (layoutId, appInstanceIdOrIndex) => [String, Any],
+      applyPlacementPatch: (layoutId, appInstanceIdOrIndex, placement) => [String, Any, Object],
+      setEditing: enabled => Boolean,
+      isEditing: () => {},
     },
   },
 
@@ -952,14 +1253,27 @@ export default {
     setData: args => Object,
     clearData: () => {},
   },
+  ui_apps_missionControls: {
+    sendAllData: () => {},
+    setControl: args => Object,
+    setControls: list => Array,
+    clearControls: () => {},
+  },
   ui_apps_pointsBar: {
     requestAllData: () => {},
   },
-  ui_gameplayAppContainers: {
-    // New individual app visibility API
+  ui_appContainers: {
     getVisibleApps: (containerId) => String,
-    onGameplayAppContainerMounted: () => {},
-    onGameplayAppContainerUnmounted: () => {},
+    getAvailableApps: (containerId) => String,
+    setAppVisibility: (containerId, appId, visible) => [String, String, Boolean],
+    getAppVisibility: (containerId, appId) => [String, String],
+    showApp: (containerId, appId) => [String, String],
+    hideApp: (containerId, appId) => [String, String],
+    toggleApp: (containerId, appId) => [String, String],
+    hideAllApps: (containerId) => String,
+  },
+  ui_appContainers_topCenter: {
+    getVisibleApps: (containerId) => String,
     getAvailableApps: (containerId) => String,
     setAppVisibility: (containerId, appId, visible) => [String, String, Boolean],
     getAppVisibility: (containerId, appId) => [String, String],
@@ -968,25 +1282,14 @@ export default {
     toggleApp: (containerId, appId) => [String, String],
     hideAllApps: (containerId) => String,
 
-    // Legacy API (deprecated but kept for compatibility)
     getContainerContext: (containerId) => String,
     setContainerContext: (containerId, context) => [String, String],
     resetContainerContext: (containerId) => String,
     getAvailableContexts: (containerId) => String,
+    clearMessagesFromSource: source => String,
+    clearAllFlashMessages: () => {},
+    getCenterBannerContent: () => {},
   },
-  ui_messagesTasksAppContainers: {
-    getVisibleApps: (containerId) => String,
-    onMessagesTasksAppContainerMounted: () => {},
-    onMessagesTasksAppContainerUnmounted: () => {},
-    getAvailableApps: (containerId) => String,
-    setAppVisibility: (containerId, appId, visible) => [String, String, Boolean],
-    getAppVisibility: (containerId, appId) => [String, String],
-    showApp: (containerId, appId) => [String, String],
-    hideApp: (containerId, appId) => [String, String],
-    toggleApp: (containerId, appId) => [String, String],
-    hideAllApps: (containerId) => String,
-  },
-
 
   scenetree: {
     "maincef:setMaxFPSLimit": fps => Integer, // This name is problematic and need to use [] syntax to call - intellisense should pick it up
@@ -1000,22 +1303,29 @@ export default {
   },
 
   core_camera: {
+    notifyUI: () => {},
     setFOV: (playerId, fovDeg) => [Integer, Number],
+    setByName: (playerId, name) => [Integer, String],
+    changeOrder: (oneBasedIndex, direction) => [Integer, Integer],
+    toggleEnabledById: (oneBasedIndex) => Integer,
+    rotate_yaw: (value, filterType) => [Number, Integer],
+    rotate_pitch: (value, filterType) => [Number, Integer],
   },
 
   core_modmanager: {
     requestState: () => {},
   },
 
+  core_onScreenKeyboard: {
+    openOnScreenKeyboard: (title, placeholder, initialText, maxLength, inputType, textBoxLeft, textBoxTop, textBoxWidth, textBoxHeight) => [String, Any, Any, Any, Any, Number, Number, Number, Number],
+    isOnScreenKeyboardAvailable: () => { },
+  },
+
   core_vehicles: {
     cloneCurrent: () => {},
     getModel: model => String,
-    getCurrentVehicleDetails: withMocked(
-      () => {},
-      () => getMockedData("vehicle.details")
-    ),
+    getCurrentVehicleDetails: () => {},
     getVehicleLicenseText: id => Number, // TODO - not sure if this will be used - may need to send some Lua code directly - consider how to do this
-    loadDefault: () => {},
     removeAll: () => {},
     removeAllExceptCurrent: () => {},
     removeCurrent: () => {},
@@ -1028,12 +1338,17 @@ export default {
     replaceVehicle: (model, args) => [String, Object],
     isLicensePlateValid: text => Any,
     getModelList: () => {},
+
+    // --- RLS Career Overhaul additions ---
+    loadDefault: () => {},
   },
 
 
   ui_gridSelector: {
     //Tiles
     getTiles: (backendName, currentPath, pathChanged) => [String, Object, Boolean],
+    requestClusterTiles: (backendName, path, requestId) => [String, Object, Number],
+    getSelectorSnapshot: (backendName, path) => [String, String],
     getFilters: (backendName) => String,
 
     //Filters
@@ -1058,6 +1373,7 @@ export default {
 
     //Details
     getDetails: (backendName, itemDetails) => [String, Object],
+    requestDetails: (backendName, itemDetails, requestId) => [String, Object, Number],
     executeButton: (backendName, buttonId, additionalData) => [String, Number, Object],
     getManagementDetails: (backendName) => String,
     exitCallback: () => {},
@@ -1068,12 +1384,23 @@ export default {
 
   },
 
+  ui_appSelector_general: {
+    requestDetails: (item, requestId) => [Object, Integer],
+    setDisplayDataOption: (key, value, requestId) => [String, Any, Integer],
+    resetDisplayDataToDefaults: requestId => Integer,
+  },
+
   ui_gameplaySelector_general: {
     openGameplaySelector: () => {},
+    openRallySelector: () => {},
+    navigateToCluster: (clusterTitle) => Object,
+    setDisplayDataOption: (key, value, requestId) => [String, Any, Integer],
+    resetDisplayDataToDefaults: requestId => Integer,
+
+    // --- RLS Career Overhaul additions ---
     openChallengesSelector: () => {},
     openCampaignsSelector: () => {},
     openScenariosSelector: () => {},
-    openRallySelector: () => {},
   },
 
   ui_gameplaySelector_tileGenerators_levelTiles: {
@@ -1083,14 +1410,33 @@ export default {
   },
   ui_vehicleSelector_general: {
     openVehicleSelectorForFreeroamModal: () => {},
+    openVehicleSelectorForGarage: showOwnedOnly => Boolean,
+    openFromPause: () => {},
+    isOpenedFromGarage: () => {},
+    navigateToVehicle: tile => Object,
+    requestDetails: (item, requestId) => [Object, Integer],
+    setDisplayDataOption: (key, value, requestId) => [String, Any, Integer],
+    emitDisplayDataSnapshot: requestId => Integer,
+    setVehicleRestrictionMode: restrictionMode => Optional(String),
+  },
+  ui_vehicleSelector_vehicleMetadataEditor: {
+    getVehicleMetadataDetails: (data) => Object,
   },
   ui_freeroamSelector_general: {
+    openFromPause: () => {},
     setCustomDetailsButtons: (buttons) => Array,
     getCustomDetailsButtons: () => {},
     setManagementButtonsEnabled: (enabled) => Boolean,
     getManagementButtonsEnabled: () => {},
     openFreeroamSelectorWithCustomButtons: (buttons, callback) => [Array, Function],
     setExitCallback: (callback) => Function,
+    emitDisplayDataSnapshot: (requestId) => Integer,
+  },
+  ui_pause_camera: {
+    beginPauseSession: () => {},
+    endPauseSession: () => {},
+    start: () => {},
+    stop: () => {},
   },
   /*
 
@@ -1123,16 +1469,6 @@ export default {
     goToMod: modId => String,
   },
   */
-  ui_topBar: {
-    hide: () => {},
-    requestData: () => {},
-    requestEntries: () => {},
-    setActiveItem: itemId => String,
-    selectItem: itemId => String,
-    show: () => {},
-  },
-
-
   core_vehicle_manager: {
     reloadAllVehicles: () => {},
     toggleDebug: () => {},
@@ -1160,6 +1496,12 @@ export default {
     startLevel: () => {},
   },
 
+  debug_vehicleDebug: {
+    toggleDebugEnabled: () => {},
+    getDebugEnabled: () => {},
+    setDebugEnabled: (value) => [Boolean],
+  },
+
   util_screenshotCreator: {
     startWork: workOptions => Any,
   },
@@ -1171,6 +1513,56 @@ export default {
   scenario_scenariosLoader: {
     getList: () => {},
     start: scenario => Object,
+  },
+
+  scenario_busdriver: {
+    requestState: () => {},
+  },
+
+  scenario_quickRaceLoader: {
+    uiHotlappingAppDestroyed: () => {},
+  },
+
+  quickrace_quickraceConfigurator: {
+    getConfiguration: () => {},
+    selectLevel: levelName => String,
+    selectMiddle: (levelName, middleName) => [String, String],
+    selectVehicle: (model, config, additionalData) => [String, Optional(String), Optional(Any)],
+    updateSetting: (key, value) => [String, Any],
+    toggleShowLapRecords: () => {},
+    start: () => {},
+  },
+
+  lightrunner_lightrunnerConfigurator: {
+    getConfiguration: () => {},
+    selectLevel: levelName => String,
+    selectMiddle: (levelName, middleName) => [String, String],
+    selectVehicle: (model, config, additionalData) => [String, Optional(String), Optional(Any)],
+    updateSetting: (key, value) => [String, Any],
+    toggleShowLapRecords: () => {},
+    start: () => {},
+  },
+
+  busroute_busrouteConfigurator: {
+    getConfiguration: () => {},
+    selectLevel: levelName => String,
+    selectMiddle: (levelName, middleName) => [String, String],
+    selectVehicle: (model, config, additionalData) => [String, Optional(String), Optional(Any)],
+    updateSetting: (key, value) => [String, Any],
+    toggleShowLapRecords: () => {},
+    start: () => {},
+  },
+
+  core_hotlapping: {
+    changeSize: (amount, instant) => [Number, Boolean],
+    stopHotlapping: () => {},
+    addCheckPoint: () => {},
+    stopTimer: () => {},
+    refreshTracklist: () => {},
+    rename: (oldName, newName) => [String, String],
+    load: filename => String,
+    save: () => {},
+    skipLap: () => {},
   },
 
   ui_apps_minimap_minimap: {
@@ -1186,7 +1578,12 @@ export default {
     requestAdditionalInfo: () => {},
   },
 
-  WinInput: {
+  ui_policeInfo: {
+    isPursuit: () => Boolean,
+    onPursuitStatsEnded: () => {}
+  },
+
+  Input: {
     setForwardRawEvents: state => Boolean,
     setForwardFilteredEvents: state => Boolean,
   },
@@ -1206,501 +1603,15 @@ export default {
     },
   },
 
+  OnlineServiceProvider: {
+    openFriendsListDialog: () => {},
+    openInviteDialog: (args) => String,
+  },
+
   Steam: {
-    showFloatingGamepadTextInput: (type, left, top, width, height) => [Number, Number, Number, Number, Number],
+    showFloatingGamepadTextInput: (type, left, top, width, height) => [Number, Number, Number, Number, Number]
   },
 
   setCEFTyping: state => Boolean,
 
-  // -- Testing -------------------------------------------------------------------
-
-  // noParams: () => {},
-  // oneParam: firstParam => {},
-  // manyParams: (first, second, third) => {},
-  // singleStringParam: myString => String,
-  // multiStringParams: (str1, str2) => [String, String],
-  // mixedParamTypes: (int1, str1, int2) => [Number, String, Number],
-
-  // noTransform: function(str) { run('myFunction', [str]) },
-
-  // namespace: {
-  //  noParams: () => {},
-  //  oneParam: firstParam => {},
-  //  manyParams: (first, second, third) => {},
-  //  singleStringParam: myString => String,
-  //  multiStringParams: (str1, str2) => [String, String],
-  //  mixedParamTypes: (int1, str1, int2) => [Number, String, Number],
-
-  //  inner: {
-  //    test1: () => {},
-  //    test2: param => {},
-  //    test3: strParam => String,
-  //    test4: (multi1, multi2) => [String, Boolean]
-  //  }
-  // }
-
-  career_modules_sleep: {
-    closeMenu: () => {},
-    closeAllMenus: () => {},
-    toggleDayNightCycle: toggle => Boolean,
-    sleep: time => Number,
-    getDayNightCycle: () => {}
-  },
-
-  career_modules_loans: {
-    openMenuFromComputer: computerId => String,
-    closeMenu: () => {},
-    closeAllMenus: () => {},
-    getLoanOffers: () => {},
-    getActiveLoans: () => {},
-    getOutstandingPrincipalByOrg: () => {},
-    calculatePayment: (amount, rate, payments) => [Number, Number],
-    takeLoan: (orgId, amount, payments, rate, uncapped, businessAccountId) => [String, Number, Number, Number, Boolean, String],
-    prepayLoan: (loanId, amount) => [String, Number],
-    getNotificationsEnabled: () => {},
-    setNotificationsEnabled: enabled => Boolean,
-    clearAllLoans: () => Number,
-  },
-
-  career_modules_credit: {
-    getScore: () => {},
-    getTier: () => {},
-    getRateMultiplier: () => {},
-    getMaxMultiplier: () => {},
-    getAvailableTerms: () => {},
-    getFactorBreakdown: () => {},
-    getScoreHistory: () => {},
-  },
-
-  career_modules_assignRole: {
-    canPay: () => {},
-    startCertification: () => {},
-    requestAssignmentData: () => {}
-  },
-
-  career_modules_carmeets: {
-    rsvpToMeet: attendanceLevel => {},
-    decline: () => {},
-    closeMenu: () => {},
-    openMenu: () => {},
-    checkAvailableMeets: () => {},
-    requestRSVPData: () => {},
-    cancelRSVP: () => {},
-    setRoute: () => {},
-    updateAttendance: attendanceLevel => {}
-  },
-
-  career_modules_usedCarAuction: {
-    requestAuctionState: () => {},
-    startAuction: () => {},
-    cancelTravelPrompt: () => {},
-    cancelCounterPrompt: () => {},
-    confirmRegisterNextLot: (auctionTypeId, lotCount) => [String, Number],
-    setCounterLotBatchSize: lotCount => Number,
-    placeBid: amount => {},
-    setAuctionMusicEnabled: enabled => {},
-    passCurrentLot: () => {},
-    closeMenu: () => {},
-    setAutoBidEnabled: enabled => {},
-    setAutoBidMax: maxBid => {},
-    exitAuctionArea: () => {},
-    listVehicleForNextAnythingGoesAuction: inventoryId => Number,
-    cancelAuctionListing: inventoryId => Number,
-  },
-
-  career_modules_propertyMortgage: {
-    getAllMortgages: () => {},
-    getMortgagePaymentInfo: garageId => String,
-    payoffMortgage: garageId => String,
-    prepayMortgage: (garageId, amount) => [String, Number],
-    isMortgageAvailable: () => {},
-    createMortgage: (garageId, purchasePrice, selectedTerm) => [String, Number, Number],
-    getMortgage: garageId => String,
-    hasMortgage: garageId => String,
-    canSellMortgagedProperty: (garageId, salePrice) => [String, Number],
-    getMortgageOfferDetails: () => {},
-  },
-
-  career_modules_propertyRentals: {
-    signLease: (garageId, rentalType, leaseTerm) => [String, String, Number],
-    endLeaseEarly: garageId => String,
-    isRentedGarage: garageId => String,
-    getActiveRentals: () => {},
-    getRentalInfo: garageId => String,
-    getRentalEligibility: garageId => String,
-    getRentalBreakdown: garageId => String,
-    getAllRentals: () => {},
-    calculateRent: (garageId, rentalType) => [String, String],
-    calculateDeposit: (garageId, rentalType) => [String, String],
-  },
-
-  career_modules_garageManager: {
-    requestGarageData: () => {},
-    canPay: estimatedTotal => Number,
-    buyGarage: totalToCharge => Number,
-    cancelGaragePurchase: () => {},
-    getGaragePrice: (garage, computerId) => [String, String],
-    canSellGarage: () => {},
-    listGarageForSale: (computerId, askingPrice) => [String, Number],
-    listGarageForSaleByGarageId: (garageId, askingPrice) => [String, Number],
-    sellGarage: () => {},
-    completePropertySaleFromListing: (garageId, finalPrice) => [String, Number],
-    getGarageListingPriceGuidance: (computerId, askingPrice) => [String, Number],
-    getGarageListingPriceGuidanceByGarageId: (garageId, askingPrice) => [String, Number],
-    getGarageActiveListing: computerId => String,
-    removeGarageListing: computerId => String,
-    startGarageSellingNegotiation: (computerId, offerIndex) => [String, Number],
-    getGarageCapacityData: () => {},
-    getOwnedGaragesListingData: () => {},
-    getGarageOffersData: garageId => String,
-    acceptOffer: (garageId, offerIndex) => [String, Number],
-    declineOffer: (garageId, offerIndex) => [String, Number],
-    requestGarageListing: garageId => String,
-    getPendingGarageListing: () => {},
-    showPurchaseGaragePrompt: garageId => String,
-    startGarageNegotiation: garageId => String,
-    purchaseGarageAtListedPrice: garageId => String,
-    purchaseGarageAtNegotiatedPrice: garageId => String,
-    freezeNegotiatedPrice: (garageId, price) => [String, Number],
-    completePurchaseWithNegotiatedPrice: (garageId, finalPrice, freezePrice) => [String, Number, Boolean],
-    canNegotiateGarage: garageId => String,
-  },
-
-  career_modules_realEstateNegotiation: {
-    startNegotiateBuying: garageId => String,
-    startNegotiateSelling: (garageId, offerIndex) => [String, Number],
-    makeOffer: price => Number,
-    takeTheirOffer: () => {},
-    freezeCurrentOffer: () => {},
-    cancelNegotiation: () => {},
-    getNegotiationState: () => {},
-    listPropertyForSale: (garageId, askingPrice) => [String, Number],
-    removePropertyListing: garageId => String,
-    getPropertyListing: garageId => String,
-    getPriceGuidanceForListing: (garageId, askingPrice) => [String, Number],
-    generateNewPropertyOffers: () => {},
-  },
-
-  career_modules_business_businessManager: {
-    requestBusinessData: () => {},
-    canPayBusiness: () => {},
-    canAffordDownPayment: () => {},
-    buyBusiness: () => {},
-    financeBusiness: () => {},
-    cancelBusinessPurchase: () => {},
-    getPurchasedBusinesses: businessType => String,
-  },
-
-  career_modules_business_businessComputer: {
-    getAllRequiredParts: (businessId, vehicleId, parts, cartParts) => [String, String, Array, Array],
-    addPartToCart: (businessId, vehicleId, currentCart, partToAdd) => [String, String, Array, Object],
-    getBusinessComputerUIData: (businessType, businessId) => [String, String],
-    getManagerData: (businessType, businessId) => [String, String],
-    acceptJob: (businessId, jobId) => [String, Integer],
-    declineJob: (businessId, jobId) => [String, Integer],
-    completeJob: (businessId, jobId) => [String, Integer],
-    canCompleteJob: (businessId, jobId) => [String, Integer],
-    abandonJob: (businessId, jobId) => [String, Integer],
-    assignTechToJob: (businessId, techId, jobId) => [String, Integer],
-    getTechsOnly: (businessId) => String,
-    renameTech: (businessId, techId, newName) => [String, Integer],
-    pullOutVehicle: (businessId, vehicleId) => [String, String],
-    putAwayVehicle: (businessId, vehicleId) => String,
-    setActiveVehicle: (businessId, vehicleId) => [String, String],
-    getActiveVehicle: (businessId) => String,
-    getActiveJobs: (businessId) => String,
-    getNewJobs: (businessId) => String,
-    getVehiclePartsTree: (businessId, vehicleId) => [String, String],
-    requestVehiclePartsTree: (businessId, vehicleId) => [String, String],
-    getVehicleTuningData: (businessId, vehicleId) => [String, String],
-    requestVehicleTuningData: (businessId, vehicleId) => [String, String],
-    applyVehicleTuning: (businessId, vehicleId, tuningVars) => [String, String, Object],
-    loadWheelDataExtension: (businessId, vehicleId) => [String, String],
-    unloadWheelDataExtension: (businessId, vehicleId) => [String, String],
-    clearVehicleDataCaches: () => {},
-    getBusinessAccountBalance: (businessType, businessId) => [String, String],
-    getBusinessXP: (businessType, businessId) => [String, String],
-    purchaseCartItems: (businessId, accountId, cartData) => [String, String, Object],
-    installPartOnVehicle: (businessId, vehicleId, partName, slotPath) => [String, String, String, String],
-    initializePreviewVehicle: (businessId, vehicleId) => [String, String],
-    applyTuningToVehicle: (businessId, vehicleId, tuningVars) => [String, String, Object],
-    calculateTuningCost: (businessId, vehicleId, tuningVars, originalVars) => Number,
-    getTuningShoppingCart: (businessId, vehicleId, tuningVars, originalVars) => Object,
-    addTuningToCart: (businessId, vehicleId, currentTuningVars, baselineTuningVars) => [String, String, Object, Object],
-    getVehiclePowerWeight: (businessId, vehicleId) => Object,
-    resetVehicleToOriginal: (businessId, vehicleId) => [String, String],
-    applyPartsToVehicle: (businessId, vehicleId, parts) => [String, String, Array],
-    applyCartPartsToVehicle: (businessId, vehicleId, parts) => [String, String, Array],
-    requestPartInventory: (businessId) => String,
-    requestFinancesData: (businessType, businessId) => [String, String],
-    requestSimulationTime: () => {},
-    sellPart: (businessId, partId) => [String, Integer],
-    sellAllParts: (businessId) => String,
-    sellPartsByVehicle: (businessId, vehicleNiceName) => [String, String],
-    getBrandSelection: (businessId) => String,
-    setBrandSelection: (businessId, brand) => [String, String],
-    getRaceSelection: (businessId) => String,
-    setRaceSelection: (businessId, raceType) => [String, String],
-    requestAvailableBrands: () => {},
-    requestAvailableRaceTypes: () => {},
-    createKit: (businessId, jobId, kitName) => [String, Any, String],
-    deleteKit: (businessId, kitId) => [String, String],
-    applyKit: (businessId, vehicleId, kitId) => [String, Any, String],
-    enterShoppingVehicle: (businessId, vehicleId) => [String, String],
-    exitShoppingVehicle: (businessId) => String,
-  },
-
-  career_modules_business_tuningShop: {
-    getUIData: (businessId) => String,
-    getJobsForBusiness: (businessId) => String,
-    getActiveJobs: (businessId) => String,
-    getNewJobs: (businessId) => String,
-    acceptJob: (businessId, jobId) => [String, Integer],
-    declineJob: (businessId, jobId) => [String, Integer],
-    abandonJob: (businessId, jobId) => [String, Integer],
-    completeJob: (businessId, jobId) => [String, Integer],
-    canCompleteJob: (businessId, jobId) => [String, Integer],
-    getAbandonPenalty: (businessId, jobId) => [String, Integer],
-    getTechData: (businessId) => String,
-    getManagerData: (businessId) => String,
-    getBrandSelection: (businessId) => String,
-    setBrandSelection: (businessId, brand) => [String, String],
-    getRaceSelection: (businessId) => String,
-    setRaceSelection: (businessId, raceType) => [String, String],
-    getAvailableBrands: () => String,
-    getAvailableRaceTypes: () => String,
-    requestAvailableBrands: () => {},
-    requestAvailableRaceTypes: () => {},
-    requestSimulationTime: () => {},
-    getOperatingCosts: (businessId) => String,
-    getFinancesData: (businessId) => String,
-    requestFinancesData: (businessId) => {},
-    getInventoryVehiclesInGarageZone: (businessId) => String,
-    selectPersonalVehicle: (businessId, inventoryId) => [String, Object],
-    isPersonalUseUnlocked: (businessId) => Boolean,
-    updateTechName: (businessId, techId, name) => [String, Integer, String],
-    assignJobToTech: (businessId, techId, jobId) => [String, Integer, Integer],
-    fireTech: (businessId, techId) => [String, Integer],
-    hireTech: (businessId, techId) => [String, Integer],
-    stopTechFromJob: (businessId, techId) => [String, Integer],
-    setManagerPaused: (businessId, paused) => [String, Boolean],
-    getTechsForBusiness: (businessId) => String,
-    getBlacklistData: (businessId) => String,
-    getNotificationListData: (businessId) => String,
-    getManagerBlacklistData: (businessId) => String,
-    updateBlacklist: (businessId, modelKeys) => [String, Array],
-    updateNotificationList: (businessId, entries) => [String, Array],
-    updateManagerBlacklist: (businessId, modelKeys) => [String, Array],
-  },
-
-  career_modules_business_businessPartCustomization: {
-    initializePreviewVehicle: (businessId, vehicleId) => [String, String],
-    resetVehicleToOriginal: (businessId, vehicleId) => [String, String],
-    applyPartsToVehicle: (businessId, vehicleId, parts) => [String, String, Array],
-    applyCartPartsToVehicle: (businessId, vehicleId, parts) => [String, String, Array],
-    installPartOnVehicle: (businessId, vehicleId, partName, slotPath) => [String, String, String, String],
-    getVehiclePowerWeight: (businessId, vehicleId) => Object,
-    getPreviewVehicleConfig: (businessId) => Object,
-    getInitialVehicleState: (businessId) => Object,
-    findRemovedParts: (businessId, vehicleId) => [String, String],
-    clearPreviewVehicle: (businessId) => String,
-    onPowerWeightReceived: (requestId, power, weight) => [String, Number, Number],
-  },
-
-  career_modules_business_businessVehicleTuning: {
-    requestVehicleTuningData: (businessId, vehicleId) => [String, String],
-    getVehicleTuningData: (businessId, vehicleId) => [String, String],
-    applyTuningToVehicle: (businessId, vehicleId, tuningVars) => [String, String, Object],
-    calculateTuningCost: (businessId, vehicleId, tuningVars, originalVars) => Number,
-    applyVehicleTuning: (businessId, vehicleId, tuningVars, accountId) => [String, String, Object, String],
-    clearTuningDataCache: () => [],
-  },
-
-  career_modules_business_businessInventory: {
-    getBusinessVehicles: (businessId) => String,
-    storeVehicle: (businessId, vehicleData) => [String, Any],
-    removeVehicle: (businessId, vehicleId) => [String, String],
-    getVehicleById: (businessId, vehicleId) => [String, String],
-    pullOutVehicle: (businessId, vehicleId) => [String, String],
-    putAwayVehicle: (businessId, vehicleId) => String,
-    getPulledOutVehicle: (businessId) => String,
-    getPulledOutVehicles: (businessId) => String,
-    getActiveVehicle: (businessId) => String,
-    setActiveVehicle: (businessId, vehicleId) => [String, String],
-  },
-
-  career_modules_business_businessSkillTree: {
-    requestSkillTrees: (requestId, businessType, businessId) => [String, String, String],
-    requestPurchaseUpgrade: (requestId, businessType, businessId, treeId, nodeId) => [String, String, String, String, String],
-    getNodeProgress: (businessId, treeId, nodeId) => [String, String, String],
-  },
-
-  career_modules_hardcore: {
-    isHardcoreMode: () => {}
-  },
-
-  gameplay_repo: {
-    generateJob: () => {},
-    getRepoJobInstance: () => {},
-    requestRepoState: () => {},
-    cancelJob: () => {},
-    completeJob: () => {},
-    isRepoVehicle: () => {}
-  },
-
-  gameplay_beamEats: {
-    setAvailable: () => {},
-    stopBeamEatsJob: () => {},
-    requestBeamEatsState: () => {},
-    acceptOrder: () => {},
-    rejectOrder: () => {},
-    dismissSummary: () => {}
-  },
-
-  gameplay_facilityWork: {
-    selectFacility: (id) => {},
-    setBatchSize: (size) => {},
-    requestFacilityWorkState: () => {},
-    startFacilityWork: () => {},
-    endFacilityWork: () => {},
-    repairForklift: () => {}
-  },
-
-  gameplay_phoneCamera: {
-    takePhoto: (orientation, useFlash) => {},
-    getPhotoList: () => {},
-    getPhotoAsDataUrl: filename => String,
-    deletePhotos: (filenames) => [Array], // param is array of filenames; bridge must pass array through (not Number)
-    startPreview: () => {},
-    stopPreview: () => {},
-    setPreviewOrientation: orientation => String,
-    setTorchMode: enabled => Boolean
-  },
-
-  ui_phone_layout: {
-    requestLayout: () => {},
-    updateLayout: layoutData => Any,
-    getSettings: () => {},
-    updateSettings: settingsData => Any,
-    listBackgroundImages: () => {},
-    getBackgroundFolder: () => {},
-    openBackgroundFolder: () => {},
-    getCareerActive: () => {},
-  },
-
-  ui_phone_realEstate: {
-    requestGarageListings: () => {},
-    setRouteToGarage: garageId => String,
-    towToGarage: garageId => String,
-    getMortgageInfo: garageId => String,
-    getRentalInfo: garageId => String,
-    signLease: (garageId, rentalType, leaseTerm) => [String, String, Number],
-    getRentalStatus: garageId => String,
-    endLeaseEarly: garageId => String,
-  },
-
-  ui_phone_freeroamEvents: {
-    getEventsData: () => {},
-    navigateToEvent: raceName => String,
-  },
-
-  ui_phone_freContracts: {
-    getState: filterDisciplineId => {},
-    startLiveUpdates: () => {},
-    stopLiveUpdates: () => {},
-    acceptContract: contractId => {},
-    abandonContract: contractId => {},
-    signSponsor: sponsorId => {},
-    dropSponsor: sponsorId => {},
-    acknowledgeSponsorWarning: sponsorId => {},
-    commitSanctionedRace: () => {},
-    navigateSanctionedRace: () => {},
-    rescheduleSanctionedRace: () => {},
-  },
-
-  ui_phone_logistics: {
-    requestFacilityList: () => {},
-    requestFacilityDetail: facilityId => {},
-    navigateToFacility: (facilityId, parkingSpotPath) => {},
-  },
-
-  ui_phone_time: {
-    requestTime: () => {},
-  },
-
-  overhaul_maps: {
-    getOtherAvailableMaps: () => {},
-    getMapsExcludingWestCoast: () => {},
-    getCompatibleMaps: () => {}
-  },
-
-  gameplay_loading: {
-    requestQuarryState: () => {},
-    acceptContractFromUI: index => Integer,
-    declineAllContracts: () => {},
-    abandonContractFromUI: () => {},
-    sendTruckFromUI: () => {},
-    finalizeContractFromUI: () => {},
-    loadMoreFromUI: () => {},
-    selectZoneFromUI: zoneIndex => Integer,
-    swapZoneFromUI: () => {},
-    setZoneWaypointFromUI: zoneTag => String,
-  },
-
-  career_modules_playerAttributes: {
-    addAttributes: (change, reason, fullprice) => [Object, Any, Boolean],
-    setAttributes: (newValues, reason) => [Object, Any],
-    getAttribute: attributeName => Any,
-    getAttributeValue: attributeName => Any,
-    getAllAttributes: () => {},
-    getAttributeLog: () => {},
-    onSaveCurrentSaveSlot: currentSavePath => String,
-    onExtensionLoaded: () => {},
-    onCareerModulesActivated: () => {},
-  },
-
-  career_modules_payment: {
-    canPay: price => Object,
-  },
-
-  career_modules_bank: {
-    createAccount: (name, accountType, initialDeposit) => [String, String, Number],
-    deleteAccount: accountId => String,
-    renameAccount: (accountId, newName) => [String, String],
-    deposit: (accountId, amount) => [String, Number],
-    withdraw: (accountId, amount) => [String, Number],
-    transfer: (fromAccountId, toAccountId, amount) => [String, String, Number],
-    getAccounts: () => {},
-    getAccountBalance: accountId => String,
-    getBusinessAccount: (businessType, businessId) => [String, String],
-    getPendingTransfers: () => {},
-    cancelPendingTransfer: transferId => String,
-    getAccountTransactions: (accountId, limit) => [String, Number],
-  },
-
-  career_modules_switchMap: {
-    switchMap: (level) => {}
-  },
-
-  gameplay_cardGames: {
-    open: gameId => String,
-    close: () => {},
-    setBet: amount => Number,
-    confirmBet: () => {},
-    action: (name, payload) => [String, Any],
-    newRound: () => {},
-    requestSync: () => {},
-    clearGamblingPromptPlayerLock: () => {},
-    startGambleCameraAnim: () => {},
-    stopGambleCameraAnim: () => {},
-    leaveTable: () => {},
-  },
-
-  career_modules_business_tuningShopKits: {
-    loadBusinessKits: businessId => Object,
-    createKit: (businessId, jobId, kitName) => [Boolean],
-    deleteKit: (businessId, kitId) => [Boolean],
-    applyKit: (businessId, vehicleId, kitId) => Object,
-    getKitCostBreakdown: (businessId, vehicleId, kitId) => Object,
-  },
 }

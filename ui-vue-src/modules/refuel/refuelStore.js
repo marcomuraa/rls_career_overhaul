@@ -2,10 +2,6 @@ import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 import { lua, useBridge } from "@/bridge"
 
-// DEBUG_ONLY >>
-import { getMockedData, runInBrowser} from '@/utils'
-// << END_DEBUG_ONLY
-
 const isFuelEnergyType = type => ["gasoline", "diesel"].includes(type)
 
 export const useRefuelStore = defineStore("refuel", () => {
@@ -97,12 +93,6 @@ export const useRefuelStore = defineStore("refuel", () => {
 
   function requestFuelingData() {
     lua.career_modules_fuel.requestRefuelingTransactionData()
-
-    // DEBUG_ONLY >> Get some mock fuel data if we're outside the game
-    runInBrowser(
-      () => getMockedData('career.initialFuelingData').then(data => events.emit("initialFuelingData", data))
-    )
-    // << END_DEBUG_ONLY
   }
 
   function cancelTransaction() {

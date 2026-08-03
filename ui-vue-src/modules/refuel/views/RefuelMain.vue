@@ -83,9 +83,7 @@ import FuelAmountSettings from "../components/FuelAmountSettings.vue"
 import { CareerStatus } from "@/modules/career/components"
 import { TaskList } from '@/modules/tasks'
 import { useTasksStore } from '@/modules/tasks'
-import { useLibStore } from '@/services'
-
-const { $game } = useLibStore()
+import { lua } from '@/bridge'
 
 const refuelStore = useRefuelStore()
 const mainSettings = computed(() => fuellingModes[refuelStore.currentFuelType])
@@ -115,7 +113,7 @@ provide('animationSettings', {
 })
 
 function playAudio() {
-  $game.lua.Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Checkbox')
+  lua.Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Checkbox')
 }
 </script>
 
