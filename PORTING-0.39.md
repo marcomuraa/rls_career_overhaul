@@ -121,6 +121,68 @@ reached the UI.
 
 ---
 
+## Taxi work
+
+The taxi job system is a shipped, tuned feature, not a work in progress:
+`ReadMe.md:140` documents it ("Pick up passengers with 9 different passenger
+types and fare tiers"), the store listing advertises it, and the module carries
+56 commits including payout balancing and edge-case hardening. Anything broken
+about it on 0.39 is port damage, and 0.38 is a valid working baseline to diff
+against.
+
+(The "Coming Soon" text in `gameplay/domains/careerSkills/skills/taxi/info.json`
+is the career *skill progression* entry — a separate XP layer. It says nothing
+about whether the job loop runs.)
+
+### Namespace collision — *fixed*
+
+The mod shipped `lua/ge/extensions/gameplay/taxi.lua` at the same path as a
+base-game file and, uniquely among its 60 replacements, **not** under
+`overrides/`. It shadowed the base module by VFS precedence — outside
+`overrideManager`, and invisible to `tools/find_missing_api.py`, which only
+scans `overrides/`.
+
+The two are different features sharing three generic hooks:
+
+| | mod | 0.39 base |
+|---|---|---|
+| Concept | you **drive** a taxi for fares | you **hail** a taxi and ride |
+| API | `generateJob`, `acceptJob`, `rejectJob`, `prepareTaxiJob`, `stopTaxiJob`, passenger types, fare multipliers | `callForTaxi`, `confirmTaxiDestination`, `startTaxiWithCurrentRoute`, `isTaxiRideActive` |
+
+Because the mod's table was truthy but lacked the base API, unmodified base code
+broke: `freeroam/bigMapMode.lua:1070` calls `gameplay_taxi.isTaxiRideActive()`,
+so **opening the world map threw** — under an error naming `gameplay_taxi`,
+which points a debugger at entirely the wrong feature.
+
+Renamed to `gameplay_taxiJobs`. `tools/find_missing_api.py` should be extended
+to scan mod files shadowing base paths outside `overrides/` — today that is one
+file, but it hid this whole class of bug.
+
+### Outstanding for taxi
+
+The taxi state machine itself is clean on 0.39: every base API it touches
+(`gameplay_sites_sitesManager`, `gameplay_parking`, `map.getPointToPointPath`,
+`career_modules_payment`, `career_modules_inventory`) still exists unchanged, and
+its bridge declarations are complete. The blockers are around it:
+
+1. **The world is grey in career** — see the grey-world section. Nothing is
+   driveable until that is fixed.
+2. **The phone never opens.** `gameplay/phone.lua:25` is the only route to the
+   taxi UI, for both the phone key and taxi's own auto-open when a fare is
+   offered (`taxiJobs.lua:967, 1189`). It uses
+   `guihooks.trigger('ChangeState', {state = 'phone-taxi'})`, and **nothing in
+   0.39's Vue app listens for `ChangeState` and navigates** — the only three
+   listeners are unrelated cleanup and a legacy AngularJS rebroadcast. So no
+   phone app works at all.
+
+   Fixing it needs two parts, and the second is easy to miss:
+   `ui_router.navigate` resolves against the **Lua** route tree
+   (`ui/router/routeManager.lua`), not the Vue router, and static Vue routes are
+   invisible to it — `ui/ui-vue/src/router/index.js:114` only syncs *runtime*
+   routes. 0.39 provides `ui_router_routeManager.registerModRoutes(sourceId,
+   routes, options)` (`routeManager.lua:631`) for exactly this. The mod uses
+   neither today. Unresolved names are quiet: `W  Route not found: <name>`.
+
 ## Outstanding
 
 From `tools/find_missing_api.py`. The tool classifies each call site:
