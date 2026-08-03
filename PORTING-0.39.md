@@ -175,48 +175,64 @@ Both hardcode the game path near the top; adjust for your install.
 **Current state: a career loads, the loading screen clears, the menu closes and
 the game reaches the play state — but the world renders as flat grey.**
 
-### What the grey screen is *not*
+### What the grey screen is *not* — all measured, do not re-investigate
 
-Each of these was checked against the running game and ruled out, so they do not
-need checking again:
+**The decisive result: freeroam renders perfectly.** Loading `west_coast_usa` in
+**freeroam with the mod active** gives a flawless world — full textures,
+lighting, shadows, reflections. The identical level in **career** is flat grey.
 
-- **Not the ImGui corruption.** The minimap overrides were stale 0.38 copies and
-  did leave an unbalanced ImGui frame (see the minimap entry above). Removing
-  them takes `[imgui-error]` from five per frame to **zero** — and the world is
-  still grey. Worth fixing on its own merits; not the cause.
-- **Not lighting.** ScatterSky initialises fully (8404 stars, coordinate and
-  equatorial grids, 743 constellation segments). No postfx or tonemapper errors.
-- **Not materials.** Exactly **one** missing texture in the whole session
-  (`rls_signs/sign1_o.data.png`, a mod asset) and two unmapped materials. A
-  wholesale material failure would produce thousands.
-- **Not shaders.** No compile failures logged.
-- **Not the UI covering the viewport.** Alt+U hides the UI entirely and the grey
-  remains, with correct geometry visible as untextured silhouettes — skyline,
-  buildings, road, treeline all in the right places.
+That single comparison rules out, in one shot:
 
-So the geometry is present and correctly placed, and the renderer is healthy
-enough to draw the main menu's level beautifully in the same session. Something
-specific to the career load path is flattening the image.
+- the mod's `levels/west_coast_usa` overlay (same level, same files, fine in freeroam)
+- any mod-wide render breakage (same mod loaded in both)
+- the machine, drivers, Vulkan and graphics settings (same session)
 
-### The open lead
+**The grey is specific to the career activation path.** That is where to look,
+and nowhere else.
 
-The look is soft-edged, desaturated and over-bright — visually identical to the
-blurred menu background in the career-warning dialog screenshot. 0.39 drives that
-through `ui/gameBlur.lua` plus `ui-vue/src/services/gameBlur.js`, where a Vue view
-registers a blur region on mount and clears it on unmount via
-`ui_gameBlur.replaceGroup("uiBlur", ...)`.
+Also individually eliminated, with evidence:
 
-If the mod's UI never cleanly leaves its menu route, that region is never
-released and the blur stays over the game. This is consistent with the route
-problem below, and would make route naming the *cause* of the grey screen rather
-than a separate cosmetic issue.
+| Hypothesis | Verdict | Evidence |
+|---|---|---|
+| ImGui frame corruption | **dead** | fixed by removing the stale minimap overrides; `[imgui-error]` went 5/frame to zero, world still grey |
+| Lighting / postfx | **dead** | ScatterSky initialises fully (8404 stars, grids, constellations); no postfx or tonemapper errors |
+| Materials | **dead** | exactly one missing texture in a whole session, two unmapped materials; a real failure would be thousands |
+| Shaders | **dead** | no compile failures logged |
+| UI covering the viewport | **dead** | Alt+U hides the UI entirely; grey remains, geometry visible as untextured silhouettes |
+| Stuck native material-debug flag | **dead** | reproduces in fresh processes; that flag is in-process state with no disk persistence |
+| `clearLevels.lua` deleting assets | **dead** | deployed `levels/` intact after a full run — 1161 files, identical to the repo |
+| Leaked full-screen `ui_gameBlur` region | **dead** | masked blur reads the already-rendered colour buffer; it softens, it cannot erase texture and lighting to flat grey |
 
-**Caveat: not yet confirmed.** `ui_gameBlur` never appears in the log, which is
-weak evidence against it. The cheap discriminating test is to load **freeroam**
-on the same level with the mod active: freeroam does not go through the career
-routes, so if freeroam renders correctly and career does not, the career UI path
-is implicated. If both are grey the cause is elsewhere entirely and this lead
-should be dropped.
+### The live lead: the career load path's handoff out of loading
+
+The visual character — soft-edged, desaturated, over-bright, correct geometry —
+resembles the treatment BeamNG applies *behind* the loading screen. Career and
+freeroam differ precisely in how they leave that state:
+
+- Freeroam goes through `freeroam_freeroam.startFreeroam()` and lets it finish;
+  the extension releases its own loading tag as part of completing startup.
+- The overhaul **unloads `freeroam_freeroam`**, so that never happens. The
+  `levels` tag is likewise released through `serverConnection.disconnect()`'s
+  state machine, which does not complete on the career path.
+
+The current code force-releases both stranded tags in
+`overrides/career/career.lua` (`releaseStrandedLoadingScreenTags`). That
+correctly *hides* the loading screen — verified — but hiding it is not the same
+as completing the transition the base game would have run. **The hypothesis to
+test next: the career path never performs whatever render-state handoff normally
+accompanies the end of loading, so the world keeps being drawn in its
+loading-time state.**
+
+Concrete next steps:
+
+1. Instrument the freeroam path and the career path side by side and diff what
+   runs after the last loading tag is released — `server.fadeoutLoadingScreen()`,
+   `core_gamestate` transitions, `commands.setGameCamera`, and anything
+   `freeroam_freeroam` does on completion that the overhaul skips.
+2. Try letting `freeroam_freeroam` finish starting up before unloading it,
+   rather than unloading it and force-releasing its tag afterwards.
+3. Compare `core_gamestate.state` between a working freeroam session and a grey
+   career session at the same point.
 
 ### Route naming — the likely root cause
 
