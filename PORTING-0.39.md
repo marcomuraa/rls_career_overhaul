@@ -76,7 +76,26 @@ the base store is used.
 
 ---
 
-### Career-profile API restored — *fix committed, not yet re-tested in game*
+### Starting modes restored — *verified in game*
+
+Creating a new career was impossible: the New Profile screen rendered with an
+empty "Start Mode" section, so there was nothing to click.
+
+0.39 added starting modes (`/lua/ge/extensions/career/startingModes/*.lua`, one
+table per entry point). `ProfileNew.vue` builds its list from
+`career_career.getStartingModeOptions()` and catches failure with an empty array,
+so the missing function produced a blank section rather than an error.
+
+Ported `getStartingModeOptions`, `getCurrentStartingModeData` and the
+`M.startingOptions` field. Also fixed an argument-shape mismatch: the base game
+calls `createOrLoadCareerAndStart(name, specificSave, startingOptions)`, where
+this mod's third parameter is a `tutorial` boolean — a table there is truthy, so
+every new career would have started in tutorial mode with the selected mode
+discarded.
+
+APM Onboarding and Open World now both render and a new career starts loading.
+
+### Career-profile API restored — *verified in game*
 
 0.39 renamed the save-slot concept throughout. Implementations are identical, so
 these went in as aliases:
@@ -153,49 +172,52 @@ Both hardcode the game path near the top; adjust for your install.
 
 ## Resuming this work
 
-**Next step: the Career Profiles screen still hangs on "Loading…".** This is the
-current blocker — nothing past it has been exercised.
+**Current state: a new career starts and loads West Coast USA.** The menu path -
+main menu, profile list, new profile, starting-mode selection, world load - works
+end to end. What has *not* been reached yet is in-world gameplay, because first
+load spends a long time cooking textures for the mod's custom content; every test
+run so far has hit its own timeout during that stage. Re-run with a generous
+timeout (textures are cooked once, later loads are fast) and carry on from there.
 
-What is already ruled out:
+**Next steps, in order:**
 
-- The Lua job no longer dies. `sendAllCareerProfilesData` exists and
-  `asyncBulkLoader` completes; the previous jobsystem error is gone from the log.
-- The event name is not the problem. The Lua now emits both
-  `allCareerSaveSlots` (what this mod's `Profiles.vue` listens for) and
-  `allCareerProfiles` (what the base game's listens for).
-- There are no remaining Lua errors in the log beyond the known-benign
-  `GridMap` / `openPhone` ones and the `setExtensionUnloadMode` spam (issue 8).
+1. Get into the world and confirm the player spawns, the garage computer opens,
+   and the mod's phone UI appears. Expect the router-exit holes (issue 3) to bite
+   here - 0.39 routes career screens through `ui/router/routeHandlers.lua`.
+2. Work down the LIVE list above.
+3. Two lower-priority items seen in passing:
+   - `loadVehicleOffers: unknown vehicle filterId 'fleetVehFilter' /
+     'policeFleetVehFilter' / 'exoticVehFilter'` from
+     `overrides/career/modules/delivery/generator.lua` — the mod's vehicle
+     filters are not registering.
+   - `career_modules_linearTutorial` is nil at
+     `overrides/career/modules/inventory.lua:763`.
 
-Leading hypothesis — **the profile payload shape changed**. The two formatters
-produce different fields:
+### Route naming — not yet addressed
 
-```
-0.39  formatProfileForUi   ... boughtStarterVehicle, startingOptions ...
-mod   formatSaveSlotForUi  ... activeChallenge, cheatsMode, difficultyMode,
-                               freSkills, hardcoreMode, preview ...
-```
+0.39 namespaced every career route under `career.*` (`career.computer`,
+`career.profiles`, `career.computer.vehicleShopping`, …) and the base game's Lua
+references those names 58+ times. This mod's `ui-vue-src/modules/career/routes.js`
+replaces the whole route table with the old flat names (`computer`, `profiles`,
+…) and its Lua navigates via `guihooks.trigger('ChangeState', {state = '<flat>'})`.
 
-The mod's payload is missing `startingOptions` and `boughtStarterVehicle`, both
-tied to the starting-modes system 0.39 introduced (`career/startingModes/`,
-`M.startingOptions`, `getCurrentStartingModeData` — see issue 2, currently marked
-shadowed). If the base game's profile screen is the one rendering, it may be
-waiting on fields the mod never sends.
+It has not caused a visible failure yet, but it is the most likely cause of the
+next round of "screen does not open" bugs. 0.39 also split profiles into three
+routes/components (`ProfileSelect`, `ProfileNew`, `ProfileSaveSelect`) where the
+mod has one `Profiles.vue` — which the base game no longer routes to at all, so
+the mod's profile screen is currently dead code.
 
-Suggested order of attack:
+Worth considering: rebase `routes.js` onto the 0.39 file the same way
+`LuaFunctionSignatures.js` was, keeping the mod's own routes and letting the
+overlaid views (`ComputerMain.vue`, `VehicleShoppingMain.vue`, …) be picked up
+automatically, since `ui-vue-src/` overlays `baseUI/src/` at identical paths.
 
-1. Determine which component actually renders the screen — the mod's
-   `Profiles.vue` or the base game's. Check whether the mod's
-   `ui-vue-src/modules/career/routes.js` override is winning. If the base game's
-   view is rendering, that alone explains the hang and points at either restoring
-   the mod's route or matching the new payload.
-2. If the base game's view is rendering, add `startingOptions` and
-   `boughtStarterVehicle` to `formatSaveSlotForUi`, and port
-   `getCurrentStartingModeData` plus the `startingModes/` handling into the
-   `career.lua` override (issue 2 is then no longer merely "shadowed").
-3. Use the Vue debug overlay / DevTools console for UI-side errors — the Lua log
-   will not show a component that simply never receives its data.
+### Testing note
 
-After that, work down the LIVE list above.
+Do not test with **profile 3** — it is an Italy career, and
+`rls_career_overhaul_italy_1.4.zip` is inactive in the mods folder, so it loads
+Italy with no facilities and looks like a port bug. Use a fresh profile or one of
+the West Coast saves.
 
 Environment used (Linux, native build — no Proton):
 
