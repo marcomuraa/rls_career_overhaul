@@ -265,7 +265,49 @@ Also individually eliminated, with evidence:
 | `clearLevels.lua` deleting assets | **dead** | deployed `levels/` intact after a full run — 1161 files, identical to the repo |
 | Leaked full-screen `ui_gameBlur` region | **dead** | masked blur reads the already-rendered colour buffer; it softens, it cannot erase texture and lighting to flat grey |
 
-### The live lead: the career load path's handoff out of loading
+### Attempt 1 — deferring initAfterLevelLoad: *did not fix it*
+
+0.39 moved career initialisation out of `startFreeroam`'s completion callback
+and into `onClientPostStartMission`, via `pendingInitAfterLevelLoad`. That
+matters because `initAfterLevelLoad` calls
+`core_gamestate.setGameState("career", "career", nil)` — the transition into the
+play state — and the callback fires before the engine considers the mission
+started. The mod had no `onClientPostStartMission` at all.
+
+Matching the base ordering (commit `4c0a9a0f`) **did not fix the grey world.**
+It is kept anyway: it is what 0.39 does, and running the state transition at the
+right point is correct regardless. But it is not the cause, so do not spend more
+time here.
+
+What that run *did* confirm, all measured in-game:
+
+- the `career_modules_linearTutorial` shim works — the per-frame exception that
+  was firing ~75×/second is gone
+- `[imgui-error]`: **0**
+- `Route not found`: **0**
+- the minimap now draws the real map, roads and all, after the stale minimap
+  overrides were removed
+
+So the renderer is demonstrably capable of drawing textured content in this same
+frame — the SDF minimap is proof. Whatever is wrong is specific to the main
+scene render in career.
+
+### Two fresh leads from that run
+
+1. **`Tried to get facilities without level!`** —
+   `overrides/freeroam/facilities.lua:108`, fired at t=148s, well after the level
+   should be up. `getFacilities` guards on an empty `levelName`, so something is
+   asking for facilities while the current level identifier is nil. If the game
+   does not consider a level current, that is worth chasing on its own and could
+   plausibly relate to the render state.
+2. **The camera is in free-camera mode.** The in-game panel reads "Free Camera"
+   with W/S/C bindings, alongside walk bindings. `career.lua`'s
+   `onVehicleGroupSpawned` job calls `commands.setGameCamera(true)` after a 6.7s
+   sleep — a timing hack. If the camera never lands on the player, the view may
+   simply be pointed somewhere empty. Check what camera is actually active and
+   whether that hack still lands.
+
+### Older lead: the loading handoff
 
 The visual character — soft-edged, desaturated, over-bright, correct geometry —
 resembles the treatment BeamNG applies *behind* the loading screen. Career and
