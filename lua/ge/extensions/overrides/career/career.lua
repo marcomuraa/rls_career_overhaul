@@ -1037,7 +1037,18 @@ M.sendCurrentSaveSlotData = sendCurrentSaveSlotData
 -- sendAllCareerProfilesData() at the end of its load job, and because this
 -- override replaces career.lua wholesale, its absence killed the job and left
 -- the Career Profiles screen stuck on "Loading...".
-M.sendAllCareerProfilesData = sendAllCareerSaveSlotsData
+--
+-- The guihooks event was renamed too, and either UI may be the one listening:
+-- this mod's profile screen waits for "allCareerSaveSlots" while the base game's
+-- waits for "allCareerProfiles". Emit both so whichever renders receives its
+-- data - sending an event nobody listens to is harmless.
+local function sendAllCareerProfilesData()
+  local res = sendAllCareerSaveSlotsData()
+  guihooks.trigger("allCareerProfiles", res)
+  return res
+end
+
+M.sendAllCareerProfilesData = sendAllCareerProfilesData
 M.sendCurrentProfileData = sendCurrentSaveSlotData
 M.getAutosavesForSaveSlot = getAutosavesForSaveSlot
 M.hasBoughtStarterVehicle = hasBoughtStarterVehicle
