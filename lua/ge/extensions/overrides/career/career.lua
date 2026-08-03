@@ -10,9 +10,14 @@ M.dependencies = {'career_saveSystem', 'core_recoveryPrompt', 'gameplay_traffic'
 
 M.tutorialEnabled = false
 
+-- Set from the new-profile screen's starting-mode selection (0.39). Read by
+-- getCurrentStartingModeData and forwarded to the UI with each profile.
+M.startingOptions = {}
+
 local debugMenuEnabled = not shipping_build
 
 local careerModuleDirectory = '/lua/ge/extensions/career/modules/'
+local startingModesDirectory = "/lua/ge/extensions/career/startingModes/"
 local saveFile = "general.json"
 local levelName = "west_coast_usa"
 local defaultLevel = path.getPathLevelMain(levelName)
@@ -369,7 +374,81 @@ local function applyChallengeConfig(cfg)
   return true
 end
 
+-- 0.39 introduced starting modes: /lua/ge/extensions/career/startingModes/*.lua
+-- each return a table describing one entry point (APM Onboarding, Open World,
+-- ...). The new-profile screen builds its "Start Mode" list from
+-- getStartingModeOptions(), and with this override replacing career.lua the call
+-- rejected and the list rendered empty, leaving no way to start a new career.
+local function getStartingModeOptions()
+  local function sanitizeStartingModeForUi(modeData)
+    return {
+      id = modeData.id,
+      order = modeData.order,
+      tier = modeData.tier,
+      title = modeData.title,
+      description = modeData.description,
+      image = modeData.image,
+      tag = modeData.tag,
+    }
+  end
+
+  local options = {}
+  local files = FS:findFiles(startingModesDirectory, "*.lua", -1, true, false)
+  table.sort(files)
+
+  for _, filePath in ipairs(files) do
+    local loadedOk, modeData = pcall(dofile, filePath)
+    if loadedOk and type(modeData) == "table" and modeData.id and not modeData.ignore then
+      table.insert(options, sanitizeStartingModeForUi(modeData))
+    else
+      log("W", "career.startingModes", string.format("Unable to load starting mode from '%s'", tostring(filePath)))
+    end
+  end
+
+  table.sort(options, function(a, b)
+    local ao = tonumber(a.order) or math.huge
+    local bo = tonumber(b.order) or math.huge
+    if ao ~= bo then
+      return ao < bo
+    end
+    return tostring(a.id) < tostring(b.id)
+  end)
+
+  return deepcopy(options)
+end
+
+-- Returns the full definition of the mode the current profile was started with.
+-- career_modules_inventory and career_modules_playerAttributes consult this.
+local function getCurrentStartingModeData()
+  local startModeId = M.startingOptions and M.startingOptions.startMode
+  if type(startModeId) ~= "string" then
+    return nil
+  end
+
+  local files = FS:findFiles(startingModesDirectory, "*.lua", -1, true, false)
+  table.sort(files)
+
+  for _, filePath in ipairs(files) do
+    local loadedOk, modeData = pcall(dofile, filePath)
+    if loadedOk and type(modeData) == "table" and modeData.id == startModeId and not modeData.ignore then
+      return modeData
+    end
+  end
+
+  return nil
+end
+
 local function createOrLoadCareerAndStart(name, specificAutosave, tutorial, hardcore, challengeId, cheats, startingMap, difficultyMode)
+  -- The base-game new-profile screen calls this as
+  -- createOrLoadCareerAndStart(name, specificSave, startingOptions), so its third
+  -- argument is a table rather than this mod's `tutorial` boolean. Detect that
+  -- shape and unpack it instead of treating the table as a truthy flag.
+  if type(tutorial) == "table" then
+    local startingOptions = tutorial
+    M.startingOptions = startingOptions
+    tutorial = startingOptions.tutorial or (startingOptions.startMode == "apmOnboarding")
+  end
+
   core_gamestate.requestEnterLoadingScreen("careerLoading")
   if careerActive then
     deactivateCareer()
@@ -1032,6 +1111,8 @@ M.getAdditionalMenuButtons = getAdditionalMenuButtons
 
 M.applyChallengeConfig = applyChallengeConfig
 M.createOrLoadCareerAndStart = createOrLoadCareerAndStart
+M.getStartingModeOptions = getStartingModeOptions
+M.getCurrentStartingModeData = getCurrentStartingModeData
 M.activateCareer = activateCareer
 M.deactivateCareer = deactivateCareer
 M.deactivateCareerAndReloadLevel = deactivateCareerAndReloadLevel
