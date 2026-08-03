@@ -54,28 +54,41 @@ def main():
         if not missing:
             continue
 
-        # Of those, which are actually called by base-game code?
+        # Of those, which are actually called by base-game code that still runs?
+        # A call site inside a file this mod also overrides never executes, and a
+        # call guarded by `module.name and module.name(...)` degrades instead of
+        # erroring - neither is a crash, so both are reported separately.
         called = {}
         for name in missing:
             pat = re.compile(rf"\b{module}\.{name}\s*\(")
-            hits = [
-                str(p.relative_to(GAME))
-                for p, t in game_text.items()
-                if p != vanilla and pat.search(t)
-            ]
+            guard = re.compile(rf"\b{module}\.{name}\s+and\b")
+            hits = []
+            for p, t in game_text.items():
+                if p == vanilla or not pat.search(t):
+                    continue
+                try:
+                    p_rel = p.relative_to(GAME / "lua/ge/extensions")
+                except ValueError:
+                    p_rel = None
+                shadowed = p_rel is not None and (OVERRIDES / p_rel).exists()
+                tag = "shadowed" if shadowed else ("guarded" if guard.search(t) else "LIVE")
+                hits.append((tag, str(p.relative_to(GAME))))
             if hits:
                 called[name] = hits
+        live = sum(1 for v in called.values() if any(t == "LIVE" for t, _ in v))
         if called:
-            rows.append((module, f"{len(called)} missing & called", called))
+            rows.append((module, f"{live} live / {len(called)} missing", called))
 
     rows.sort(key=lambda r: -len(r[2]) if isinstance(r[2], dict) else 0)
     for module, summary, called in rows:
         print(f"\n### {module}  --  {summary}")
-        if isinstance(called, dict):
-            for name, hits in sorted(called.items()):
-                where = ", ".join(sorted(set(hits))[:3])
-                more = "" if len(set(hits)) <= 3 else f" (+{len(set(hits)) - 3} more)"
-                print(f"    {name:38s} <- {where}{more}")
+        if not isinstance(called, dict):
+            continue
+        for name, hits in sorted(called.items()):
+            worst = "LIVE" if any(t == "LIVE" for t, _ in hits) else hits[0][0]
+            where = sorted({f for t, f in hits if t == worst})
+            more = "" if len(where) <= 2 else f" (+{len(where) - 2} more)"
+            print(f"    [{worst:8s}] {name:34s} <- {', '.join(where[:2])}{more}")
 
 
 if __name__ == "__main__":
