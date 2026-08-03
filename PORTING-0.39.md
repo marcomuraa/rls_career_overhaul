@@ -153,8 +153,49 @@ Both hardcode the game path near the top; adjust for your install.
 
 ## Resuming this work
 
-**Next step:** re-launch and confirm the Career Profiles screen now populates
-instead of hanging on "Loading…", then work down the LIVE list above.
+**Next step: the Career Profiles screen still hangs on "Loading…".** This is the
+current blocker — nothing past it has been exercised.
+
+What is already ruled out:
+
+- The Lua job no longer dies. `sendAllCareerProfilesData` exists and
+  `asyncBulkLoader` completes; the previous jobsystem error is gone from the log.
+- The event name is not the problem. The Lua now emits both
+  `allCareerSaveSlots` (what this mod's `Profiles.vue` listens for) and
+  `allCareerProfiles` (what the base game's listens for).
+- There are no remaining Lua errors in the log beyond the known-benign
+  `GridMap` / `openPhone` ones and the `setExtensionUnloadMode` spam (issue 8).
+
+Leading hypothesis — **the profile payload shape changed**. The two formatters
+produce different fields:
+
+```
+0.39  formatProfileForUi   ... boughtStarterVehicle, startingOptions ...
+mod   formatSaveSlotForUi  ... activeChallenge, cheatsMode, difficultyMode,
+                               freSkills, hardcoreMode, preview ...
+```
+
+The mod's payload is missing `startingOptions` and `boughtStarterVehicle`, both
+tied to the starting-modes system 0.39 introduced (`career/startingModes/`,
+`M.startingOptions`, `getCurrentStartingModeData` — see issue 2, currently marked
+shadowed). If the base game's profile screen is the one rendering, it may be
+waiting on fields the mod never sends.
+
+Suggested order of attack:
+
+1. Determine which component actually renders the screen — the mod's
+   `Profiles.vue` or the base game's. Check whether the mod's
+   `ui-vue-src/modules/career/routes.js` override is winning. If the base game's
+   view is rendering, that alone explains the hang and points at either restoring
+   the mod's route or matching the new payload.
+2. If the base game's view is rendering, add `startingOptions` and
+   `boughtStarterVehicle` to `formatSaveSlotForUi`, and port
+   `getCurrentStartingModeData` plus the `startingModes/` handling into the
+   `career.lua` override (issue 2 is then no longer merely "shadowed").
+3. Use the Vue debug overlay / DevTools console for UI-side errors — the Lua log
+   will not show a component that simply never receives its data.
+
+After that, work down the LIVE list above.
 
 Environment used (Linux, native build — no Proton):
 
