@@ -217,7 +217,6 @@ local function toggleCareerModules(active, alreadyInLevel)
     local extensionFiles = {}
     local files = FS:findFiles(careerModuleDirectory, '*.lua', -1, true, false)
     for i = 1, tableSize(files) do
-      extensions.luaPathToExtName(modulePath)
       local extensionFile = string.gsub(files[i], "/lua/ge/extensions/", "")
       extensionFile = string.gsub(extensionFile, ".lua", "")
       --if not string.find(extensionFile, "delivery") then
