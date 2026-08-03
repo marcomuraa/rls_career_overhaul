@@ -33,9 +33,58 @@ def exports(text):
     return set(EXPORT_RE.findall(text))
 
 
+def find_shadows():
+    """Mod files that replace a base-game module without living under overrides/.
+
+    overrideManager only rewires package.preload for files under overrides/, but
+    BeamNG's VFS gives any mod file priority over a base-game file at the same
+    path. So a file placed directly in lua/ge/extensions/ replaces the base
+    module just as completely, while being invisible to both overrideManager and
+    the scan below.
+
+    This is how gameplay/taxi.lua went unnoticed: it shadowed a base module of
+    the same name but an entirely different feature, which broke unmodified
+    base-game callers of the real API.
+    """
+    mod_root = REPO / "lua/ge/extensions"
+    shadows = []
+    for f in sorted(mod_root.rglob("*.lua")):
+        rel = f.relative_to(mod_root)
+        # overrides/ is the sanctioned mechanism; overhaul/ is the mod's own.
+        if rel.parts[0] in ("overrides", "overhaul"):
+            continue
+        if (GAME / "lua/ge/extensions" / rel).exists():
+            shadows.append(rel)
+    return shadows
+
+
+def report_shadows(shadows):
+    print("\n=== Shadowed base-game modules (outside overrides/) ===")
+    if not shadows:
+        print("    none")
+        return
+    for rel in shadows:
+        mod_ex = exports(read(REPO / "lua/ge/extensions" / rel))
+        van_ex = exports(read(GAME / "lua/ge/extensions" / rel))
+        shared = mod_ex & van_ex
+        # Few shared exports means these are unrelated features colliding on a
+        # path, not an old copy of the same module - a much worse problem, since
+        # base-game callers of the real API break.
+        verdict = "DIFFERENT FEATURE" if len(shared) <= 3 else "stale copy"
+        print(f"    [{verdict:17s}] {rel}")
+        print(f"        mod exports {len(mod_ex)}, base exports {len(van_ex)}, shared {len(shared)}")
+        missing = sorted(van_ex - mod_ex)
+        if missing:
+            shown = ", ".join(missing[:6])
+            more = "" if len(missing) <= 6 else f" (+{len(missing) - 6} more)"
+            print(f"        base API the mod does not provide: {shown}{more}")
+
+
 def main():
     game_lua = list((GAME / "lua").rglob("*.lua"))
     game_text = {p: read(p) for p in game_lua}
+
+    report_shadows(find_shadows())
 
     rows = []
     for f in sorted(OVERRIDES.rglob("*.lua")):
