@@ -310,106 +310,50 @@ Both hardcode the game path near the top; adjust for your install.
 **Current state: a career loads, the loading screen clears, the menu closes and
 the game reaches the play state — but the world renders as flat grey.**
 
-### What the grey screen is *not* — all measured, do not re-investigate
+### The grey world — narrowed to "player spawns on foot"
 
-**The decisive result: freeroam renders perfectly.** Loading `west_coast_usa` in
-**freeroam with the mod active** gives a flawless world — full textures,
-lighting, shadows, reflections. The identical level in **career** is flat grey.
+Four observations, all measured:
 
-That single comparison rules out, in one shot:
+| Case | Vehicles in save | Player spawns | Result |
+|---|---|---|---|
+| west_coast_usa, **freeroam** | n/a | in a car | **renders** |
+| italy, **career** (profile 3) | 1 | in a truck | **renders** |
+| west_coast_usa, career (profile 1) | 0 | walking, free camera | grey |
+| west_coast_usa, career (profile 2) | 0 | walking, free camera | grey |
 
-- the mod's `levels/west_coast_usa` overlay (same level, same files, fine in freeroam)
-- any mod-wide render breakage (same mod loaded in both)
-- the machine, drivers, Vulkan and graphics settings (same session)
+The obvious reading was "west_coast_usa in career", since that is the only level
+the mod overlays. **That was tested and is wrong**: deploying the mod without its
+`levels/` directory at all, so the game uses the stock level from its zip, still
+renders grey. The mod's level content is not involved.
 
-**The grey is specific to the career activation path.** That is where to look,
-and nowhere else.
+What actually separates the two groups is whether the player spawns **in a
+vehicle or on foot**. Both grey saves have zero vehicles; both working cases put
+the player in one. The grey screenshots also show the "Free Camera" panel, and
+the pause menu reports state "Walking".
 
-Also individually eliminated, with evidence:
+**Next step: get a vehicle into a west_coast_usa career save and reload it.** If
+it renders, the fault is in the on-foot spawn path — the unicycle, or the camera
+that attaches to it — and has nothing to do with levels or career content. If it
+is still grey, this correlation is a coincidence and the level is back in scope.
 
-| Hypothesis | Verdict | Evidence |
-|---|---|---|
-| ImGui frame corruption | **dead** | fixed by removing the stale minimap overrides; `[imgui-error]` went 5/frame to zero, world still grey |
-| Lighting / postfx | **dead** | ScatterSky initialises fully (8404 stars, grids, constellations); no postfx or tonemapper errors |
-| Materials | **dead** | exactly one missing texture in a whole session, two unmapped materials; a real failure would be thousands |
-| Shaders | **dead** | no compile failures logged |
-| UI covering the viewport | **dead** | Alt+U hides the UI entirely; grey remains, geometry visible as untextured silhouettes |
-| Stuck native material-debug flag | **dead** | reproduces in fresh processes; that flag is in-process state with no disk persistence |
-| `clearLevels.lua` deleting assets | **dead** | deployed `levels/` intact after a full run — 1161 files, identical to the repo |
-| Leaked full-screen `ui_gameBlur` region | **dead** | masked blur reads the already-rendered colour buffer; it softens, it cannot erase texture and lighting to flat grey |
+Ruled out along the way, with evidence, so none of these is worth revisiting:
+the mod's level overlay (tested without it), ImGui corruption (fixed, errors
+zero, still grey), lighting (ScatterSky initialises fully), materials (one
+missing texture in a whole session), shaders (no compile failures), a UI layer
+over the viewport (Alt+U hides it, grey remains), a stuck native material-debug
+flag (reproduces in fresh processes), `clearLevels.lua` (deployed files intact),
+a leaked `ui_gameBlur` region (blur cannot erase texture to flat grey), and
+deferring `initAfterLevelLoad` to `onClientPostStartMission` (matched to 0.39,
+no change).
 
-### Attempt 1 — deferring initAfterLevelLoad: *did not fix it*
+Two mod bugs found while investigating, neither the cause:
 
-0.39 moved career initialisation out of `startFreeroam`'s completion callback
-and into `onClientPostStartMission`, via `pendingInitAfterLevelLoad`. That
-matters because `initAfterLevelLoad` calls
-`core_gamestate.setGameState("career", "career", nil)` — the transition into the
-play state — and the callback fires before the engine considers the mission
-started. The mod had no `onClientPostStartMission` at all.
-
-Matching the base ordering (commit `4c0a9a0f`) **did not fix the grey world.**
-It is kept anyway: it is what 0.39 does, and running the state transition at the
-right point is correct regardless. But it is not the cause, so do not spend more
-time here.
-
-What that run *did* confirm, all measured in-game:
-
-- the `career_modules_linearTutorial` shim works — the per-frame exception that
-  was firing ~75×/second is gone
-- `[imgui-error]`: **0**
-- `Route not found`: **0**
-- the minimap now draws the real map, roads and all, after the stale minimap
-  overrides were removed
-
-So the renderer is demonstrably capable of drawing textured content in this same
-frame — the SDF minimap is proof. Whatever is wrong is specific to the main
-scene render in career.
-
-### Two fresh leads from that run
-
-1. **`Tried to get facilities without level!`** —
-   `overrides/freeroam/facilities.lua:108`, fired at t=148s, well after the level
-   should be up. `getFacilities` guards on an empty `levelName`, so something is
-   asking for facilities while the current level identifier is nil. If the game
-   does not consider a level current, that is worth chasing on its own and could
-   plausibly relate to the render state.
-2. **The camera is in free-camera mode.** The in-game panel reads "Free Camera"
-   with W/S/C bindings, alongside walk bindings. `career.lua`'s
-   `onVehicleGroupSpawned` job calls `commands.setGameCamera(true)` after a 6.7s
-   sleep — a timing hack. If the camera never lands on the player, the view may
-   simply be pointed somewhere empty. Check what camera is actually active and
-   whether that hack still lands.
-
-### Older lead: the loading handoff
-
-The visual character — soft-edged, desaturated, over-bright, correct geometry —
-resembles the treatment BeamNG applies *behind* the loading screen. Career and
-freeroam differ precisely in how they leave that state:
-
-- Freeroam goes through `freeroam_freeroam.startFreeroam()` and lets it finish;
-  the extension releases its own loading tag as part of completing startup.
-- The overhaul **unloads `freeroam_freeroam`**, so that never happens. The
-  `levels` tag is likewise released through `serverConnection.disconnect()`'s
-  state machine, which does not complete on the career path.
-
-The current code force-releases both stranded tags in
-`overrides/career/career.lua` (`releaseStrandedLoadingScreenTags`). That
-correctly *hides* the loading screen — verified — but hiding it is not the same
-as completing the transition the base game would have run. **The hypothesis to
-test next: the career path never performs whatever render-state handoff normally
-accompanies the end of loading, so the world keeps being drawn in its
-loading-time state.**
-
-Concrete next steps:
-
-1. Instrument the freeroam path and the career path side by side and diff what
-   runs after the last loading tag is released — `server.fadeoutLoadingScreen()`,
-   `core_gamestate` transitions, `commands.setGameCamera`, and anything
-   `freeroam_freeroam` does on completion that the overhaul skips.
-2. Try letting `freeroam_freeroam` finish starting up before unloading it,
-   rather than unloading it and force-releasing its tag afterwards.
-3. Compare `core_gamestate.state` between a working freeroam session and a grey
-   career session at the same point.
+- `overhaul/addMapChanges.lua` never does anything. It calls `io.open()` on VFS
+  paths like `/levels/...`, which do not exist on the real filesystem, so every
+  write silently fails. Its `additional.items.level.json` content has never been
+  merged.
+- `overhaul/clearLevels.lua:12` has its condition inverted — it deletes level
+  directories when `mapDevMode` is **false**, i.e. for ordinary players.
 
 ### Route naming — the likely root cause
 
