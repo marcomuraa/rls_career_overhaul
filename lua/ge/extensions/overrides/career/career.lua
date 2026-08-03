@@ -1086,12 +1086,38 @@ local function onWorldReadyState(state)
   end
 end
 
+-- The loading screen only hides once every outstanding request is released, and
+-- on the career path two are left held forever, so it never cleared:
+--
+--   freeroam  taken by freeroam_freeroam.startFreeroam() and released when that
+--             extension finishes starting up - but the overhaul unloads it
+--   levels    taken by core_levels.startLevel() and released by a callback run
+--             through serverConnection.disconnect()'s state machine, which does
+--             not complete on this path
+--
+-- Neither raises an error, because holding a request is perfectly legal - the
+-- screen simply stays up with the world fully loaded behind it.
+--
+-- This runs once the vehicle group has spawned and the camera has been handed
+-- to the player, by which point level loading is complete by definition, so an
+-- outstanding request for either tag is stale rather than pending.
+local strandedLoadingScreenTags = {"freeroam", "levels"}
+
+local function releaseStrandedLoadingScreenTags()
+  for _, tag in ipairs(strandedLoadingScreenTags) do
+    if core_gamestate.getLoadingStatus(tag) then
+      core_gamestate.requestExitLoadingScreen(tag)
+    end
+  end
+end
+
 local function onVehicleGroupSpawned()
   if core_gamestate.getLoadingStatus("careerLoading") then
     core_jobsystem.create(function(job)
       job.sleep(6.7)
       commands.setGameCamera(true)
       core_gamestate.requestExitLoadingScreen("careerLoading")
+      releaseStrandedLoadingScreenTags()
       if career_modules_guide and career_modules_guide.showSplashIfNeeded then
         career_modules_guide.showSplashIfNeeded()
       end
