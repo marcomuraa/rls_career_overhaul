@@ -5,7 +5,6 @@
 local M = {}
 
 local layers = require("ui/apps/minimap/layers")
-local clrTransparent = color(0,0,0,0)
 
 -- Vehicle drawing state variables
 local lastPos, lastPos2, pos, fwd, scl = vec3(), vec3(), vec3(), vec3(), vec3()
@@ -83,10 +82,10 @@ local function drawVehicle(pos, fwd, color, size, asCircle, layer)
 
     local borderWidth = math.max(1, math.floor(2 * dpi))
     td:triangle(f.x, f.y, bl.x, bl.y, br.x, br.y, borderWidth, 0, currentStyleColorSet.navBg, currentStyleColorSet.navBg, currentStyleColorSet.navBg, currentStyleColorSet.navBg, 0, layer)
-    td:circle(tmp1.x, tmp1.y, (5*size+2) * dpi, 0, currentStyleColorSet.navBg, currentStyleColorSet.navBg, clrTransparent, clrTransparent, 0, layer)
+    td:circle(tmp1.x, tmp1.y, (5*size+2) * dpi, 0, currentStyleColorSet.navBg, currentStyleColorSet.navBg, 0, 0, 0, layer)
 
     td:triangle(f.x, f.y, bl.x, bl.y, br.x, br.y, 0, 0, color, color, color, color, 0, layer)
-    td:circle(tmp1.x, tmp1.y, 5*size * dpi, 0, color, color, clrTransparent, clrTransparent, 0, layer)
+    td:circle(tmp1.x, tmp1.y, 5*size * dpi, 0, color, color, 0, 0, 0, layer)
   else
     scl = scale*7 * size * dpi
 
@@ -131,7 +130,7 @@ end
 local rot = quat()
 local function drawPlayer(dtReal, dtSim)
   --playerVehicle = getPlayerVehicle(0)
-  local isWalking = gameplay_walk.isWalking()
+  local isWalking = gameplay_walk and gameplay_walk.isWalking()
   if isWalking then
     pos:set(gameplay_walk.getPosXYZ())
     rot:set(gameplay_walk.getRotXYZW())
@@ -164,7 +163,7 @@ local function drawPlayer(dtReal, dtSim)
       -- Fallback to utils colors if StyleColorSet is not available
       currentStyleColorSet = ui_apps_minimap_utils.colors
     end
-    drawVehicle(pos, fwd, currentStyleColorSet.clrFocus, 1, gameplay_walk.isWalking(), layers.VEHICLE_PLAYER)
+    drawVehicle(pos, fwd, currentStyleColorSet.clrFocus, 1, gameplay_walk and gameplay_walk.isWalking(), layers.VEHICLE_PLAYER)
   end
   if commands.isFreeCamera() then
     --drawVehicle(camPos, cameraLook, clrOrange, 1, true, layers.VEHICLE_PLAYER)
@@ -222,6 +221,10 @@ local ignoredTypes = {
 }
 local function drawOtherVehicles(dtReal, dtSim)
   local playerVehId = be:getPlayerVehicleID(0)
+  -- The overhaul unloads the traffic, parking and police extensions in some
+  -- career states, so these are guarded rather than called outright. Police
+  -- data is also hoisted out of the per-vehicle loop below, where the base
+  -- game re-fetches it once per vehicle per frame.
   local traffic = (gameplay_traffic and gameplay_traffic.getTrafficData()) or {}
   local parking = (gameplay_parking and gameplay_parking.getParkedCarsData()) or {}
   local policeCars = (gameplay_police and gameplay_police.getPoliceVehicles()) or {}
@@ -267,7 +270,7 @@ local function drawOtherVehicles(dtReal, dtSim)
       fwd:set(otherVeh:getDirectionVectorXYZ())
       fwd.z = 0
       fwd:normalize()
-      local canUse = (gameplay_walk and not gameplay_walk.isVehicleBlacklisted(otherVId)) or false
+      local canUse = not gameplay_walk or not gameplay_walk.isVehicleBlacklisted(otherVId)
       local currentStyleColorSet = ui_apps_minimap_utils.getCurrentStyleColors()
       if not currentStyleColorSet then
         currentStyleColorSet = ui_apps_minimap_utils.colors
