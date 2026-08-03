@@ -7,15 +7,23 @@ local commandCallback = nil
 local devKey = "dc124d6fb1a6261f"
 
 
+-- Game version this release of the overhaul targets, as "major.minor".
+local supportedGameVersion = "0.39"
+
+-- Note: string.split() does not split on a separator here, it returns every
+-- character of the string (dots included). Indexing into it therefore compared
+-- a single character rather than a version component, which only matched the
+-- supported game version by coincidence. Match the components explicitly.
 local function checkVersion()
     local fileData = jsonReadFile("integrity.json")
-    if fileData.version then
-        local version = fileData.version
-        local versionParts = string.split(version, ".")
-        if versionParts[4] ~= "8" then
-            guihooks.trigger("toastrMsg", {type="error", title="Update required", msg="RLS Career Overhaul is outdated. Please update to the latest version either from Patreon or Github."})
-            return false
-        end
+    if not fileData or not fileData.version then
+        return true
+    end
+
+    local major, minor = tostring(fileData.version):match("^(%d+)%.(%d+)")
+    if not major or (major .. "." .. minor) ~= supportedGameVersion then
+        guihooks.trigger("toastrMsg", {type="error", title="Update required", msg="RLS Career Overhaul is outdated. Please update to the latest version either from Patreon or Github."})
+        return false
     end
     return true
 end
