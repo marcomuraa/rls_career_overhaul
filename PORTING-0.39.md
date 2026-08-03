@@ -331,10 +331,30 @@ vehicle or on foot**. Both grey saves have zero vehicles; both working cases put
 the player in one. The grey screenshots also show the "Free Camera" panel, and
 the pause menu reports state "Walking".
 
-**Next step: get a vehicle into a west_coast_usa career save and reload it.** If
-it renders, the fault is in the on-foot spawn path — the unicycle, or the camera
-that attaches to it — and has nothing to do with levels or career content. If it
-is still grey, this correlation is a coincidence and the level is back in scope.
+**Tested and disproved.** Toggling walking mode in west_coast_usa *freeroam*
+renders perfectly — full textures, lighting, reflections, on foot. Spawning on
+foot is not sufficient to cause it, so that correlation was coincidental.
+
+What survives both experiments is narrow and specific: **career + west_coast_usa,
+with the mod's own level files ruled out.** Italy career is fine; west_coast_usa
+freeroam is fine either in a car or on foot; west_coast_usa career is grey even
+when the stock level is used.
+
+Next hypotheses, in the order worth testing:
+
+1. **Time of day.** The failing frames show a *bright* grey sky with *black*
+   objects, which is what an absent or below-horizon sun looks like while the
+   sky shader keeps rendering. Italy career loaded at 09:10 in full sun; the
+   working freeroam runs are near midday. Career restores time of day from the
+   save, and the mod has its own time and sleep systems. Load a
+   west_coast_usa career and change the time (the phone's sleep menu, or the
+   environment editor) and see whether the world lights up.
+2. **What career adds to west_coast_usa that Italy does not** — the mod's
+   facilities, dealerships, garages and POIs are keyed to west_coast_usa and
+   live outside `levels/` (in `gameplay/`), so removing `levels/` did not
+   exclude them. `Tried to get facilities without level!`
+   (`overrides/freeroam/facilities.lua:108`) fires on this path and is worth
+   chasing on its own.
 
 Ruled out along the way, with evidence, so none of these is worth revisiting:
 the mod's level overlay (tested without it), ImGui corruption (fixed, errors
