@@ -6,14 +6,16 @@ module. If 0.39 added or renamed a function on such a module, any base-game
 file still calling it hits nil, because the mod's older copy is what actually
 loads. This reports those holes before they turn into runtime crashes.
 """
+import os
 import pathlib
 import re
 import sys
 
-REPO = pathlib.Path("/home/m/Downloads/rls_mod")
-GAME = pathlib.Path(
-    "/home/m/.steam/debian-installation/steamapps/common/BeamNG.drive"
-)
+REPO = pathlib.Path(__file__).resolve().parent.parent
+# Set BEAMNG_PATH if your install is elsewhere.
+GAME = pathlib.Path(os.environ.get(
+    "BEAMNG_PATH", "~/.steam/debian-installation/steamapps/common/BeamNG.drive"
+)).expanduser()
 OVERRIDES = REPO / "lua/ge/extensions/overrides"
 
 EXPORT_RE = re.compile(r"^M\.([A-Za-z_]\w*)\s*=", re.M)
