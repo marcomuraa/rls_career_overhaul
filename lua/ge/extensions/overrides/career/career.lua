@@ -313,6 +313,9 @@ local function activateCareer(removeVehicles, levelToLoad)
     spawn.preventPlayerSpawning = true
     freeroam_freeroam.startFreeroam(path.getPathLevelMain(levelToLoad), nil, false, nil, function()
       toggleCareerModules(true)
+      -- Leave the menu route once the level is up, as the base game does here.
+      -- Without it the profile screen stays on top of the loaded world.
+      M.closeAllMenus()
       initAfterLevelLoad(newSave)
       server.fadeoutLoadingScreen()
     end)
@@ -1043,7 +1046,10 @@ local function onVehicleAddedToInventory(data)
 end
 
 local function closeAllMenus()
-  guihooks.trigger('ChangeState', {state = 'play', params = {}})
+  -- 0.39 drives navigation through ui_router; the old ChangeState trigger no
+  -- longer moves the UI (the base game has it commented out for the same
+  -- reason). Without this the menu stays on screen over the loaded world.
+  extensions.ui_router.navigate("play")
 end
 
 local function isAutosaveEnabled()
