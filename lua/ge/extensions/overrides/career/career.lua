@@ -29,6 +29,10 @@ local boughtStarterVehicle
 local organizationInteraction = {}
 local switchLevel = nil
 local isNewSaveFlag = false
+
+-- 0.39 defers initAfterLevelLoad out of startFreeroam's callback and into
+-- onClientPostStartMission; see the comment on onClientPostStartMission below.
+local pendingInitAfterLevelLoad = nil
 local pendingDifficultyMode = nil
 
 local nodegrabberActions = {"nodegrabberGrab", "nodegrabberRender", "nodegrabberStrength", "nodegrabberAction"}
@@ -283,6 +287,21 @@ local function initAfterLevelLoad(newSave)
   extensions.hook("onCareerActive", true, newSave)
 end
 
+-- initAfterLevelLoad calls core_gamestate.setGameState("career", ...), which is
+-- the transition into the play state. startFreeroam's completion callback fires
+-- *before* the engine considers the mission started, so running it there sets
+-- the game state too early and the world is left rendering as it was during
+-- loading -- geometry present, untextured and unlit.
+--
+-- 0.39 handles this by parking the work in pendingInitAfterLevelLoad and running
+-- it from onClientPostStartMission instead. Do the same.
+local function onClientPostStartMission()
+  if not pendingInitAfterLevelLoad then return end
+  local newSave = pendingInitAfterLevelLoad.newSave
+  pendingInitAfterLevelLoad = nil
+  initAfterLevelLoad(newSave)
+end
+
 local function activateCareer(removeVehicles, levelToLoad)
   if careerActive then return end
   -- load career
@@ -309,14 +328,21 @@ local function activateCareer(removeVehicles, levelToLoad)
   M.tutorialEnabled = false
   log("I", "", "Tutorial for career disabled.")
 
+  pendingInitAfterLevelLoad = nil
+
   if not getCurrentLevelIdentifier() or (getCurrentLevelIdentifier() ~= levelToLoad) then
     spawn.preventPlayerSpawning = true
+    -- 0.39 additions: clear any spawning options left over from a previous
+    -- session, and hand traffic setup to the career's own playerDriving module.
+    freeroam_freeroam.resetSpawningOptions()
+    freeroam_freeroam.spawningOptionsHelper.trafficMode = "disabled"
     freeroam_freeroam.startFreeroam(path.getPathLevelMain(levelToLoad), nil, false, nil, function()
       toggleCareerModules(true)
       -- Leave the menu route once the level is up, as the base game does here.
       -- Without it the profile screen stays on top of the loaded world.
       M.closeAllMenus()
-      initAfterLevelLoad(newSave)
+      -- Deferred, not called here -- see onClientPostStartMission.
+      pendingInitAfterLevelLoad = { newSave = newSave }
       server.fadeoutLoadingScreen()
     end)
   else
@@ -1190,6 +1216,7 @@ M.onBeforeSetSaveSlot = onBeforeSetSaveSlot
 M.onSerialize = onSerialize
 M.onDeserialized = onDeserialized
 M.onClientStartMission = onClientStartMission
+M.onClientPostStartMission = onClientPostStartMission
 M.onClientEndMission = onClientEndMission
 M.onAnyMissionChanged = onAnyMissionChanged
 M.onVehicleAddedToInventory = onVehicleAddedToInventory
